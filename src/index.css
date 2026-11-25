@@ -143,7 +143,9 @@ select {
   inset: 0 !important;
   margin: auto !important;
   height: fit-content !important;
-  translate: none !important;
+  /* Zero Konsta's -50% shift through its variables: the minifier drops a plain translate override. */
+  --tw-translate-x: 0px !important;
+  --tw-translate-y: 0px !important;
   transform: none !important;
   transition:
     opacity 0.18s ease-in,
