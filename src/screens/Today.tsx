@@ -115,15 +115,7 @@ export function TodayScreen() {
     <FitCard
       title="Food"
       onOpen={() => nav.go('food')}
-      trailing={
-        foodDone ? (
-          <DoneMark />
-        ) : (
-          <button type="button" aria-label="Log food" className="fit-plus" onClick={() => nav.go('food', { name: 'addFood', date })}>
-            <Sym name="plus" size={17} />
-          </button>
-        )
-      }
+      trailing={foodDone ? <DoneMark /> : undefined}
     >
       <div className="sq-center">
         <MacroRings totals={totals} settings={settings} />
