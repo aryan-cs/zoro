@@ -2,6 +2,9 @@ import { CategoryScale, Chart, Filler, LinearScale, LineController, LineElement,
 import { useEffect, useRef } from 'react';
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler);
+// The system font (SF Pro on iPhone), as in Health's charts; Chart.js otherwise draws Helvetica Neue.
+Chart.defaults.font.family = 'system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif';
+Chart.defaults.font.size = 12;
 
 export interface Series {
   label: string;
@@ -19,7 +22,7 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
     if (!canvas.current) return;
     const dark = document.documentElement.classList.contains('dark');
     const grid = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-    const text = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
+    const text = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)'; // iOS secondary label
     // No data yet: still draw the chart area (gridlines and dates), just without values.
     const empty = !series.some((s) => s.data.some((v) => v !== null && v !== undefined));
     chart.current?.destroy();
