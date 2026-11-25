@@ -16,7 +16,7 @@ import { createContext, useCallback, useContext, useRef, useState, type ReactNod
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { Sym } from './Sym';
-import type { SFName } from './sf';
+import { SF, type SFName } from './sf';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
@@ -257,7 +257,8 @@ export const RING_GRADIENT = {
   distance: ['#0091ff', '#00d9ff'],
 } as const;
 
-type RingGlyph = 'arrow' | 'double' | 'up' | 'chevron';
+/** Fitness's stroked arrow, or an SF Symbol drawn filled on the start cap (the macro rings). */
+type RingGlyph = 'arrow' | SFName;
 
 const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 function mixColor(a: string, b: string, t: number) {
@@ -303,13 +304,38 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
   const [ex, ey] = onRing(cx, cy, r, end);
   const [ox, oy] = onRing(cx, cy, r, over);
   const [sx, sy] = onRing(cx, cy, r, 0);
-  const g = w * 0.22; // glyph half-size
-  const glyphPath = {
-    arrow: `M${sx - g} ${sy}h${g * 2}m${-g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
-    double: `M${sx - g} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}M${sx - g * 0.1} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
-    up: `M${sx} ${sy + g}v${-g * 2}m${-g * 0.85} ${g * 0.85}l${g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}`,
-    chevron: `M${sx - g * 0.4} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
-  }[glyph];
+  const g = w * 0.22; // arrow half-size
+  // On the cap, a deep shade of the ring's own color (pure black read as a hole); on an empty
+  // track, the ring color itself so the glyph stays legible.
+  const ink = p > 0 ? mixColor(colors[0], '#000000', 0.62) : colors[0];
+  const inkOpacity = p > 0 ? 1 : 0.7;
+  let glyphEl: ReactNode;
+  if (glyph === 'arrow') {
+    glyphEl = (
+      <path
+        d={`M${sx - g} ${sy}h${g * 2}m${-g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`}
+        fill="none"
+        stroke={ink}
+        strokeOpacity={inkOpacity}
+        strokeWidth={w * 0.12}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    );
+  } else {
+    // The symbol fits a box 60% of the ring's width, centered on the start cap.
+    const sym = SF[glyph];
+    const k = (w * 0.6) / Math.max(sym.w, sym.h);
+    glyphEl = (
+      <path
+        d={sym.d}
+        fill={ink}
+        fillOpacity={inkOpacity}
+        fillRule={sym.e ? 'evenodd' : 'nonzero'}
+        transform={`translate(${sx - (sym.w * k) / 2} ${sy - (sym.h * k) / 2}) scale(${k})`}
+      />
+    );
+  }
   return (
     <g>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={colors[0]} strokeOpacity="0.15" strokeWidth={w} />
@@ -327,17 +353,7 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
           <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
         </>
       )}
-      {/* On the cap, a deep shade of the ring's own color (pure black read as a hole); on an empty
-          track, the ring color itself so the glyph stays legible. */}
-      <path
-        d={glyphPath}
-        fill="none"
-        stroke={p > 0 ? mixColor(colors[0], '#000000', 0.62) : colors[0]}
-        strokeOpacity={p > 0 ? 1 : 0.7}
-        strokeWidth={w * 0.12}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {glyphEl}
     </g>
   );
 }
@@ -360,7 +376,7 @@ export function BigRing(props: { value: number; target: number; colors: readonly
   const w = props.w ?? 44;
   return (
     <svg viewBox="0 0 220 220" className="big-ring" aria-hidden>
-      <Ring c={[110, 110]} r={110 - w / 2} w={w} value={props.value} target={props.target} colors={props.colors} glyph="arrow" />
+      <Ring c={[110, 110]} r={110 - w / 2} w={w} value={props.value} target={props.target} colors={props.colors} glyph="drop.fill" />
     </svg>
   );
 }
@@ -481,10 +497,10 @@ export function FitStat(props: { label: string; value: ReactNode | null; unit?: 
 export function MacroRings({ totals, settings }: { totals: Macros; settings: Settings }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const rows: [number, number, readonly [string, string], RingGlyph][] = [
-    [totals.kcal, settings.kcalTarget, RING_GRADIENT.move, 'arrow'],
-    [totals.protein, settings.proteinTarget, RING_GRADIENT.exercise, 'double'],
-    [totals.carbs, carbs, RING_GRADIENT.carbs, 'up'],
-    [totals.fat, settings.fatTarget, RING_GRADIENT.steps, 'chevron'],
+    [totals.kcal, settings.kcalTarget, RING_GRADIENT.move, 'flame.fill'],
+    [totals.protein, settings.proteinTarget, RING_GRADIENT.exercise, 'frying.pan.fill'],
+    [totals.carbs, carbs, RING_GRADIENT.carbs, 'carrot.fill'],
+    [totals.fat, settings.fatTarget, RING_GRADIENT.steps, 'circle.hexagongrid.fill'],
   ];
   const R = 70;
   const W = R * 0.19;
@@ -502,10 +518,10 @@ export function MacroRings({ totals, settings }: { totals: Macros; settings: Set
 export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const rows: [string, number, number, string, string, readonly [string, string], RingGlyph][] = [
-    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL', RING_GRADIENT.move, 'arrow'],
-    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G', RING_GRADIENT.exercise, 'double'],
-    ['Carbs', totals.carbs, carbs, FITNESS.carbs, 'G', RING_GRADIENT.carbs, 'up'],
-    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'chevron'],
+    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL', RING_GRADIENT.move, 'flame.fill'],
+    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G', RING_GRADIENT.exercise, 'frying.pan.fill'],
+    ['Carbs', totals.carbs, carbs, FITNESS.carbs, 'G', RING_GRADIENT.carbs, 'carrot.fill'],
+    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'circle.hexagongrid.fill'],
   ];
   // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings keep
   // the same stroke-to-gap ratio: stroke 19%, gap 1.7%, hole 19%.

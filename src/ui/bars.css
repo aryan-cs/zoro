@@ -1101,9 +1101,9 @@ button.meal-row:not(:disabled):active {
 .water-pct {
   position: absolute;
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 58px;
+  font-size: 66px;
   font-weight: 700;
-  line-height: 62px;
+  line-height: 70px;
   font-variant-numeric: tabular-nums;
   color: #00b7ff;
 }
