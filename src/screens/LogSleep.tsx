@@ -1,5 +1,5 @@
 import { Dialog, DialogButton, Page } from 'konsta/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
@@ -28,25 +28,58 @@ function setShortcutState(v: 'tried' | 'ok') {
 }
 export const shortcutInstalled = () => shortcutState() === 'ok';
 
-/** Native alert that hands off to Apple's "Add Shortcut" screen. */
-export function InstallShortcutDialog({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+/** Load the signed shortcut file ahead of time, so sharing it can happen right on the tap. */
+let shortcutFile: Promise<File | null> | null = null;
+function loadShortcutFile(): Promise<File | null> {
+  shortcutFile ??= fetch(SHORTCUT_URL)
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+    .then((b) => new File([b], 'Zoro Sleep.shortcut', { type: 'application/octet-stream' }))
+    .catch(() => {
+      shortcutFile = null;
+      return null;
+    });
+  return shortcutFile;
+}
+
+/**
+ * Native alert, then the iOS share sheet with the signed shortcut file: pick Shortcuts
+ * and Apple's own "Add Shortcut" screen opens. (Opening the file as a page only shows
+ * a blank sheet in a Home Screen app.)
+ */
+export function InstallShortcutDialog({ opened, onClose, onManual }: { opened: boolean; onClose: () => void; onManual?: () => void }) {
+  const toast = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  useEffect(() => {
+    if (opened) void loadShortcutFile().then(setFile);
+  }, [opened]);
+
+  const add = async () => {
+    const f = file ?? (await loadShortcutFile());
+    const data = f ? { files: [f], title: 'Zoro Sleep' } : null;
+    if (!data || !navigator.canShare?.(data)) {
+      onClose();
+      toast("This phone can't hand the file to Shortcuts. Build it by hand instead.");
+      onManual?.();
+      return;
+    }
+    try {
+      await navigator.share(data);
+      setShortcutState('tried');
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) toast('Could not open the share sheet.');
+    }
+    onClose();
+  };
+
   return (
     <Dialog
       opened={opened}
       title="Add “Zoro Sleep”?"
-      content="This shortcut copies last night's sleep from Apple Health so Zoro can read it. Shortcuts will open; tap Add Shortcut, then come back."
+      content="It copies last night's sleep from Apple Health so Zoro can read it. In the share sheet, choose Shortcuts, then tap Add Shortcut."
       buttons={
         <>
           <DialogButton onClick={onClose}>Cancel</DialogButton>
-          <DialogButton
-            strong
-            onClick={() => {
-              setShortcutState('tried');
-              onClose();
-              // A new tab (Safari's sheet in a Home Screen app) can hand the file to Shortcuts.
-              window.open(SHORTCUT_URL, '_blank');
-            }}
-          >
+          <DialogButton strong onClick={() => void add()}>
             Add
           </DialogButton>
         </>
@@ -140,6 +173,7 @@ export function LogSleepScreen() {
       </Section>
 
       <InstallShortcutDialog
+        onManual={() => nav.push({ name: 'sleepSetup' })}
         opened={installing}
         onClose={() => {
           setInstalling(false);

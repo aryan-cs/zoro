@@ -244,7 +244,7 @@ export function SettingsScreen() {
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
       <Note className="mb-2 mt-6 text-center">Zoro · food data from USDA FoodData Central and Open Food Facts (ODbL)</Note>
 
-      <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} />
+      <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} onManual={() => nav.push({ name: 'sleepSetup' })} />
       <Dialog
         opened={pendingImport !== null}
         title="Replace Everything?"

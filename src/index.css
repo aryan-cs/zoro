@@ -133,3 +133,55 @@ select {
 .k-navbar .k-link {
   -webkit-font-smoothing: antialiased;
 }
+
+/*
+ * Alerts: centered without a half-pixel translate (which jitters and blurs text in Safari),
+ * and opened like iOS 26: a quick fade with a small spring up to full size. A keyframe
+ * animation always starts from its first frame, so there's no flash at full size first.
+ */
+.k-dialog {
+  inset: 0 !important;
+  margin: auto !important;
+  height: fit-content !important;
+  translate: none !important;
+  transform: none !important;
+  transition:
+    opacity 0.18s ease-in,
+    visibility 0s linear 0.18s !important;
+}
+.k-dialog.invisible {
+  scale: 1 !important;
+  /* Dismiss: a quick fade, like iOS. */
+  animation: alert-out 0.18s ease-in both;
+}
+@keyframes alert-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.k-dialog:not(.invisible) {
+  transition: visibility 0s !important;
+  animation: alert-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes alert-in {
+  0% {
+    opacity: 0;
+    scale: 0.88;
+  }
+  55% {
+    opacity: 1;
+    scale: 1.015;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-dialog:not(.invisible) {
+    animation-duration: 1ms;
+  }
+}

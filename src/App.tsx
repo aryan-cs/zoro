@@ -12,7 +12,7 @@ import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { ToastProvider } from './ui/kit';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { NavProvider, SLIDE_MS, useNav, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
@@ -158,7 +158,17 @@ function Shell() {
   );
 }
 
-/** Native alert when a new version has been downloaded. */
+// When the app was last opened or brought back to the front.
+let shownAt = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') shownAt = Date.now();
+});
+
+/**
+ * Updates: if a new version turns up right as you open the app, switch to it straight away
+ * (nothing is lost; your data lives on the phone). If one turns up while you're using it,
+ * ask with a native alert instead of reloading under you.
+ */
 function UpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -172,9 +182,14 @@ function UpdatePrompt() {
       });
     },
   });
+  const justOpened = needRefresh && Date.now() - shownAt < 10_000;
+  useEffect(() => {
+    if (justOpened) void updateServiceWorker(true);
+  }, [justOpened, updateServiceWorker]);
+
   return (
     <Dialog
-      opened={needRefresh}
+      opened={needRefresh && !justOpened}
       title="Update Available"
       content="A new version of Zoro is ready. Update now? Your data stays on your phone."
       buttons={
