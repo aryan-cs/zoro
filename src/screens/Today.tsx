@@ -91,20 +91,20 @@ export function TodayScreen() {
       />
     ) : (
       <FitCard title="Workouts" onOpen={() => nav.go('lift')}>
-        <div className="wk-buttons">
+        <div className={`wk-circles n${sessionsToday.length}`}>
           {sessionsToday.map((w) => (
             <button
               key={w.id}
               type="button"
-              className="wk-btn"
+              aria-label={`${w.done ? 'Done: ' : 'Start '}${TEMPLATES[w.id].name}`}
+              className={`wk-circle ${w.done ? 'is-done' : ''}`}
               style={{ '--tint': w.color } as CSSProperties}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!w.done) w.play();
               }}
             >
-              <Sym name={w.done ? 'checkmark.bold' : TEMPLATE_GLYPH[w.id]} size={w.done ? 14 : 18} />
-              <span>{TEMPLATES[w.id].name}</span>
+              <Sym name={w.done ? 'checkmark.bold' : TEMPLATE_GLYPH[w.id]} size={w.done ? 16 : 20} />
             </button>
           ))}
         </div>

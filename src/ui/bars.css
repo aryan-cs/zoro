@@ -1353,3 +1353,37 @@ button.meal-row:not(:disabled):active {
 .fit-stack.lift-day-cards {
   margin-top: 16px;
 }
+
+/* Several workouts on Today: a round button per session, figure only. */
+.wk-circles {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+}
+.wk-circle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tint) 22%, #1c1c1e);
+  color: var(--tint);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease-out;
+}
+.wk-circles.n3 .wk-circle {
+  width: 44px;
+  height: 44px;
+}
+.wk-circle:active {
+  transform: scale(0.92);
+}
+.wk-circle.is-done {
+  background: color-mix(in srgb, var(--ios-green) 22%, #1c1c1e);
+  color: var(--ios-green);
+}
