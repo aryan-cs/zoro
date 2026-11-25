@@ -522,3 +522,48 @@ button.meal-row:not(:disabled):active {
   width: 18px;
   height: 18px;
 }
+
+/* ---------- Week row (Calendar): letters, date numbers, today in a filled circle ---------- */
+.lift-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 4px 16px 0;
+}
+.lift-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lift-day-letter {
+  font-size: 13px;
+  line-height: 18px;
+  color: #8d8d93;
+}
+.lift-day-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-top: 2px;
+  border-radius: 999px;
+  font-size: 20px;
+  color: var(--ios-label);
+  font-variant-numeric: tabular-nums;
+}
+.lift-day.is-today .lift-day-num {
+  background: var(--ios-blue);
+  font-weight: 600;
+}
+.lift-day-dot {
+  width: 5px;
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 999px;
+}
+.lift-day-dot.is-planned {
+  background: #8d8d93;
+}
+.lift-day-dot.is-done {
+  background: var(--ios-green);
+}

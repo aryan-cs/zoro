@@ -8,12 +8,10 @@ import type { TemplateId } from '../core/types';
 import { Bar, Btn, Cell, db, dim, fmtLb, Header, Row, Section, useSettings } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
-import { longDate } from './Today';
 
 const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
 const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const abbrev = (id: TemplateId) => TEMPLATES[id].name.replace('Upper ', 'U').replace('Lower ', 'L').replace('Arms + shoulders', 'Arm');
 
 export function LiftScreen() {
   const nav = useNav();
@@ -50,19 +48,22 @@ export function LiftScreen() {
   return (
     <Page className="tab-safe">
       <Header title="Lift" />
-      <Section>
-        <Row title={week.week >= 1 ? `Week ${week.week}` : 'Plan starts'} right={week.week >= 1 ? (week.deload ? 'Easy week' : undefined) : longDate(settings.programStart)} />
-      </Section>
-
-      <div className="mx-4 mt-3 grid grid-cols-7 gap-1">
+      {/* This week like Calendar's week row: weekday letters, date numbers, today circled.
+          A dot marks a workout day; it turns green once that workout is done. */}
+      <div className="lift-week">
         {days.map((d, i) => {
           const wd = (i + 1) % 7;
           const t = templateForWeekday(wd, settings.daysPerWeek);
-          const isToday = d === date;
+          const done = doneDates.has(d);
           return (
-            <div key={d} className="flex flex-col items-center gap-1 text-[13px]" aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}: ${t ? TEMPLATES[t].name : 'rest'}${doneDates.has(d) ? ', done' : ''}`}>
-              <span className={isToday ? 'font-semibold text-accent' : dim}>{DAY[wd]}</span>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold ${isToday ? 'bg-accent text-white' : ''}`}>{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
+            <div
+              key={d}
+              className={`lift-day ${d === date ? 'is-today' : ''}`}
+              aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${t ? TEMPLATES[t].name : 'rest'}${done ? ', done' : ''}`}
+            >
+              <span className="lift-day-letter">{DAY[wd]}</span>
+              <span className="lift-day-num">{Number(d.slice(8))}</span>
+              <span className={`lift-day-dot ${t ? (done ? 'is-done' : 'is-planned') : ''}`} />
             </div>
           );
         })}
