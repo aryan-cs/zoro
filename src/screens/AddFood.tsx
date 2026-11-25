@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Block, ListItem, Page, Preloader } from 'konsta/react';
+import { Actions, ActionsButton, ActionsGroup, Block, ListItem, Page, Preloader } from 'konsta/react';
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useState } from 'react';
@@ -256,6 +256,8 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   const [picked, setPicked] = useState<FoodItem | null>(null);
   const [scanning, setScanning] = useState(false);
   const [quick, setQuick] = useState(false);
+  // Two bar buttons (scan, +) keep the title centered; + opens the other ways to add.
+  const [menu, setMenu] = useState(false);
   const [custom, setCustom] = useState<{ barcode?: string } | null>(null);
   // Arrived from a scan that found nothing: go straight to entering it from the label.
   useEffect(() => {
@@ -316,8 +318,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
           <IconGroup
             items={[
               { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
-              { label: 'Quick add calories', icon: <Sym name="bolt.fill" size={16.5} />, onClick: () => setQuick(true) },
-              { label: 'New food', icon: <Sym name="square.and.pencil" size={16.5} />, onClick: () => setCustom({}) },
+              { label: 'More ways to add', icon: <Sym name="plus" size={18.3} />, onClick: () => setMenu(true) },
             ]}
           />
         }
@@ -363,6 +364,31 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
 
       <AmountSheet food={picked} meal={meal} onMeal={setMeal} date={date} onClose={() => setPicked(null)} onLogged={logged} />
       <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={onCode} />
+      <Actions opened={menu} onBackdropClick={() => setMenu(false)}>
+        <ActionsGroup>
+          <ActionsButton
+            onClick={() => {
+              setMenu(false);
+              setQuick(true);
+            }}
+          >
+            Quick Add Calories
+          </ActionsButton>
+          <ActionsButton
+            onClick={() => {
+              setMenu(false);
+              setCustom({});
+            }}
+          >
+            New Food
+          </ActionsButton>
+        </ActionsGroup>
+        <ActionsGroup>
+          <ActionsButton bold onClick={() => setMenu(false)}>
+            Cancel
+          </ActionsButton>
+        </ActionsGroup>
+      </Actions>
       <QuickAddSheet
         opened={quick}
         meal={meal}
