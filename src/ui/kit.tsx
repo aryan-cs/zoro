@@ -272,8 +272,9 @@ function onRing(cx: number, cy: number, r: number, deg: number) {
 
 /**
  * An Apple Activity ring: a track of the ring color at 15% (as measured on Fitness's cards), the
- * progress arc shaded along its length from the start color to the end color, round caps, a black
- * glyph on the start cap, and past the goal a second lap whose tip casts a shadow.
+ * progress arc shaded along its length from the start color to the end color, round caps, a glyph
+ * on the start cap in a deep shade of the ring color, and past the goal a second lap whose tip casts
+ * a shadow.
  */
 function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
   const p = target > 0 ? Math.max(0, value / target) : 0;
@@ -326,7 +327,17 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
           <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
         </>
       )}
-      <path d={glyphPath} fill="none" stroke="#000" strokeOpacity="0.85" strokeWidth={w * 0.12} strokeLinecap="round" strokeLinejoin="round" />
+      {/* On the cap, a deep shade of the ring's own color (pure black read as a hole); on an empty
+          track, the ring color itself so the glyph stays legible. */}
+      <path
+        d={glyphPath}
+        fill="none"
+        stroke={p > 0 ? mixColor(colors[0], '#000000', 0.62) : colors[0]}
+        strokeOpacity={p > 0 ? 1 : 0.7}
+        strokeWidth={w * 0.12}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </g>
   );
 }
