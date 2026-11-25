@@ -57,7 +57,7 @@ export function FoodScreen() {
           </IconBtn>
         }
         right={
-          <IconBtn label="Next day" className={date >= today() ? 'pointer-events-none opacity-30' : ''} onClick={() => setDate(addDays(date, 1))}>
+          <IconBtn label="Next day" disabled={date >= today()} onClick={() => setDate(addDays(date, 1))}>
             <ChevronRight className="h-5 w-5" />
           </IconBtn>
         }
@@ -93,7 +93,7 @@ export function FoodScreen() {
           <ActionsLabel>{selected?.name}</ActionsLabel>
           {selected && selected.date !== today() && <ActionsButton onClick={() => void duplicateToToday()}>Log again today</ActionsButton>}
           <ActionsButton className="!text-[#ff453a]" onClick={() => void remove()}>
-            Remove
+            Delete
           </ActionsButton>
         </ActionsGroup>
         <ActionsGroup>

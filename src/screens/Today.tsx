@@ -6,7 +6,7 @@ import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/cal
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { buildPlan, dayTotals, metricsOf, saveMetric, today } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { Btn, Cell, db, dim, fmt, Header, IconBtn, MacroSummary, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, db, dim, fmt, Header, IconBtn, MacroSummary, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
 
@@ -49,7 +49,7 @@ export function TodayScreen() {
   const totals = useLiveQuery(() => dayTotals(date, db), [date]) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
-  const [weightInput, setWeightInput] = useState('');
+  const [weighing, setWeighing] = useState(false);
 
   const doneMain = sessions.find((s) => s.templateId === templateId && s.finishedAt);
   const trend = weightTrend(weights);
@@ -60,11 +60,9 @@ export function TodayScreen() {
     const sessionId = await startWorkout(id);
     nav.go('lift', { name: 'workout', sessionId });
   };
-  const saveWeight = async () => {
-    const v = parseFloat(weightInput);
-    if (!Number.isFinite(v) || v < 80 || v > 400) return toast('Enter your weight in lb.');
+  const saveWeight = async (v: number) => {
     await saveMetric('weight', v, date, db);
-    setWeightInput('');
+    setWeighing(false);
     toast('Weight saved');
   };
 
@@ -97,8 +95,8 @@ export function TodayScreen() {
       ) : (
         <Cell className="flex items-center gap-3 py-2.5">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[17px] font-semibold">{TEMPLATES[templateId].name}</div>
-            <div className={`truncate text-[15px] ${dim}`}>
+            <div className="text-[17px] font-semibold leading-snug">{TEMPLATES[templateId].name}</div>
+            <div className={`text-[15px] leading-snug ${dim}`}>
               {TEMPLATES[templateId].short} · {plan?.exercises.length ?? '…'} exercises
             </div>
           </div>
@@ -120,9 +118,9 @@ export function TodayScreen() {
         foodDone ? (
           <DoneMark />
         ) : (
-          <button type="button" className="flex items-center gap-1 text-accent active:opacity-50" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
+          <Btn kind="plain" size="sm" className="!-me-3" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
             <Plus className="h-4 w-4" /> Log food
-          </button>
+          </Btn>
         )
       }
     >
@@ -137,26 +135,24 @@ export function TodayScreen() {
   const body: ReactNode = (
     <Section title="Body" right={bodyDone ? <DoneMark /> : undefined}>
       <li className="grid grid-cols-2">
-        <div className="px-4 py-3">
+        <button type="button" className="px-4 py-3 text-left active:bg-white/5" onClick={() => (weighedToday ? nav.go('history') : setWeighing(true))}>
           <div className={`text-[13px] ${dim}`}>Weight</div>
           {weighedToday ? (
-            <button type="button" className="text-left" onClick={() => nav.go('history')}>
+            <>
               <div className="tabular text-[20px] font-semibold leading-tight">
                 {fmt(weighedToday.value, 1)} <span className={`text-[13px] font-normal ${dim}`}>lb</span>
               </div>
               <div className={`text-[12px] ${rate !== null && rate < 0 ? 'text-accent' : dim}`}>
                 {rate === null ? 'Weigh in daily' : `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk`}
               </div>
-            </button>
+            </>
           ) : (
-            <div className="mt-1 flex items-center gap-1.5">
-              <NumField value={weightInput} onChange={setWeightInput} placeholder="lb" width="w-[72px]" label="Weight in pounds" />
-              <Btn size="sm" kind="glass" onClick={() => void saveWeight()}>
-                Save
-              </Btn>
-            </div>
+            <>
+              <div className="text-[20px] font-semibold leading-tight text-accent">Log</div>
+              <div className={`text-[12px] ${dim}`}>This morning</div>
+            </>
           )}
-        </div>
+        </button>
         <button type="button" className="border-l border-white/10 px-4 py-3 text-left active:bg-white/5" onClick={() => nav.push({ name: 'logSleep' })}>
           <div className={`text-[13px] ${dim}`}>Sleep</div>
           {sleep ? (
@@ -199,6 +195,17 @@ export function TodayScreen() {
       {blocks.map((b) => (
         <div key={b.key}>{b.el}</div>
       ))}
+      <NumberPrompt
+        opened={weighing}
+        title="Morning Weight"
+        message="Weigh in after waking up, before eating."
+        unit="lb"
+        initial={weights.length ? fmt(weights[weights.length - 1].value, 1) : undefined}
+        min={80}
+        max={400}
+        onCancel={() => setWeighing(false)}
+        onSave={(v) => void saveWeight(v)}
+      />
     </Page>
   );
 }

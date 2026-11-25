@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import {
   BlockTitle,
   Button,
+  Dialog,
+  DialogButton,
   Link,
   List,
   ListButton,
@@ -58,7 +60,7 @@ export function Header(props: { title: ReactNode; sub?: ReactNode; onBack?: () =
     <Navbar
       title={props.title}
       subtitle={props.sub}
-      left={props.onBack ? <NavbarBackLink onClick={props.onBack} /> : props.left}
+      left={props.onBack ? <NavbarBackLink onClick={() => props.onBack?.()} /> : props.left}
       right={props.right}
       subnavbar={props.children}
       bgClassName="!bg-none !bg-black !h-full"
@@ -68,9 +70,15 @@ export function Header(props: { title: ReactNode; sub?: ReactNode; onBack?: () =
 }
 
 /** Icon button for the navigation bar (sits in the bar's glass capsule). */
-export function IconBtn(props: { label: string; onClick?: () => void; children: ReactNode; className?: string }) {
+export function IconBtn(props: { label: string; onClick?: () => void; children: ReactNode; className?: string; disabled?: boolean }) {
   return (
-    <Link iconOnly aria-label={props.label} onClick={props.onClick} className={props.className}>
+    <Link
+      iconOnly
+      aria-label={props.label}
+      aria-disabled={props.disabled}
+      onClick={props.disabled ? undefined : props.onClick}
+      className={`${props.disabled ? 'pointer-events-none opacity-30' : ''} ${props.className ?? ''}`}
+    >
       {props.children}
     </Link>
   );
@@ -119,7 +127,8 @@ export function Row(props: {
   danger?: boolean;
   accent?: boolean;
 }) {
-  if ((props.accent || props.danger) && props.onClick) {
+  // Action rows are centered list buttons; rows that open something keep their chevron and subtitle.
+  if ((props.accent || props.danger) && props.onClick && !props.chevron && !props.sub) {
     return (
       <ListButton onClick={props.onClick} className={`!h-11 ${props.danger ? '!text-[#ff453a]' : ''}`}>
         {props.title}
@@ -130,7 +139,7 @@ export function Row(props: {
     <ListItem
       link={!!props.onClick}
       chevron={!!props.chevron}
-      title={props.title}
+      title={props.accent ? <span className="text-accent">{props.title}</span> : props.title}
       subtitle={props.sub}
       after={props.right}
       onClick={props.onClick}
@@ -165,7 +174,7 @@ export function Field(props: {
   return (
     <li className="relative">
       <label className="hairline-b relative ms-4 flex min-h-11 items-center gap-3 pe-4">
-        <span className="flex-1 text-[17px]">{props.label}</span>
+        <span className="shrink-0 text-[17px]">{props.label}</span>
         <input
           type={props.secret ? 'password' : (props.type ?? 'text')}
           inputMode={props.inputMode}
@@ -176,7 +185,7 @@ export function Field(props: {
           value={props.value}
           onChange={(e) => props.onChange(e.target.value)}
           onBlur={props.onBlur}
-          className={`tabular min-w-0 bg-transparent py-2 text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white ${props.wide ? 'w-48' : 'w-28'}`}
+          className={`tabular min-w-0 flex-1 bg-transparent py-2.5 text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
         />
       </label>
     </li>
@@ -199,7 +208,7 @@ export function Btn(props: {
 }) {
   const kind = props.kind ?? 'glass';
   const size = props.size ?? 'md';
-  const sizes = { sm: '!h-8 !px-3.5 !text-[15px]', md: '!h-9 !px-4 !text-[16px]', lg: '' };
+  const sizes = { sm: '!h-9 !px-3.5 !text-[15px]', md: '!h-10 !px-4 !text-[16px]', lg: '' };
   const danger = { tonalTextIos: 'text-[#ff453a]', tonalBgIos: 'bg-[#ff453a]/15 active:bg-[#ff453a]/25' };
   return (
     <Button
@@ -223,7 +232,7 @@ export function Seg<T extends string | number>(props: { value: T; options: [T, s
   return (
     <Segmented strong rounded className={props.className}>
       {props.options.map(([v, label]) => (
-        <SegmentedButton key={String(v)} active={props.value === v} onClick={() => props.onChange(v)}>
+        <SegmentedButton key={String(v)} active={props.value === v} onClick={() => props.onChange(v)} {...({ 'aria-pressed': props.value === v } as object)}>
           {label}
         </SegmentedButton>
       ))}
@@ -292,12 +301,12 @@ export function NumField(props: {
       aria-label={props.label}
       inputMode="decimal"
       type="text"
-      disabled={props.disabled}
+      readOnly={props.disabled}
       value={props.value}
       placeholder={props.placeholder}
       onChange={(e) => props.onChange(e.target.value.replace(/[^\d.]/g, ''))}
-      onFocus={(e) => e.target.select()}
-      className={`tabular rounded-lg bg-[rgba(118,118,128,0.24)] px-2 py-1 text-center outline-none placeholder:text-[rgba(235,235,245,0.3)] focus:bg-accent/15 disabled:opacity-60 ${props.width ?? 'w-16'}`}
+      onFocus={(e) => !props.disabled && e.target.select()}
+      className={`tabular h-9 rounded-lg px-2 text-center outline-none placeholder:text-[rgba(235,235,245,0.3)] focus:ring-2 focus:ring-accent/60 ${props.disabled ? 'bg-transparent font-semibold' : 'bg-[rgba(118,118,128,0.24)]'} ${props.width ?? 'w-16'}`}
     />
   );
 }
@@ -310,8 +319,7 @@ export function Note({ children, className }: { children: ReactNode; className?:
 /** iOS bottom sheet (Konsta Sheet) with a grabber. */
 export function GlassSheet({ opened, onClose, children }: { opened: boolean; onClose: () => void; children: ReactNode }) {
   return (
-    <Sheet opened={opened} onBackdropClick={onClose} className="pb-[calc(env(safe-area-inset-bottom)+12px)]">
-      <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/25" />
+    <Sheet opened={opened} onBackdropClick={onClose} className="pb-[calc(var(--k-safe-area-bottom,0px)+12px)] pt-2">
       {children}
     </Sheet>
   );
@@ -321,11 +329,76 @@ export function GlassSheet({ opened, onClose, children }: { opened: boolean; onC
 export function SheetPage({ opened, onClose, title, children, closeLabel = 'Cancel' }: { opened: boolean; onClose: () => void; title: string; children: ReactNode; closeLabel?: string }) {
   return (
     <Popup opened={opened} onBackdropClick={onClose}>
-      <Page className="pb-[calc(env(safe-area-inset-bottom)+16px)]">
+      <Page className="pb-[calc(var(--k-safe-area-bottom,0px)+16px)]">
         <Header title={title} right={<NavText onClick={onClose}>{closeLabel}</NavText>} />
         {children}
       </Page>
     </Popup>
+  );
+}
+
+/**
+ * iOS alert with a number field (like UIAlertController with a text field):
+ * title, short message, the field with its unit, then Cancel / Save.
+ */
+export function NumberPrompt(props: {
+  opened: boolean;
+  title: string;
+  message?: string;
+  unit: string;
+  initial?: string;
+  onCancel: () => void;
+  onSave: (value: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const [v, setV] = useState('');
+  const n = parseFloat(v);
+  const valid = Number.isFinite(n) && n >= (props.min ?? 0.01) && n <= (props.max ?? 10000);
+  return (
+    <Dialog
+      opened={props.opened}
+      title={props.title}
+      content={
+        <div className="space-y-3">
+          {props.message && <div>{props.message}</div>}
+          <label className="flex items-center gap-2 rounded-xl bg-[rgba(118,118,128,0.24)] px-3">
+            <input
+              autoFocus
+              inputMode="decimal"
+              value={v}
+              placeholder={props.initial ?? ''}
+              onChange={(e) => setV(e.target.value.replace(/[^\d.]/g, ''))}
+              onKeyDown={(e) => e.key === 'Enter' && valid && (props.onSave(n), setV(''))}
+              className="tabular min-w-0 flex-1 bg-transparent py-2.5 text-[17px] text-white outline-none placeholder:text-[rgba(235,235,245,0.3)]"
+            />
+            <span className="text-[17px] text-[rgba(235,235,245,0.6)]">{props.unit}</span>
+          </label>
+        </div>
+      }
+      buttons={
+        <>
+          <DialogButton
+            onClick={() => {
+              setV('');
+              props.onCancel();
+            }}
+          >
+            Cancel
+          </DialogButton>
+          <DialogButton
+            strong
+            disabled={!valid}
+            onClick={() => {
+              props.onSave(n);
+              setV('');
+            }}
+          >
+            Save
+          </DialogButton>
+        </>
+      }
+    />
   );
 }
 

@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Btn, Cell, db, dim, fmt, fmtLb, Header, Note, NumField, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
+import { Cell, db, dim, fmt, fmtLb, Header, Note, NumberPrompt, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -78,9 +78,9 @@ function Lifts() {
             key={h.sessionId}
             title={TEMPLATES[h.templateId].name}
             sub={longDate(h.date)}
-            right={`${h.sets.length} sets`}
+            right={`${h.sets.length} ${h.sets.length === 1 ? 'set' : 'sets'}`}
             chevron
-            onClick={() => nav.go('lift', { name: 'workout', sessionId: h.sessionId })}
+            onClick={() => nav.push({ name: 'workout', sessionId: h.sessionId })}
           />
         ))}
       </Section>
@@ -110,36 +110,34 @@ const SIZES: { type: MetricType; label: string; start?: number }[] = [
 function SizeRow({ type, label, start }: { type: MetricType; label: string; start?: number }) {
   const toast = useToast();
   const list = useLiveQuery(() => metricsOf(type, 730, db), [type]) ?? [];
-  const [v, setV] = useState('');
+  const [editing, setEditing] = useState(false);
   const latest = list[list.length - 1];
   const base = list[0]?.value ?? start;
   const change = latest && base !== undefined ? latest.value - base : null;
   return (
-    <Cell className="flex items-center gap-2 py-2">
-      <div className="min-w-0 flex-1">
-        <div className="text-[17px]">{label}</div>
-        <div className={`truncate text-[13px] ${dim}`}>
-          {latest
-            ? `${fmt(latest.value, 2)}" on ${short(latest.date)}${change ? ` · ${change > 0 ? '+' : ''}${fmt(change, 2)}"` : ''}`
-            : start
-              ? `Start ${fmt(start, 2)}"`
-              : 'Not measured'}
-        </div>
-      </div>
-      <NumField value={v} onChange={setV} placeholder="in" width="w-14" label={label} />
-      <Btn
-        size="sm"
-        onClick={async () => {
-          const n = parseFloat(v);
-          if (!Number.isFinite(n) || n <= 0) return;
+    <>
+      <Row
+        title={label}
+        sub={latest ? `${short(latest.date)}${change ? ` · ${change > 0 ? '+' : ''}${fmt(change, 2)}" since start` : ''}` : start ? `Start ${fmt(start, 2)}"` : 'Not measured'}
+        right={latest ? `${fmt(latest.value, 2)}"` : 'Add'}
+        chevron
+        onClick={() => setEditing(true)}
+      />
+      <NumberPrompt
+        opened={editing}
+        title={label}
+        message="Measure in the morning, same spot each time."
+        unit="in"
+        initial={latest ? fmt(latest.value, 2) : start ? fmt(start, 2) : undefined}
+        max={80}
+        onCancel={() => setEditing(false)}
+        onSave={async (n) => {
           await saveMetric(type, n, today(), db);
-          setV('');
+          setEditing(false);
           toast('Saved');
         }}
-      >
-        Save
-      </Btn>
-    </Cell>
+      />
+    </>
   );
 }
 

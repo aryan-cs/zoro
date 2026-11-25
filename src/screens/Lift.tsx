@@ -51,15 +51,15 @@ export function LiftScreen() {
     <Page className="tab-safe">
       <Header title="Lift" sub={week.week >= 1 ? `Week ${week.week}${week.deload ? ' · easy week' : ''}` : `Plan starts ${longDate(settings.programStart)}`} />
 
-      <div className="mx-4 mt-3 grid grid-cols-7 gap-1.5">
+      <div className="mx-4 mt-3 grid grid-cols-7 gap-1">
         {days.map((d, i) => {
           const wd = (i + 1) % 7;
           const t = templateForWeekday(wd, settings.daysPerWeek);
           const isToday = d === date;
           return (
-            <div key={d} className={`flex flex-col items-center rounded-xl py-1.5 text-[11px] ${isToday ? 'bg-accent text-black' : 'surface'}`}>
-              <span className={isToday ? 'text-black/60' : dim}>{DAY[wd]}</span>
-              <span className="text-[13px] font-semibold">{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
+            <div key={d} className="flex flex-col items-center gap-1 text-[13px]" aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}: ${t ? TEMPLATES[t].name : 'rest'}${doneDates.has(d) ? ', done' : ''}`}>
+              <span className={isToday ? 'font-semibold text-accent' : dim}>{DAY[wd]}</span>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold ${isToday ? 'bg-accent text-black' : ''}`}>{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
             </div>
           );
         })}

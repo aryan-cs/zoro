@@ -65,7 +65,7 @@ function CloudBackup() {
     <>
       <Section title="Cloud backup">
         {status.state === 'off' ? (
-          <Row accent title="Back up to GitHub" sub="A private repo only you can open" chevron onClick={() => setOpen(true)} />
+          <Row title="Back Up to GitHub" sub="A private repo only you can open" chevron onClick={() => setOpen(true)} />
         ) : (
           <>
             <Row
@@ -160,10 +160,12 @@ export function SettingsScreen() {
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: name });
-        return;
-      } catch {
-        // Share cancelled; fall through to a download.
+      } catch (err) {
+        // Cancel means cancel; only fall back to a download if sharing itself failed.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        toast('Could not open the share sheet.');
       }
+      return;
     }
     const url = URL.createObjectURL(file);
     const a = document.createElement('a');
@@ -223,7 +225,7 @@ export function SettingsScreen() {
       </Section>
 
       <Section title="Food data">
-        <Field label="Your own USDA key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+        <Field label="USDA key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
       </Section>
       <Note>Zoro comes with a USDA key for barcode scans and search. Only add your own if lookups start failing.</Note>
 
@@ -245,14 +247,14 @@ export function SettingsScreen() {
       <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} />
       <Dialog
         opened={pendingImport !== null}
-        onBackdropClick={() => setPendingImport(null)}
-        title="Replace everything?"
+        title="Replace Everything?"
         content="Restoring a backup replaces all workouts, food, water, sleep and measurements on this phone."
         buttons={
           <>
             <DialogButton onClick={() => setPendingImport(null)}>Cancel</DialogButton>
             <DialogButton
               strong
+              className="destructive"
               onClick={async () => {
                 try {
                   await importAll(pendingImport);
@@ -263,7 +265,7 @@ export function SettingsScreen() {
                 setPendingImport(null);
               }}
             >
-              Restore
+              Replace
             </DialogButton>
           </>
         }

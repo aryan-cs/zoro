@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Dialog, DialogButton, Glass, List, Page } from 'konsta/react';
-import { Check, Timer } from 'lucide-react';
+import { Checkbox, Dialog, DialogButton, Glass, List, Page } from 'konsta/react';
+import { Timer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { platesPerSide } from '../core/calc';
 import { EXERCISES, TEMPLATES } from '../core/program';
@@ -43,7 +43,7 @@ function RestTimer({ endsAt, onAdd, onSkip }: { endsAt: number; onAdd: () => voi
   const left = Math.max(0, Math.round((endsAt - now) / 1000));
   const done = left === 0;
   return (
-    <Glass className="fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5 !touch-auto" style={{ bottom: 'calc(var(--tabbar-bottom) + 64px)' }}>
+    <Glass className="fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5 !touch-auto" style={{ bottom: 'calc(var(--tabbar-bottom) + 4px)' }}>
       <div className="flex items-center gap-2">
         <Timer className={`h-5 w-5 ${done ? 'text-accent' : 'text-accent'}`} />
         <span className="tabular text-[20px] font-semibold">
@@ -105,30 +105,26 @@ function SetRow(props: {
       <div className="hairline-b relative ms-4 flex items-center gap-2 py-1.5 pe-4">
       <div className="w-[76px] shrink-0">
         <div className="text-[15px] font-medium">{props.target.label ?? `Set ${props.index + 1}`}</div>
-        <div className="tabular text-[12px] text-black/45 dark:text-white/50">{targetText}</div>
+        <div className={`tabular text-[13px] ${dim}`}>{targetText}</div>
       </div>
       <div className="flex flex-1 items-center justify-end gap-1.5">
         {noLoad ? (
-          <span className="w-16 text-center text-[13px] text-black/40 dark:text-white/45">{def.timed ? '' : 'BW'}</span>
+          <span className={`w-16 text-center text-[13px] ${dim}`}>{def.timed ? '' : 'BW'}</span>
         ) : (
           <>
             <NumField value={weight} onChange={setWeight} label="Weight" disabled={done} placeholder="lb" />
-            <span className="text-[13px] text-black/40 dark:text-white/45">{def.addedLoad ? '+lb ×' : '×'}</span>
+            <span className={`text-[13px] ${dim}`}>{def.addedLoad ? '+lb ×' : '×'}</span>
           </>
         )}
         <NumField value={reps} onChange={setReps} width="w-12" label={repsLabel} disabled={done} />
-        <span className="w-8 text-[11px] leading-tight text-black/40 dark:text-white/45">{repsLabel}</span>
+        <span className={`w-9 text-[13px] leading-tight ${dim}`}>{repsLabel}</span>
       </div>
-      <button
-        type="button"
-        aria-label={done ? 'Undo set' : 'Log set'}
-        onClick={toggle}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
-          done ? 'border-accent bg-accent text-black' : 'border-black/20 text-transparent dark:border-white/25'
-        }`}
-      >
-        <Check className="h-4 w-4" strokeWidth={3} />
-      </button>
+      <Checkbox
+        className="-m-2 shrink-0 p-2"
+        checked={done}
+        onChange={toggle}
+        {...({ 'aria-label': `${done ? 'Undo' : 'Log'} ${def.name}, set ${props.index + 1}` } as object)}
+      />
       </div>
     </li>
   );
@@ -202,12 +198,12 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         const plates = def.kind === 'barbell' && topTarget > settings.barWeight ? platesPerSide(topTarget, settings.barWeight, settings.plates) : null;
         return (
           <section key={ex.exerciseId} className="mx-4 mt-4">
-            <div className="mb-1.5 flex items-baseline justify-between px-1">
-              <span className="text-[15px] font-semibold">
-                {ex.name}
-                {ex.superset && <span className="ml-2 text-[11px] font-medium text-[#bf5af2]">superset {ex.superset}</span>}
-              </span>
-              <span className={`text-[11px] ${dim}`}>rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
+            <div className="mb-1.5 flex items-start justify-between gap-3 px-1">
+              <div className="min-w-0 flex-1">
+                <div className="text-[17px] font-semibold leading-snug">{ex.name}</div>
+                {ex.superset && <div className="text-[13px] font-medium text-[#bf5af2]">Superset {ex.superset}</div>}
+              </div>
+              <span className={`shrink-0 whitespace-nowrap pt-0.5 text-[13px] ${dim}`}>Rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
             </div>
             <List strong inset dividers className="!mx-0 !my-0">
               {ex.sets.map((t, i) => (
@@ -271,13 +267,12 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
       <Dialog
         opened={confirmDiscard}
-        onBackdropClick={() => setConfirmDiscard(false)}
         title="Delete this workout?"
         content="Its logged sets will be removed. This can't be undone."
         buttons={
           <>
             <DialogButton onClick={() => setConfirmDiscard(false)}>Cancel</DialogButton>
-            <DialogButton strong className="!text-[#ff453a]" onClick={() => void discard()}>
+            <DialogButton strong className="destructive" onClick={() => void discard()}>
               Delete
             </DialogButton>
           </>

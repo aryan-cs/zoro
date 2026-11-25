@@ -1,9 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Page } from 'konsta/react';
-import { X } from 'lucide-react';
+import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
 import { useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
-import { Btn, Cell, db, dim, fmt, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import type { WaterEntry } from '../core/types';
+import { Btn, Cell, db, dim, fmt, Header, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
 
 const QUICK = [8, 16, 24, 32];
 
@@ -35,9 +35,11 @@ export function WaterScreen() {
   const settings = useSettings();
   const date = today();
   const entries = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
-  const [custom, setCustom] = useState('');
+  const [custom, setCustom] = useState(false);
+  const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
   const left = Math.max(0, settings.waterTargetOz - total);
+  const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const add = async (oz: number) => {
     if (!(oz > 0)) return;
@@ -50,55 +52,64 @@ export function WaterScreen() {
 
       <Section>
         <Cell className="flex flex-col items-center pb-4 pt-5">
-        <div className="relative">
-          <Ring value={total} target={settings.waterTargetOz} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="tabular text-[30px] font-bold leading-none">{fmt(total)}</span>
-            <span className={`text-[13px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
+          <div className="relative">
+            <Ring value={total} target={settings.waterTargetOz} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="tabular text-[30px] font-bold leading-none">{fmt(total)}</span>
+              <span className={`text-[13px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
+            </div>
           </div>
-        </div>
-        <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-accent'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
-        <div className="mt-4 grid w-full grid-cols-4 gap-2">
-          {QUICK.map((oz) => (
-            <Btn key={oz} className="!px-0" onClick={() => void add(oz)}>
-              +{oz}
-            </Btn>
-          ))}
-        </div>
-        <div className="mt-2.5 flex w-full items-center justify-center gap-2">
-          <NumField value={custom} onChange={setCustom} placeholder="oz" width="w-20" label="Ounces" />
-          <Btn
-            size="sm"
-            onClick={() => {
-              const n = parseFloat(custom);
-              if (!Number.isFinite(n) || n <= 0 || n > 128) return toast('Enter ounces, up to 128.');
-              void add(n);
-              setCustom('');
-            }}
-          >
-            Add oz
-          </Btn>
-        </div>
+          <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-accent'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
+          <div className="mt-4 grid w-full grid-cols-4 gap-2">
+            {QUICK.map((oz) => (
+              <Btn key={oz} className="!w-full !px-0" onClick={() => void add(oz)}>
+                +{oz} oz
+              </Btn>
+            ))}
+          </div>
         </Cell>
+        <Row accent title="Other Amount…" onClick={() => setCustom(true)} />
       </Section>
 
       <Section title="Today">
-        {entries.length === 0 && <Row title="Tap a button above each time you drink." />}
+        {entries.length === 0 && <Row title="Tap an amount above each time you drink." />}
         {[...entries].reverse().map((e) => (
-          <Cell key={e.id} className="flex items-center gap-3 py-1.5">
-            <span className="flex-1 text-[17px]">{fmt(e.oz, e.oz % 1 ? 1 : 0)} oz</span>
-            <span className={`tabular text-[15px] ${dim}`}>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-            <button
-              type="button"
-              aria-label="Remove"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 active:bg-white/10"
-              onClick={() => e.id !== undefined && void db.water.delete(e.id)}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </Cell>
+          <Row key={e.id} title={`${fmt(e.oz, e.oz % 1 ? 1 : 0)} oz`} right={time(e.at)} onClick={() => setSelected(e)} />
         ))}
       </Section>
+
+      <NumberPrompt
+        opened={custom}
+        title="Add Water"
+        unit="oz"
+        max={128}
+        onCancel={() => setCustom(false)}
+        onSave={(n) => {
+          void add(n);
+          setCustom(false);
+          toast(`Added ${fmt(n, n % 1 ? 1 : 0)} oz`);
+        }}
+      />
+
+      <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
+        <ActionsGroup>
+          <ActionsLabel>{selected ? `${fmt(selected.oz)} oz at ${time(selected.at)}` : ''}</ActionsLabel>
+          <ActionsButton
+            className="!text-[#ff453a]"
+            onClick={() => {
+              if (selected?.id !== undefined) void db.water.delete(selected.id);
+              setSelected(null);
+            }}
+          >
+            Delete
+          </ActionsButton>
+        </ActionsGroup>
+        <ActionsGroup>
+          <ActionsButton bold onClick={() => setSelected(null)}>
+            Cancel
+          </ActionsButton>
+        </ActionsGroup>
+      </Actions>
     </Page>
   );
 }

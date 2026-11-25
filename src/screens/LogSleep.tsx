@@ -10,20 +10,29 @@ const SHORTCUT_URL = `${import.meta.env.BASE_URL}ZoroSleep.shortcut`;
 const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Sleep';
 const INSTALLED_KEY = 'zoro.sleepShortcut';
 
-export function shortcutInstalled(): boolean {
+/** 'tried' once you've been sent to add it, 'ok' once a paste from it worked. */
+function shortcutState(): 'none' | 'tried' | 'ok' {
   try {
-    return localStorage.getItem(INSTALLED_KEY) === '1';
+    const v = localStorage.getItem(INSTALLED_KEY);
+    return v === 'ok' ? 'ok' : v ? 'tried' : 'none';
   } catch {
-    return false;
+    return 'none';
   }
 }
+function setShortcutState(v: 'tried' | 'ok') {
+  try {
+    if (v === 'ok' || shortcutState() !== 'ok') localStorage.setItem(INSTALLED_KEY, v);
+  } catch {
+    // Storage blocked: we'll just offer to add it again.
+  }
+}
+export const shortcutInstalled = () => shortcutState() === 'ok';
 
 /** Native alert that hands off to Apple's "Add Shortcut" screen. */
 export function InstallShortcutDialog({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   return (
     <Dialog
       opened={opened}
-      onBackdropClick={onClose}
       title="Add “Zoro Sleep”?"
       content="This shortcut copies last night's sleep from Apple Health so Zoro can read it. Shortcuts will open; tap Add Shortcut, then come back."
       buttons={
@@ -32,11 +41,7 @@ export function InstallShortcutDialog({ opened, onClose }: { opened: boolean; on
           <DialogButton
             strong
             onClick={() => {
-              try {
-                localStorage.setItem(INSTALLED_KEY, '1');
-              } catch {
-                // Fine: we'll just offer to add it again next time.
-              }
+              setShortcutState('tried');
               onClose();
               // A new tab (Safari's sheet in a Home Screen app) can hand the file to Shortcuts.
               window.open(SHORTCUT_URL, '_blank');
@@ -64,6 +69,7 @@ export function LogSleepScreen() {
     const s = parseSleepImport(text);
     if (!s) return toast("That doesn't look like sleep from the shortcut.");
     await saveSleep(s, db);
+    setShortcutState('ok');
     setPaste('');
     toast(`Saved ${formatMinutes(s.minutes)}`);
     nav.pop();
@@ -90,12 +96,13 @@ export function LogSleepScreen() {
       <Header title="Log Sleep" onBack={nav.pop} />
 
       <Section title="From Apple Health">
+        {!installed && <Row title="Add the Zoro Sleep Shortcut" sub="One time. Copies sleep from Apple Health." chevron onClick={() => setInstalling(true)} />}
         <Row
           accent
           title="1. Copy last night's sleep"
           onClick={() => {
             // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
-            if (!shortcutInstalled()) setInstalling(true);
+            if (shortcutState() === 'none') setInstalling(true);
             else window.location.href = RUN_URL;
           }}
         />
@@ -124,19 +131,7 @@ export function LogSleepScreen() {
           </Cell>
         )}
       </Section>
-      <Note>
-        {installed ? (
-          <>
-            Shortcut missing?{' '}
-            <button type="button" className="text-accent" onClick={() => setInstalling(true)}>
-              Add it again
-            </button>
-            .
-          </>
-        ) : (
-          'Web apps can’t read Apple Health directly, so a small shortcut copies it for you. The first tap adds it.'
-        )}
-      </Note>
+      <Note>Web apps can’t read Apple Health directly, so a small shortcut copies last night’s sleep for Zoro.</Note>
 
       <Section title="Or Enter It by Hand">
         <Field label="Fell asleep" type="time" value={bed} onChange={setBed} />

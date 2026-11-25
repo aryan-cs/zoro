@@ -12,7 +12,8 @@ import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { ToastProvider } from './ui/kit';
-import { NavProvider, useNav, type Route, type Tab } from './ui/nav';
+import { useRef } from 'react';
+import { NavProvider, SLIDE_MS, useNav, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
   { id: 'water', label: 'Water', icon: Droplet },
@@ -60,7 +61,7 @@ function TabBar() {
       labels
       icons
       className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]"
-      innerClassName="!h-14"
+      innerClassName="!h-[60px]"
       bgClassName="!hidden"
     >
       <ToolbarPane>
@@ -78,12 +79,80 @@ function TabBar() {
   );
 }
 
+/**
+ * A pushed screen: slides in from the right like a UINavigationController push,
+ * slides out on Back, and follows your finger when you swipe from the left edge.
+ */
+function StackPage({ entry, onSwipeBack }: { entry: Entry; onSwipeBack: () => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; t: number; active: boolean } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    // Only from the left edge, like iOS.
+    if (t.clientX > 24) return;
+    drag.current = { x: t.clientX, y: t.clientY, t: Date.now(), active: false };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const d = drag.current;
+    const node = el.current;
+    if (!d || !node) return;
+    const t = e.touches[0];
+    const dx = t.clientX - d.x;
+    if (!d.active) {
+      if (Math.abs(t.clientY - d.y) > Math.abs(dx)) {
+        drag.current = null;
+        return;
+      }
+      d.active = dx > 6;
+    }
+    if (d.active) {
+      node.style.transition = 'none';
+      node.style.transform = `translateX(${Math.max(0, dx)}px)`;
+    }
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const d = drag.current;
+    const node = el.current;
+    drag.current = null;
+    if (!d?.active || !node) return;
+    const dx = e.changedTouches[0].clientX - d.x;
+    const fast = dx / Math.max(1, Date.now() - d.t) > 0.5;
+    node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+    if (dx > node.offsetWidth * 0.35 || fast) {
+      node.style.transform = 'translateX(100%)';
+      setTimeout(onSwipeBack, SLIDE_MS);
+    } else {
+      node.style.transform = 'translateX(0)';
+    }
+  };
+
+  return (
+    <div
+      ref={el}
+      className={`stack-page absolute inset-0 z-30 ${entry.leaving ? 'stack-out' : 'stack-in'}`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <RouteScreen route={entry.route} />
+    </div>
+  );
+}
+
 function Shell() {
-  const { tab, stack } = useNav();
-  const top = stack[stack.length - 1];
+  const { tab, stacks, pop } = useNav();
   return (
     <>
-      {top ? <RouteScreen route={top} /> : <TabRoot tab={tab} />}
+      {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
+      {TABS.map((t) => (
+        <div key={t.id} className={`absolute inset-0 ${t.id === tab ? '' : 'invisible pointer-events-none'}`} aria-hidden={t.id !== tab}>
+          <TabRoot tab={t.id} />
+          {stacks[t.id].map((e) => (
+            <StackPage key={e.id} entry={e} onSwipeBack={() => pop(true)} />
+          ))}
+        </div>
+      ))}
       <TabBar />
     </>
   );
@@ -106,7 +175,6 @@ function UpdatePrompt() {
   return (
     <Dialog
       opened={needRefresh}
-      onBackdropClick={() => setNeedRefresh(false)}
       title="Update Available"
       content="A new version of Zoro is ready. Update now? Your data stays on your phone."
       buttons={

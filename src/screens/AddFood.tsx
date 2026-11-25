@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ListItem, Page, Preloader, Searchbar } from 'konsta/react';
-import { Minus, PenLine, Plus, ScanBarcode, Zap } from 'lucide-react';
+import { ListItem, Page, Preloader, Searchbar, Stepper } from 'konsta/react';
+import { PenLine, ScanBarcode, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
@@ -85,25 +85,23 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
               ]}
             />
           )}
-          <div className="surface mt-3 flex items-center gap-2 rounded-2xl px-3 py-2">
+          <div className="surface mt-3 flex items-center gap-3 rounded-2xl px-4 py-2.5">
             <div className="min-w-0 flex-1">
-              <div className={`text-[12px] ${dim}`}>{unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}</div>
-              <div className="truncate text-[12px]">{unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : `per 100 ${g}: ${fmt(food.per100g?.kcal ?? 0)} kcal`}</div>
+              <div className="text-[15px]">{unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}</div>
+              <div className={`text-[13px] leading-snug ${dim}`}>
+                {unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : `per 100 ${g}: ${fmt(food.per100g?.kcal ?? 0)} kcal`}
+              </div>
             </div>
-            <Btn size="sm" className="!w-8 !px-0" onClick={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}>
-              <Minus className="h-4 w-4" />
-            </Btn>
-            <input
-              aria-label="Amount"
-              inputMode="decimal"
-              value={qty}
-              onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
-              onFocus={(e) => e.target.select()}
-              className="tabular w-16 rounded-lg bg-[rgba(118,118,128,0.24)] py-1 text-center font-semibold outline-none"
+            <Stepper
+              rounded
+              colors={{ fillBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-white/20', fillTextIos: 'text-white' }}
+              input
+              inputType="number"
+              value={qty as unknown as number}
+              onInput={(e: React.ChangeEvent<HTMLInputElement>) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
+              onMinus={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}
+              onPlus={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}
             />
-            <Btn size="sm" className="!w-8 !px-0" onClick={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}>
-              <Plus className="h-4 w-4" />
-            </Btn>
           </div>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {(
@@ -119,12 +117,12 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
                   {fmt(v, v > 0 && v < 10 && u ? 1 : 0)}
                   <span className="text-[11px] font-normal">{u}</span>
                 </div>
-                <div className={`text-[11px] ${dim}`}>{label}</div>
+                <div className={`text-[13px] ${dim}`}>{label}</div>
               </div>
             ))}
           </div>
           {allZero && <div className={`mt-2 text-center text-[12px] ${dim}`}>The label lists no calories or macros (diet drinks, water, coffee).</div>}
-          <Btn kind="tint" size="lg" className="mt-4" onClick={() => void add()}>
+          <Btn kind="tint" size="lg" className="mt-4" disabled={!(num(qty) > 0)} onClick={() => void add()}>
             Add to {MEALS.find((m) => m.id === meal)?.label.toLowerCase()}
           </Btn>
         </div>
@@ -289,7 +287,11 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
               setQ('');
               setOnline(null);
             }}
-            disableButton={false}
+            disableButton
+            onDisable={() => {
+              setQ('');
+              setOnline(null);
+            }}
           />
         </form>
       </Header>
