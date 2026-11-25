@@ -32,6 +32,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Bar icons | Regular weight, ~16.5pt (Fitness's toolbar icons: 1.67pt stroke); back chevron semibold 17.5pt; grouped buttons 48pt each in one capsule with 4pt ends |
 | Segmented control | Sized like Health's (iOS 27): 30pt capsule, thumb inset 2.5pt, 13pt medium labels, same weight when selected; drawn as Liquid Glass (translucent track, glass-lens thumb with a bright rim) |
 | Workout cards (Fitness's Outdoor Walk card) | `WorkoutCard`: card = workout color ~10% over black, 20pt padding; glyph in the color top-left, 44pt play button filled with the color top-right (green check when done); 22pt bold one-line title; 48pt tiles at ~14% with one short fact each. No two-line list rows with trailing buttons. |
+| Plus buttons | Toolbar + (in a glass button): 17.7pt glyph, regular, as Health's (size 18.3 in `<Sym>`); inline blue + beside a title: body-size symbol, 16.4pt glyph (size 17); always a 44pt tap area |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

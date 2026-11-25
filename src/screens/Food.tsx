@@ -204,7 +204,7 @@ export function FoodScreen() {
           <IconGroup
             items={[
               { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
-              { label: 'Add food', icon: <Sym name="plus" size={16.5} />, onClick: () => nav.push({ name: 'addFood', date }) },
+              { label: 'Add food', icon: <Sym name="plus" size={18.3} />, onClick: () => nav.push({ name: 'addFood', date }) },
             ]}
           />
         }
