@@ -2,11 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { addDays, formatMinutes, nextMonday, programWeek, weeklyRate, weightTrend } from '../core/calc';
+import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroRings, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
@@ -36,9 +36,6 @@ export function TodayScreen() {
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
-  const monday = nextMonday(addDays(date, -6));
-  const weekSessions = useLiveQuery(() => db.sessions.where('date').between(monday, addDays(monday, 6), true, true).toArray(), [monday]) ?? [];
-  const weekDone = new Set(weekSessions.filter((x) => x.finishedAt && !TEMPLATES[x.templateId].secondary).map((x) => x.date)).size;
   const [weighing, setWeighing] = useState(false);
 
   const doneMain = sessions.find((s) => s.templateId === templateId && s.finishedAt);
@@ -67,7 +64,7 @@ export function TodayScreen() {
   if (templateId) sessionsToday.push({ id: templateId, color: FITNESS.exercise, done: !!doneMain, play: () => void start(templateId) });
   if (second && !week.deload) sessionsToday.push({ id: second, color: FITNESS.steps, play: () => void start(second) });
 
-  // One session: a colored square with its figure. Several: a gray square with a button each.
+  // One session: a colored card with its figure. Several: a gray card with a round button each.
   const workout: ReactNode =
     sessionsToday.length === 0 ? (
       <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.push({ name: 'screen', tab: 'lift' })} />
@@ -81,8 +78,8 @@ export function TodayScreen() {
         onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
       />
     ) : (
-      <FitCard title="Workouts" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
-        <div className={`wk-circles n${sessionsToday.length}`}>
+      <FitCard title="Workouts" className="is-rect" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
+        <div className="wk-circles is-row">
           {sessionsToday.map((w) => (
             <button
               key={w.id}
@@ -107,9 +104,7 @@ export function TodayScreen() {
       title="Food"
       onOpen={() => nav.push({ name: 'screen', tab: 'food' })}
     >
-      <div className="sq-center">
-        <MacroRings totals={totals} settings={settings} />
-      </div>
+      <MacroSummary totals={totals} settings={settings} />
     </FitCard>
   );
 
@@ -123,15 +118,16 @@ export function TodayScreen() {
           </IconBtn>
         }
       />
+      {/* Food, Workouts and Sleep as full-width cards; Water and Weight as two squares below. */}
       <div className="fit-stack">
+        {food}
+        {workout}
+        <FitCard title="Sleep" className="is-rect" onOpen={() => nav.push({ name: 'logSleep' })}>
+          <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
+        </FitCard>
         <div className="fit-grid is-squares">
-          {food}
-          {workout}
           <FitCard title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
             <FitStat value={fmt(waterOz)} unit="OZ" color={FITNESS.distance} />
-          </FitCard>
-          <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
-            <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
           </FitCard>
           <FitCard title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat
@@ -140,9 +136,6 @@ export function TodayScreen() {
               color={FITNESS.body}
               sub={rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
             />
-          </FitCard>
-          <FitCard title="This Week" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
-            <FitStat label="Workouts" value={`${weekDone}/${settings.daysPerWeek}`} color={FITNESS.exercise} />
           </FitCard>
         </div>
       </div>

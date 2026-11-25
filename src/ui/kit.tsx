@@ -495,12 +495,12 @@ export function WorkoutCard(props: {
 export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
   // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
-  // In a Today square the value is as large as fits: start at the CSS size and step down only
+  // In a Today square or wide card the value is as large as fits: start at the CSS size and step down only
   // if it would be clipped (185.4 lb, 10h 45m).
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || !el.closest('.is-squares')) return;
+    if (!el || !el.closest('.is-squares, .is-rect')) return;
     el.style.fontSize = '';
     let size = parseFloat(getComputedStyle(el).fontSize);
     while (el.scrollWidth > el.clientWidth && size > 24) {

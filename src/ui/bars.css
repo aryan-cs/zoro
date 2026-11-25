@@ -1315,14 +1315,32 @@ button.meal-row:not(:disabled):active {
   margin-top: auto;
   text-align: right;
 }
-/* The square's one number, large and in the bottom-right corner (FitStat steps it down if a
+/* The card's one number, large and in the bottom-right corner (FitStat steps it down if a
  * long value would be clipped); the unit stays in proportion. */
-.fit-grid.is-squares .fit-stat-value {
+.fit-grid.is-squares .fit-stat-value,
+.fit-card.is-rect .fit-stat-value {
   font-size: 52px;
   line-height: 1.12;
 }
-.fit-grid.is-squares .fit-stat-value small {
+.fit-grid.is-squares .fit-stat-value small,
+.fit-card.is-rect .fit-stat-value small {
   font-size: 0.6em;
+}
+/* Today's full-width cards (Sleep, several workouts): title on top, content along the bottom. */
+.fit-card.is-rect {
+  display: flex;
+  flex-direction: column;
+  min-height: 148px;
+}
+.fit-card.is-rect .fit-stat {
+  margin-top: auto;
+  text-align: right;
+}
+.wk-circles.is-row {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  margin-top: auto;
 }
 .sq-center {
   display: flex;
