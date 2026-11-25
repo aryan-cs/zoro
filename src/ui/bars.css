@@ -1092,17 +1092,23 @@ button.meal-row:not(:disabled):active {
   width: min(74vw, 290px);
   height: min(74vw, 290px);
 }
+/* The percentage sits in the ring's hole. */
+.water-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
 .water-pct {
-  margin-top: 16px;
+  position: absolute;
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 48px;
+  font-size: 58px;
   font-weight: 700;
-  line-height: 52px;
+  line-height: 62px;
   font-variant-numeric: tabular-nums;
   color: #00b7ff;
 }
 .water-oz {
-  margin-top: 2px;
+  margin-top: 20px;
   font-size: 17px;
   line-height: 22px;
   color: #98989f;

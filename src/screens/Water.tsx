@@ -78,8 +78,10 @@ export function WaterScreen() {
       {/* The ring, percent and ounces centered in the space; the quick amounts along the bottom. */}
       <div className="water-body">
         <div className="water-hero">
-          <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
-          <div className="water-pct">{pct}%</div>
+          <div className="water-ring">
+            <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
+            <div className="water-pct">{pct}%</div>
+          </div>
           <div className="water-oz">
             {fmt(total)} of {fmt(settings.waterTargetOz)} oz
           </div>
