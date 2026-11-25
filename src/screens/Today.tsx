@@ -150,7 +150,7 @@ export function TodayScreen() {
               sub={
                 change ? (
                   <span className={`wt-change ${change > 0 ? 'is-up' : 'is-down'}`}>
-                    <Sym name={change > 0 ? 'arrowtriangle.up.fill' : 'arrowtriangle.down.fill'} size={11} />
+                    <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
                     {fmt(Math.abs(change), 1)} LB
                   </span>
                 ) : undefined
