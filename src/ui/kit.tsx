@@ -12,7 +12,7 @@ import {
   Sheet,
   Toast,
 } from 'konsta/react';
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { Sym } from './Sym';
@@ -495,10 +495,23 @@ export function WorkoutCard(props: {
 export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
   // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
+  // In a Today square the value is as large as fits: start at the CSS size and step down only
+  // if it would be clipped (185.4 lb, 10h 45m).
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !el.closest('.is-squares')) return;
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && size > 24) {
+      size -= 2;
+      el.style.fontSize = `${size}px`;
+    }
+  }, [props.value, props.unit]);
   return (
     <div className={`fit-stat ${props.small ? 'is-small' : ''}`}>
       {props.label && <div className="fit-stat-label">{props.label}</div>}
-      <div className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
+      <div ref={ref} className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
         {empty ? '—' : props.value}
         {!empty && props.unit && <small>{props.unit}</small>}
       </div>

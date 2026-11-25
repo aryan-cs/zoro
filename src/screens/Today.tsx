@@ -19,14 +19,6 @@ export function mealNow(): Meal {
   return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
 }
 
-function DoneMark() {
-  return (
-    <span role="img" aria-label="Done" className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#30d158] text-black">
-      <Sym name="checkmark" size={10} />
-    </span>
-  );
-}
-
 export function TodayScreen() {
   const nav = useNav();
   const toast = useToast();
@@ -64,7 +56,6 @@ export function TodayScreen() {
     toast('Weight saved');
   };
 
-  const foodDone = totals.protein >= settings.proteinTarget && totals.kcal >= settings.kcalTarget * 0.9;
 
 
 
@@ -115,7 +106,6 @@ export function TodayScreen() {
     <FitCard
       title="Food"
       onOpen={() => nav.push({ name: 'screen', tab: 'food' })}
-      trailing={foodDone ? <DoneMark /> : undefined}
     >
       <div className="sq-center">
         <MacroRings totals={totals} settings={settings} />

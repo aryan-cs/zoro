@@ -1315,13 +1315,14 @@ button.meal-row:not(:disabled):active {
   margin-top: auto;
   text-align: right;
 }
-/* The square's one number, large and in the bottom-right corner. */
+/* The square's one number, large and in the bottom-right corner (FitStat steps it down if a
+ * long value would be clipped); the unit stays in proportion. */
 .fit-grid.is-squares .fit-stat-value {
-  font-size: 40px;
-  line-height: 46px;
+  font-size: 52px;
+  line-height: 1.12;
 }
 .fit-grid.is-squares .fit-stat-value small {
-  font-size: 26px;
+  font-size: 0.6em;
 }
 .sq-center {
   display: flex;
