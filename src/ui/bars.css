@@ -126,7 +126,9 @@
 }
 .ios-navbar-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* Sides take at least their buttons' width, so a wide group of buttons pushes the title
+   * aside instead of covering it (as iOS does). */
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
   align-items: center;
   gap: 8px;
   height: 44px; /* Settings: 44pt row right under the status bar */
@@ -368,9 +370,12 @@ button.meal-row:not(:disabled):active {
   min-height: 44px;
   color: #8d8d93;
 }
-.meal-row.is-item {
-  padding-top: 8px;
-  padding-bottom: 8px;
+.meal-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .meal-row-text {
   display: flex;
@@ -443,8 +448,8 @@ button.meal-row:not(:disabled):active {
   padding: 14px 0;
 }
 .ring-card.is-multi .ring-art {
-  width: 132px;
-  height: 132px;
+  width: 140px;
+  height: 140px;
 }
 .ring-value-label {
   font-size: 15px;
@@ -539,15 +544,32 @@ button.meal-row:not(:disabled):active {
 }
 
 /* ---------- Week row (Calendar): letters, date numbers, today in a filled circle ---------- */
+.lift-weeks {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+  cursor: grab;
+}
+.lift-weeks::-webkit-scrollbar {
+  display: none;
+}
 .lift-week {
   display: grid;
+  flex: 0 0 100%;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  margin: 4px 16px 0;
+  box-sizing: border-box;
+  padding: 4px 16px 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 .lift-day {
   display: flex;
   flex-direction: column;
   align-items: center;
+  -webkit-tap-highlight-color: transparent;
 }
 .lift-day-letter {
   font-size: 13px;
@@ -567,8 +589,18 @@ button.meal-row:not(:disabled):active {
   font-variant-numeric: tabular-nums;
 }
 .lift-day.is-today .lift-day-num {
-  background: var(--ios-blue);
+  color: var(--ios-blue);
   font-weight: 600;
+}
+/* The picked day: a filled circle, blue when it's today, white otherwise (as in Calendar). */
+.lift-day.is-sel .lift-day-num {
+  background: #fff;
+  color: #000;
+  font-weight: 600;
+}
+.lift-day.is-sel.is-today .lift-day-num {
+  background: var(--ios-blue);
+  color: #fff;
 }
 .lift-day-dot {
   width: 5px;
@@ -845,4 +877,179 @@ button.meal-row:not(:disabled):active {
   margin-top: 8px;
   font-size: 17px;
   line-height: 22px;
+}
+
+/* ---------- Food amount sheet ---------- */
+.amt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 16px 0;
+}
+.amt-head {
+  text-align: center;
+}
+.amt-name {
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 25px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.amt-brand {
+  font-size: 15px;
+  line-height: 20px;
+  color: #98989f;
+}
+/* − [ 1 servings ] + */
+.amt-dial {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  align-items: center;
+}
+.amt-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease-out;
+}
+.amt-step:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.18);
+}
+.amt-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.amt-value input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  text-align: center;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 50px;
+  color: var(--ios-label);
+  caret-color: var(--ios-blue);
+  font-variant-numeric: tabular-nums;
+}
+.amt-value span {
+  font-size: 15px;
+  line-height: 20px;
+  color: #98989f;
+}
+.amt-serving {
+  margin-top: -10px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: #98989f;
+}
+.amt-macros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 4px;
+  border-radius: 20px;
+  background: #2c2c2e;
+  text-align: center;
+}
+.amt-macro-label {
+  font-size: 13px;
+  line-height: 18px;
+  color: #98989f;
+}
+.amt-macro-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.amt-macro-value small {
+  margin-left: 1px;
+  font-size: 12px;
+}
+.amt-card {
+  overflow: hidden;
+  border-radius: 20px;
+  background: #2c2c2e;
+  list-style: none;
+}
+.amt-card > li {
+  list-style: none;
+}
+.amt-card .k-list-item-inner,
+.amt-card .zoro-row-inner {
+  background: transparent;
+}
+.amt .ios-btn.is-lg {
+  margin-top: 0;
+}
+
+/* ---------- One-line food rows (search results, recents) ---------- */
+.food-li {
+  list-style: none;
+}
+.food-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  text-align: left;
+  font-size: 17px;
+  line-height: 22px;
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+}
+.food-row:active {
+  background: #2c2c2e;
+}
+.food-li + .food-li .food-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: #38383b;
+}
+.food-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.food-row-kcal {
+  flex-shrink: 0;
+  color: #98989f;
+}
+
+.amt-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 16px;
+  font-size: 17px;
 }

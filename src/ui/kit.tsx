@@ -244,42 +244,86 @@ export const FITNESS = {
   body: '#ff9f0a',
 };
 
+/** Ring gradients sampled from Apple's Activity rings: start color at 12 o'clock to end color a full lap later. */
+export const RING_GRADIENT = {
+  move: ['#e2001a', '#ff3d97'],
+  exercise: ['#3edd00', '#b8ff00'],
+  stand: ['#00b8e6', '#00f5d4'],
+  steps: ['#7d5bf0', '#c3a8ff'],
+  distance: ['#0091ff', '#00d9ff'],
+} as const;
+
+type RingGlyph = 'arrow' | 'double' | 'up' | 'chevron';
+
+const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+function mixColor(a: string, b: string, t: number) {
+  const [x, y] = [hex(a), hex(b)];
+  return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`;
+}
+/** Point on the ring at `deg` degrees clockwise from 12 o'clock. */
+function onRing(cx: number, cy: number, r: number, deg: number) {
+  const t = ((deg - 90) * Math.PI) / 180;
+  return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+}
+
 /**
- * Activity ring, drawn like Apple Fitness: a dark track in the ring's color, a round-capped arc
- * from 12 o'clock, and past the goal a second lap whose tip casts a shadow on the first.
+ * An Apple Activity ring: a track of the ring color at 15% (as measured on Fitness's cards), the
+ * progress arc shaded along its length from the start color to the end color, round caps, a black
+ * glyph on the start cap, and past the goal a second lap whose tip casts a shadow.
  */
-function Ring({ c: [cx, cy], r, w, value, target, color, arrow }: { c: [number, number]; r: number; w: number; value: number; target: number; color: string; arrow?: boolean }) {
-  const len = 2 * Math.PI * r;
+function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
   const p = target > 0 ? Math.max(0, value / target) : 0;
-  const lap = p > 1 ? Math.min(p - 1, 1) : 0;
-  const arc = (frac: number) => (
-    <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${frac * len} ${len}`} />
-  );
-  const tip = 2 * Math.PI * lap;
-  return (
-    <>
-      <g transform={`rotate(-90 ${cx} ${cy})`}>
-        {/* Fitness's track is the ring color at ~14% (Move's is #3e1a26 on a card). */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeOpacity="0.15" strokeWidth={w} />
-        {p > 0 && arc(Math.min(p, 1))}
-        {lap > 0 && (
-          <>
-            <circle cx={cx + r * Math.cos(tip)} cy={cy + r * Math.sin(tip)} r={w / 2} fill={color} style={{ filter: `drop-shadow(0 0 ${w / 5}px rgba(0,0,0,0.75))` }} />
-            {arc(lap)}
-          </>
-        )}
-      </g>
-      {arrow && (
+  const lap = (from: number, to: number, key: string) => {
+    // Short arcs with butt ends, each in its own shade, overlapping a hair so no seams show.
+    const n = Math.max(2, Math.ceil((to - from) / 5));
+    const step = (to - from) / n;
+    return Array.from({ length: n }, (_, i) => {
+      const a0 = from + i * step;
+      const a1 = Math.min(to, a0 + step + 0.8);
+      const [x0, y0] = onRing(cx, cy, r, a0);
+      const [x1, y1] = onRing(cx, cy, r, a1);
+      return (
         <path
-          d={`M${cx - w * 0.28} ${cy - r}h${w * 0.56}m${-w * 0.24} ${-w * 0.24}l${w * 0.24} ${w * 0.24}l${-w * 0.24} ${w * 0.24}`}
+          key={`${key}${i}`}
+          d={`M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`}
           fill="none"
-          stroke="#000"
-          strokeWidth={w * 0.11}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          stroke={mixColor(colors[0], colors[1], ((a0 + a1) / 2 % 360) / 360)}
+          strokeWidth={w}
         />
+      );
+    });
+  };
+  const end = Math.min(p, 1) * 360;
+  const over = p > 1 ? Math.min(p - 1, 1) * 360 : 0;
+  const [ex, ey] = onRing(cx, cy, r, end);
+  const [ox, oy] = onRing(cx, cy, r, over);
+  const [sx, sy] = onRing(cx, cy, r, 0);
+  const g = w * 0.22; // glyph half-size
+  const glyphPath = {
+    arrow: `M${sx - g} ${sy}h${g * 2}m${-g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
+    double: `M${sx - g} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}M${sx - g * 0.1} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
+    up: `M${sx} ${sy + g}v${-g * 2}m${-g * 0.85} ${g * 0.85}l${g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}`,
+    chevron: `M${sx - g * 0.4} ${sy - g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`,
+  }[glyph];
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={colors[0]} strokeOpacity="0.15" strokeWidth={w} />
+      {p > 0 && (
+        <>
+          {lap(0, end, 'a')}
+          <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
+          <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+        </>
       )}
-    </>
+      {over > 0 && (
+        <>
+          <circle cx={ox} cy={oy} r={w / 2} fill={mixColor(colors[0], colors[1], over / 360)} style={{ filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` }} />
+          {lap(0, over, 'b')}
+          <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
+        </>
+      )}
+      <path d={glyphPath} fill="none" stroke="#000" strokeOpacity="0.85" strokeWidth={w * 0.12} strokeLinecap="round" strokeLinejoin="round" />
+    </g>
   );
 }
 
@@ -297,14 +341,14 @@ function RingValue({ label, value, target, unit, color, big }: { label: string; 
 }
 
 /** One goal as a single Fitness ring with its value beside it (Water). */
-export function GoalRing(props: { label: string; value: number; target: number; unit: string; color: string }) {
+export function GoalRing(props: { label: string; value: number; target: number; unit: string; color: string; gradient?: readonly [string, string] }) {
   return (
     <div className="ring-card">
       <svg viewBox="0 0 110 110" className="ring-art" aria-hidden>
-        <Ring c={[55, 55]} r={44} w={22} value={props.value} target={props.target} color={props.color} arrow />
+        <Ring c={[55, 55]} r={44} w={22} value={props.value} target={props.target} colors={props.gradient ?? [props.color, props.color]} glyph="arrow" />
       </svg>
       <div className="ring-legend">
-        <RingValue {...props} big />
+        <RingValue label={props.label} value={props.value} target={props.target} unit={props.unit} color={props.color} big />
       </div>
     </div>
   );
@@ -414,20 +458,22 @@ export function FitStat(props: { label: string; value: ReactNode; unit?: string;
 /** Calories and macros as concentric Fitness rings, each labeled beside them like Move, Exercise and Stand. */
 export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const rows: [string, number, number, string, string][] = [
-    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL'],
-    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G'],
-    ['Carbs', totals.carbs, carbs, FITNESS.stand, 'G'],
-    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G'],
+  const rows: [string, number, number, string, string, readonly [string, string], RingGlyph][] = [
+    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL', RING_GRADIENT.move, 'arrow'],
+    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G', RING_GRADIENT.exercise, 'double'],
+    ['Carbs', totals.carbs, carbs, FITNESS.stand, 'G', RING_GRADIENT.stand, 'up'],
+    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'chevron'],
   ];
-  // Like the Watch rings: thick strokes, hairline gaps, a glyph at each ring's start.
-  const W = 13;
-  const GAP = 1.5;
+  // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings keep
+  // the same stroke-to-gap ratio: stroke 19%, gap 1.7%, hole 19%.
+  const R = 70;
+  const W = R * 0.19;
+  const GAP = R * 0.017;
   return (
     <div className="ring-card is-multi">
-      <svg viewBox="0 0 132 132" className="ring-art" aria-hidden>
-        {rows.map(([label, v, t, color], i) => (
-          <Ring key={label} c={[66, 66]} r={66 - W / 2 - i * (W + GAP)} w={W} value={v} target={t} color={color} arrow />
+      <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="ring-art" aria-hidden>
+        {rows.map(([label, v, t, , , grad, glyph], i) => (
+          <Ring key={label} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={v} target={t} colors={grad} glyph={glyph} />
         ))}
       </svg>
       <div className="ring-legend">

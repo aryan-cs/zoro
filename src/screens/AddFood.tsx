@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Block, List, ListItem, Page, Preloader, Stepper } from 'konsta/react';
+import { Block, ListItem, Page, Preloader } from 'konsta/react';
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, dim, Field, fmt, GlassSheet, Header, IconGroup, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, db, Field, FITNESS, fmt, GlassSheet, Header, IconGroup, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -16,12 +16,11 @@ const num = (s: string) => {
 };
 
 /** "Meal  Other ⌃⌄": optional; food without a meal goes to Other. */
-function MealRow({ value, onChange, flush }: { value: Meal; onChange: (m: Meal) => void; flush?: boolean }) {
+function MealRow({ value, onChange }: { value: Meal; onChange: (m: Meal) => void }) {
   return (
     <ListItem
       title="Meal"
-      contentClassName={flush ? '!ps-0' : undefined}
-      innerClassName={`zoro-row-inner ${flush ? '!pe-0' : ''}`}
+      innerClassName="zoro-row-inner"
       titleWrapClassName="zoro-row-title"
       after={
         <label className="ios-popup">
@@ -40,29 +39,19 @@ function MealRow({ value, onChange, flush }: { value: Meal; onChange: (m: Meal) 
   );
 }
 
+/** Serving labels as stored, without the EU estimated-quantity mark ("400 g e", "400 g ℮"). */
+const cleanServing = (label: string) => label.replace(/\s*(℮|\be)(?=\)|$)/gu, '');
+
+/** One line per food, like Apple's lists: the name, and its calories on the right. */
 function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => void }) {
   const basis = food.serving ? food.serving.macros : food.per100g;
   return (
-    <ListItem
-      link
-      chevron={false}
-      title={<span className="block break-words">{food.name}</span>}
-      subtitle={[food.brand, food.serving ? food.serving.label : `100 ${food.liquid ? 'ml' : 'g'}`].filter(Boolean).join(' · ')}
-      after={
-        basis && (
-          <div className="text-right">
-            <div className="tabular">{fmt(basis.kcal)} kcal</div>
-            <div className="tabular text-[13px]">
-              P {fmt(basis.protein)} · C {fmt(basis.carbs)} · F {fmt(basis.fat)}
-            </div>
-          </div>
-        )
-      }
-      onClick={() => onPick(food)}
-      innerClassName="!py-2 [&>.text-sm]:text-[15px] [&>.text-sm]:text-[rgba(235,235,245,0.6)]"
-      titleWrapClassName="min-w-0 gap-3 [&>div:first-child]:min-w-0"
-      strongTitle={false}
-    />
+    <li className="food-li">
+      <button type="button" className="food-row" onClick={() => onPick(food)}>
+        <span className="food-row-name">{food.name}</span>
+        {basis && <span className="food-row-kcal tabular">{fmt(basis.kcal)} kcal</span>}
+      </button>
+    </li>
   );
 }
 
@@ -88,15 +77,19 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
     onLogged();
   };
 
+  const nudge = (d: number) => setQty(String(Math.max(0, Math.round((num(qty) + d) * 10) / 10)));
+  const unitLabel = unit === 'g' ? g : num(qty) === 1 ? 'serving' : 'servings';
+
   return (
     <GlassSheet opened={!!food} onClose={onClose}>
       {food && macros && (
-        <div className="px-4 pt-3">
-          <div className="text-[17px] font-semibold leading-snug">{food.name}</div>
-          {food.brand && <div className={`text-[13px] ${dim}`}>{food.brand}</div>}
+        <div className="amt">
+          <div className="amt-head">
+            <div className="amt-name">{food.name}</div>
+            {food.brand && <div className="amt-brand">{food.brand}</div>}
+          </div>
           {canServing && canGrams && (
             <Seg
-              className="mt-3"
               value={unit}
               onChange={(u) => {
                 setUnit(u);
@@ -108,46 +101,62 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
               ]}
             />
           )}
-          <List strong className="!my-3">
-            <ListItem
-              contentClassName="!ps-0"
-              innerClassName="!pe-0"
-              title={unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}
-              subtitle={unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : undefined}
-              titleWrapClassName="min-w-0 flex-1 overflow-hidden"
-              after={
-                <Stepper
-                  rounded
-                  colors={{ fillBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-white/20', fillTextIos: 'text-white' }}
-                  input
-                  inputType="number"
-                  value={qty as unknown as number}
-                  onInput={(e: React.ChangeEvent<HTMLInputElement>) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
-                  onMinus={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}
-                  onPlus={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}
-                />
-              }
-            />
-            <MealRow value={meal} onChange={onMeal} flush />
-          </List>
-          <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+
+          {/* Amount: the number itself is the field (tap to type), with round glass − and + beside it. */}
+          <div className="amt-dial">
+            <button type="button" aria-label="Less" className="amt-step" onClick={() => nudge(-step)}>
+              <Sym name="minus.medium" size={18} />
+            </button>
+            <label className="amt-value">
+              <input
+                inputMode="decimal"
+                aria-label={unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}
+                value={qty}
+                onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
+                onFocus={(e) => e.target.select()}
+              />
+              <span>{unitLabel}</span>
+            </label>
+            <button type="button" aria-label="More" className="amt-step" onClick={() => nudge(step)}>
+              <Sym name="plus.medium" size={18} />
+            </button>
+          </div>
+          {unit === 'serving' && food.serving && <div className="amt-serving">{cleanServing(food.serving.label)}</div>}
+
+          <div className="amt-macros">
             {(
               [
-                ['Calories', macros.kcal, ''],
-                ['Protein', macros.protein, 'g'],
-                ['Carbs', macros.carbs, 'g'],
-                ['Fat', macros.fat, 'g'],
+                ['Calories', macros.kcal, 'KCAL', FITNESS.move],
+                ['Protein', macros.protein, 'G', FITNESS.exercise],
+                ['Carbs', macros.carbs, 'G', FITNESS.stand],
+                ['Fat', macros.fat, 'G', FITNESS.steps],
               ] as const
-            ).map(([label, v, u]) => (
-              <div key={label} className="surface rounded-2xl py-2">
-                <div className="tabular text-[17px] font-semibold">
-                  {fmt(v, v > 0 && v < 10 && u ? 1 : 0)}
-                  <span className="text-[13px] font-normal">{u}</span>
+            ).map(([label, v, u, color]) => (
+              <div key={label}>
+                <div className="amt-macro-label">{label}</div>
+                <div className="amt-macro-value" style={{ color }}>
+                  {fmt(v, v > 0 && v < 10 && u === 'G' ? 1 : 0)}
+                  <small>{u}</small>
                 </div>
-                <div className={`text-[13px] ${dim}`}>{label}</div>
               </div>
             ))}
           </div>
+
+          <label className="amt-card amt-row">
+            <span>Meal</span>
+            <span className="ios-popup">
+              {MEALS.find((m) => m.id === meal)?.label}
+              <Sym name="chevron.up.chevron.down" size={13} />
+              <select aria-label="Meal" value={meal} onChange={(e) => onMeal(e.target.value as Meal)}>
+                {MEALS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+
           <Btn kind="tint" size="lg" className="mt-4" disabled={!(num(qty) > 0)} onClick={() => void add()}>
             Add
           </Btn>

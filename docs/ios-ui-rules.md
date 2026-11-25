@@ -33,6 +33,9 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Segmented control | Sized like Health's (iOS 27): 30pt capsule, thumb inset 2.5pt, 13pt medium labels, same weight when selected; drawn as Liquid Glass (translucent track, glass-lens thumb with a bright rim) |
 | Workout cards (Fitness's Outdoor Walk card) | `WorkoutCard`: card = workout color ~10% over black, 20pt padding; glyph in the color top-left, 44pt play button filled with the color top-right (green check when done); 22pt bold one-line title; 48pt tiles at ~14% with one short fact each. No two-line list rows with trailing buttons. |
 | Plus buttons | Toolbar + (in a glass button): 17.7pt glyph, regular, as Health's (size 18.3 in `<Sym>`); inline blue + beside a title: body-size symbol, 16.4pt glyph (size 17); always a 44pt tap area |
+| Activity rings (Apple Watch/Fitness) | Measured: stroke 23% of outer radius, gaps 2%, hole 25% (three rings); our four use stroke 19%, gap 1.7%. Track = ring color at 15% over the card; arc shaded start→end color over a full lap (`RING_GRADIENT`); black glyph on the start cap (→, ≫, ↑, ›) |
+| List rows | One line: title left, one gray value right. Details go in the sheet or action sheet, not a second line |
+| Week strip (Calendar) | Swipe or drag a week at a time; picked day in a filled circle (blue if today, white otherwise), today's number blue; "Today" in the bar jumps back |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

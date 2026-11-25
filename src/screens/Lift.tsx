@@ -1,3 +1,4 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, e1rm, nextMonday, programWeek, roundTo } from '../core/calc';
@@ -5,7 +6,7 @@ import { BENCH_STEPS, DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekd
 import { benchProgress } from '../core/progression';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { Bar, db, FITNESS, FitCard, FitStat, fmtLb, Header, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, FitStat, fmtLb, Header, NavText, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
@@ -14,6 +15,84 @@ const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const shortDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
+const SPAN = 26; // weeks you can swipe back and ahead
+
+/**
+ * Calendar-style week strip: swipe sideways (or drag with a mouse) to page a week at a time;
+ * tap a day to pick it. Today's number is blue, the picked day sits in a filled circle, and a dot
+ * marks each workout day (green once done).
+ */
+function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => void; daysPerWeek: 4 | 5; doneDates: Set<string> }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const thisMonday = nextMonday(addDays(props.date, -6));
+  const weeks = Array.from({ length: SPAN * 2 + 1 }, (_, i) => addDays(thisMonday, (i - SPAN) * 7));
+  // Start on this week, and come back to the picked day's week when it changes elsewhere (Today button).
+  const selWeek = weeks.findIndex((m) => props.sel >= m && props.sel <= addDays(m, 6));
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || selWeek < 0) return;
+    if (el.clientWidth) el.scrollTo({ left: selWeek * el.clientWidth, behavior: el.dataset.ready ? 'smooth' : 'auto' });
+    el.dataset.ready = el.clientWidth ? '1' : '';
+  }, [selWeek]);
+  // The tab mounts hidden (zero width), so place the strip once it's first shown.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (!el.clientWidth || el.dataset.ready) return;
+      el.scrollLeft = selWeek * el.clientWidth;
+      el.dataset.ready = '1';
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Mouse drag (touch scrolls natively).
+  const drag = useRef<{ x: number; left: number } | null>(null);
+  return (
+    <div
+      ref={ref}
+      className="lift-weeks"
+      data-no-swipe
+      onPointerDown={(e) => {
+        if (e.pointerType === 'mouse') drag.current = { x: e.clientX, left: ref.current!.scrollLeft };
+      }}
+      onPointerMove={(e) => {
+        if (drag.current) ref.current!.scrollLeft = drag.current.left - (e.clientX - drag.current.x);
+      }}
+      onPointerUp={() => {
+        const el = ref.current!;
+        if (drag.current) el.scrollTo({ left: Math.round(el.scrollLeft / el.clientWidth) * el.clientWidth, behavior: 'smooth' });
+        drag.current = null;
+      }}
+    >
+      {weeks.map((monday) => (
+        <div key={monday} className="lift-week">
+          {Array.from({ length: 7 }, (_, i) => {
+            const d = addDays(monday, i);
+            const wd = (i + 1) % 7;
+            const t = templateForWeekday(wd, props.daysPerWeek);
+            const done = props.doneDates.has(d);
+            return (
+              <button
+                type="button"
+                key={d}
+                className={`lift-day ${d === props.date ? 'is-today' : ''} ${d === props.sel ? 'is-sel' : ''}`}
+                onClick={() => props.onSelect(d)}
+                aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${t ? TEMPLATES[t].name : 'rest'}${done ? ', done' : ''}`}
+              >
+                <span className="lift-day-letter">{DAY[wd]}</span>
+                <span className="lift-day-num">{Number(d.slice(8))}</span>
+                <span className={`lift-day-dot ${t ? (done ? 'is-done' : 'is-planned') : ''}`} />
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LiftScreen() {
   const nav = useNav();
   const settings = useSettings();
@@ -21,11 +100,14 @@ export function LiftScreen() {
   const week = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS);
   const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
-  const todayId = templateForWeekday(new Date().getDay(), settings.daysPerWeek);
-  const todaysSession = history.find((h) => h.date === date && h.templateId === todayId);
+  // The day picked in the week strip (today by default); the card and exercises follow it.
+  const [sel, setSel] = useState(date);
+  const isToday = sel === date;
+  const todayId = templateForWeekday(new Date(`${sel}T12:00`).getDay(), settings.daysPerWeek);
+  const todaysSession = history.find((h) => h.date === sel && h.templateId === todayId);
   const plan = useLiveQuery(
-    () => (todayId ? buildPlan(todayId, date, db, todaysSession?.sessionId) : undefined),
-    [todayId, date, settings.daysPerWeek, todaysSession?.sessionId],
+    () => (todayId ? buildPlan(todayId, sel, db, todaysSession?.sessionId) : undefined),
+    [todayId, sel, settings.daysPerWeek, todaysSession?.sessionId],
   );
 
   const start = async (id: TemplateId) => {
@@ -33,9 +115,6 @@ export function LiftScreen() {
     nav.push({ name: 'workout', sessionId });
   };
 
-  // This week, Monday to Sunday.
-  const monday = nextMonday(addDays(date, -6));
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const doneDates = new Set(history.filter((h) => !TEMPLATES[h.templateId].secondary && h.sets.length).map((h) => h.date));
 
   const bench = benchProgress(settings, history);
@@ -48,30 +127,11 @@ export function LiftScreen() {
 
   return (
     <Page className="tab-safe">
-      <Header title="Lift" />
-      {/* This week like Calendar's week row: weekday letters, date numbers, today circled.
-          A dot marks a workout day; it turns green once that workout is done. */}
-      <div className="lift-week">
-        {days.map((d, i) => {
-          const wd = (i + 1) % 7;
-          const t = templateForWeekday(wd, settings.daysPerWeek);
-          const done = doneDates.has(d);
-          return (
-            <div
-              key={d}
-              className={`lift-day ${d === date ? 'is-today' : ''}`}
-              aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${t ? TEMPLATES[t].name : 'rest'}${done ? ', done' : ''}`}
-            >
-              <span className="lift-day-letter">{DAY[wd]}</span>
-              <span className="lift-day-num">{Number(d.slice(8))}</span>
-              <span className={`lift-day-dot ${t ? (done ? 'is-done' : 'is-planned') : ''}`} />
-            </div>
-          );
-        })}
-      </div>
+      <Header title="Lift" right={!isToday ? <NavText onClick={() => setSel(date)}>Today</NavText> : undefined} />
+      <WeekStrip date={date} sel={sel} onSelect={setSel} daysPerWeek={settings.daysPerWeek} doneDates={doneDates} />
 
       <div className="fit-stack">
-        {open?.id !== undefined && open.templateId !== todayId && (
+        {isToday && open?.id !== undefined && open.templateId !== todayId && (
           <WorkoutCard
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
@@ -87,10 +147,12 @@ export function LiftScreen() {
             glyph={TEMPLATE_GLYPH[todayId]}
             color={FITNESS.exercise}
             done={todayDone}
-            onPlay={() => void start(todayId)}
+            onPlay={isToday ? () => void start(todayId) : undefined}
             tiles={[
               { icon: 'list.bullet', text: `${plan?.exercises.length ?? '…'} Exercises` },
-              { icon: 'calendar', text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` },
+              isToday
+                ? { icon: 'calendar', text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` }
+                : { icon: 'calendar', text: new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) },
             ]}
           />
         ) : (

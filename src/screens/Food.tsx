@@ -239,13 +239,8 @@ export function FoodScreen() {
                 {items.length === 0 && <div className="meal-row is-empty">No Items</div>}
                 {items.map((e) => (
                   <button type="button" key={e.id} data-entry-id={e.id} className="meal-row is-item meal-entry" onClick={() => setSelected(e)}>
-                    <span className="meal-row-text">
-                      <span className="meal-row-title">{e.name}</span>
-                      <span className="meal-row-sub">
-                        {amountText(e)} · {fmt(e.macros.protein)} g protein
-                      </span>
-                    </span>
-                    <span className="meal-row-value tabular">{fmt(e.macros.kcal)}</span>
+                    <span className="meal-row-name">{e.name}</span>
+                    <span className="meal-row-value tabular">{fmt(e.macros.kcal)} kcal</span>
                   </button>
                 ))}
               </div>
@@ -258,7 +253,7 @@ export function FoodScreen() {
 
       <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
         <ActionsGroup>
-          <ActionsLabel>{selected?.name}</ActionsLabel>
+          <ActionsLabel>{selected ? `${selected.name} · ${amountText(selected)} · ${fmt(selected.macros.protein)} g protein` : ''}</ActionsLabel>
           {MEALS.filter((m) => m.id !== selected?.meal).map((m) => (
             <ActionsButton key={m.id} onClick={() => void moveSelected(m.id)}>
               Move to {m.label}
