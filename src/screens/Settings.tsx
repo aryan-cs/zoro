@@ -230,7 +230,7 @@ export function SettingsScreen() {
         <Row accent title="Restore Backup" onClick={() => fileInput.current?.click()} />
       </Section>
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
-      <p className="mx-4 mb-2 mt-6 text-center text-[11px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
+      <p className="mx-8 mb-2 mt-6 text-center text-[13px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
 
       <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} onManual={() => nav.push({ name: 'sleepSetup' })} />
       <Dialog

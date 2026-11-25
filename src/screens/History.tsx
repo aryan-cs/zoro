@@ -18,12 +18,12 @@ const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 function Stats({ items }: { items: [string, string, string?][] }) {
   return (
     <Cell className="!px-0 !py-0">
-      <div className="grid grid-cols-3">
+      <div className="-mx-4 grid grid-cols-3">
         {items.map(([label, value, sub], i) => (
           <div key={label} className={`px-4 py-2.5 ${i ? 'border-l border-white/10' : ''}`}>
             <div className={`text-[13px] ${dim}`}>{label}</div>
             <div className="tabular text-[20px] font-semibold leading-tight">{value}</div>
-            {sub && <div className={`text-[12px] ${dim}`}>{sub}</div>}
+            {sub && <div className={`text-[13px] ${dim}`}>{sub}</div>}
           </div>
         ))}
       </div>

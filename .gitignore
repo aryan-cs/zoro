@@ -4,3 +4,5 @@ dist
 *.log
 *.tsbuildinfo
 .playwright-mcp
+.playwright-cli
+output

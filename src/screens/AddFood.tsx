@@ -20,21 +20,21 @@ function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => vo
     <ListItem
       link
       chevron={false}
-      title={<span className="block truncate">{food.name}</span>}
+      title={<span className="block break-words">{food.name}</span>}
       subtitle={[food.brand, food.serving ? food.serving.label : `100 ${food.liquid ? 'ml' : 'g'}`].filter(Boolean).join(' · ')}
       after={
         basis && (
           <div className="text-right">
             <div className="tabular">{fmt(basis.kcal)} kcal</div>
-            <div className="tabular text-[12px]">
+            <div className="tabular text-[13px]">
               P {fmt(basis.protein)} · C {fmt(basis.carbs)} · F {fmt(basis.fat)}
             </div>
           </div>
         )
       }
       onClick={() => onPick(food)}
-      innerClassName="!py-2"
-      titleWrapClassName="min-w-0 flex-1 overflow-hidden"
+      innerClassName="!py-2 [&>.text-sm]:text-[15px] [&>.text-sm]:text-[rgba(235,235,245,0.6)]"
+      titleWrapClassName="min-w-0 gap-3 [&>div:first-child]:min-w-0"
       strongTitle={false}
     />
   );
@@ -84,6 +84,8 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
           )}
           <List strong className="!my-3">
             <ListItem
+              contentClassName="!ps-0"
+              innerClassName="!pe-0"
               title={unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}
               subtitle={unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : undefined}
               titleWrapClassName="min-w-0 flex-1 overflow-hidden"
@@ -113,7 +115,7 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
               <div key={label} className="surface rounded-2xl py-2">
                 <div className="tabular text-[17px] font-semibold">
                   {fmt(v, v > 0 && v < 10 && u ? 1 : 0)}
-                  <span className="text-[11px] font-normal">{u}</span>
+                  <span className="text-[13px] font-normal">{u}</span>
                 </div>
                 <div className={`text-[13px] ${dim}`}>{label}</div>
               </div>

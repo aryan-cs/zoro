@@ -95,6 +95,7 @@ export function TodayScreen() {
         <ListItem
           title={<span className="block truncate">{TEMPLATES[templateId].name}</span>}
           subtitle={`${plan?.exercises.length ?? '…'} exercises`}
+          innerClassName="zoro-workout-preview"
           titleWrapClassName="min-w-0"
           after={
             <Btn kind="tint" onClick={() => void start(templateId)}>
@@ -129,6 +130,7 @@ export function TodayScreen() {
         linkProps={{ type: 'button' }}
         chevron={false}
         onClick={() => nav.go('food')}
+        innerClassName="!py-2.5"
         innerChildren={<div className="w-full"><MacroSummary totals={totals} settings={settings} /></div>}
       />
     </Section>

@@ -104,7 +104,7 @@ function SetRow(props: {
     <ListItem innerClassName="!py-1.5" innerChildren={
       <div className="flex w-full min-w-0 items-center gap-2">
       <div className="w-[76px] shrink-0">
-        <div className="text-[15px] font-medium">{props.target.label ?? `Set ${props.index + 1}`}</div>
+        <div className="text-[17px] font-normal">{props.target.label ?? `Set ${props.index + 1}`}</div>
         <div className={`tabular text-[13px] ${dim}`}>{targetText}</div>
       </div>
       <div className="flex flex-1 items-center justify-end gap-1.5">
@@ -113,7 +113,7 @@ function SetRow(props: {
         ) : (
           <>
             <NumField value={weight} onChange={setWeight} label="Weight" disabled={done} placeholder="lb" />
-            <span className={`text-[13px] ${dim}`}>{def.addedLoad ? '+lb ×' : '×'}</span>
+            <span className={`w-9 shrink-0 whitespace-nowrap text-center text-[13px] ${dim}`}>{def.addedLoad ? '+lb ×' : '×'}</span>
           </>
         )}
         <NumField value={reps} onChange={setReps} width="w-12" label={repsLabel} disabled={done} />
@@ -201,13 +201,13 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         const topTarget = ex.sets.reduce((m, s) => Math.max(m, s.weight ?? 0), 0);
         const plates = def.kind === 'barbell' && topTarget > settings.barWeight ? platesPerSide(topTarget, settings.barWeight, settings.plates) : null;
         return (
-          <section key={ex.exerciseId} className="mx-4 mt-4">
-            <div className="mb-1.5 flex items-start justify-between gap-3 px-1">
+          <section key={ex.exerciseId} className="mx-4 mt-6">
+            <div className="mb-2 flex items-baseline justify-between gap-3 px-4">
               <div className="min-w-0 flex-1">
                 <div className="text-[17px] font-semibold leading-snug">{ex.name}</div>
                 {ex.superset && <div className="text-[13px] font-medium text-[#bf5af2]">Superset {ex.superset}</div>}
               </div>
-              <span className={`shrink-0 whitespace-nowrap pt-0.5 text-[13px] ${dim}`}>Rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
+              <span className={`shrink-0 whitespace-nowrap text-[13px] ${dim}`}>Rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
             </div>
             <List strong inset dividers className="!mx-0 !my-0">
               {ex.sets.map((t, i) => (
@@ -229,7 +229,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
                 />
               ))}
             </List>
-            <div className={`mt-1.5 space-y-0.5 px-1 text-[12px] leading-snug ${dim}`}>
+            <div className={`mt-1.5 space-y-0.5 px-4 text-[13px] leading-snug ${dim}`}>
               {plates && plates.plates.length > 0 && (
                 <div>
                   {fmtLb(topTarget)} lb = {plates.plates.join(' + ')} per side

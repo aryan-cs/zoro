@@ -65,7 +65,7 @@ export function Header(props: { title: ReactNode; onBack?: () => void; left?: Re
       subnavbar={props.children}
       bgClassName="!bg-none !bg-black !h-full"
       // Center the title with flexbox instead of a GPU half-pixel shift, which Safari draws fuzzy.
-      titleClassName="!inset-0 !translate-none !transform-none flex flex-col items-center justify-center pointer-events-none"
+      titleClassName="zoro-navbar-title !inset-0 flex flex-col items-center justify-center pointer-events-none"
       subnavbarClassName="!h-auto pb-2 pt-1"
     />
   );
@@ -103,9 +103,9 @@ export function Section(props: { title?: ReactNode; right?: ReactNode; children:
   return (
     <div className={`${titled ? '' : 'mt-4'} ${props.className ?? ''}`}>
       {titled && (
-        <BlockTitle className="flex items-center justify-between gap-2">
-          <span>{props.title}</span>
-          {props.right && <span className="text-[15px] font-normal">{props.right}</span>}
+        <BlockTitle className="zoro-section-title flex items-center justify-between gap-2">
+          <span className="min-w-0">{props.title}</span>
+          {props.right && <span className="flex h-[22px] shrink-0 items-center text-[15px] font-normal">{props.right}</span>}
         </BlockTitle>
       )}
       {props.plain ? (
@@ -132,7 +132,7 @@ export function Row(props: {
   // Action rows use native list buttons.
   if ((props.accent || props.danger) && props.onClick && !props.chevron && !props.sub) {
     return (
-      <ListButton onClick={props.onClick} className={`!h-11 ${props.danger ? '!text-[#ff453a]' : ''}`}>
+      <ListButton onClick={props.onClick} className="zoro-list-action" colors={props.danger ? { textIos: 'text-[#ff453a]' } : undefined}>
         {props.title}
       </ListButton>
     );
@@ -143,10 +143,10 @@ export function Row(props: {
       chevron={!!props.chevron}
       title={props.accent ? <span className="text-accent">{props.title}</span> : props.title}
       subtitle={props.sub}
-      after={props.right == null ? undefined : <div className="min-w-0 truncate">{props.right}</div>}
+      after={props.right == null ? undefined : <div className="min-w-0 text-right">{props.right}</div>}
       onClick={props.onClick}
-      innerClassName={props.sub ? 'min-w-0 !py-2' : 'min-w-0 !py-0'}
-      titleWrapClassName={`${props.sub ? '' : '!min-h-11'} min-w-0 [&>div:first-child:not(:last-of-type)]:shrink-0 [&>div:first-child:not(:last-of-type)]:max-w-[65%] [&>div:first-child]:min-w-0 [&>div:first-child]:truncate [&>div:last-of-type]:min-w-0 [&>div:last-of-type]:shrink [&>div:last-of-type]:overflow-hidden [&>div:last-of-type]:whitespace-nowrap [&>div:last-of-type]:text-ellipsis`}
+      innerClassName={props.sub ? 'zoro-row-inner min-w-0 !py-2' : 'zoro-row-inner min-w-0 !py-0'}
+      titleWrapClassName={`zoro-row-title min-w-0 ${props.sub ? '!min-h-0' : '!min-h-11'}`}
       strongTitle={false}
     />
   );
@@ -179,8 +179,8 @@ export function Field(props: {
       label
       innerClassName="min-w-0 !py-0"
       innerChildren={
-        <div className="flex h-11 min-w-0 items-center gap-3">
-          <span className="max-w-[65%] shrink-0 truncate text-[17px]">{props.label}</span>
+        <div className="flex min-h-11 min-w-0 items-center gap-3">
+          <span className="max-w-[65%] shrink-0 text-[17px] leading-[22px]">{props.label}</span>
           <input
             type={props.secret ? 'password' : (props.type ?? 'text')}
             inputMode={props.inputMode}
@@ -191,7 +191,7 @@ export function Field(props: {
             value={props.value}
             onChange={(e) => props.onChange(e.target.value)}
             onBlur={props.onBlur}
-            className={`tabular h-11 min-w-0 flex-1 truncate bg-transparent text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
+            className={`zoro-field-input tabular h-11 min-w-0 flex-1 truncate bg-transparent text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
           />
         </div>
       }
@@ -215,7 +215,7 @@ export function Btn(props: {
 }) {
   const kind = props.kind ?? 'glass';
   const size = props.size ?? 'md';
-  const sizes = { sm: '!h-9 !px-3.5 !text-[15px]', md: '!h-10 !px-4 !text-[16px]', lg: '' };
+  const sizes = { sm: '!h-9 !px-3.5 !text-[15px]', md: '!h-11 !px-4 !text-[17px]', lg: '' };
   const danger = { tonalTextIos: 'text-[#ff453a]', tonalBgIos: 'bg-[#ff453a]/15 active:bg-[#ff453a]/25' };
   return (
     <Button
@@ -330,6 +330,7 @@ export function Note({ children, className }: { children: ReactNode; className?:
 export function GlassSheet({ opened, onClose, children }: { opened: boolean; onClose: () => void; children: ReactNode }) {
   return (
     <Sheet opened={opened} onBackdropClick={onClose} className="pb-[calc(var(--k-safe-area-bottom,0px)+12px)] pt-2">
+      <div aria-hidden="true" className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-white/30" />
       {children}
     </Sheet>
   );
