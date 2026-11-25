@@ -19,12 +19,19 @@ export interface Entry {
   leaving?: boolean;
 }
 
-/** iOS push/pop: duration (ms), curve, how far the screen underneath moves left (% of its
- * width) and how much it dims. Mirrored as --push-ms / --push-ease in index.css. */
-export const SLIDE_MS = 500;
-export const PUSH_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+/**
+ * iOS push/pop, measured from Fitness and Settings on iOS 27 (both are UIKit's stock transition):
+ * a critically damped spring (response ~260 ms) that lands in ~420 ms, sampled here as a CSS
+ * linear() curve; the screen underneath moves 30% of its width and takes a 10% black dim, both
+ * in step with progress. Releasing a swipe-back uses a slightly bouncy spring (damping 0.85) over
+ * 500 ms, and finishes the pop from 30% across. Mirrored as --push-ms / --push-ease in index.css.
+ */
+export const SLIDE_MS = 420;
+export const PUSH_EASE = 'linear(0, 0.079, 0.237, 0.404, 0.553, 0.673, 0.765, 0.834, 0.884, 0.92, 0.945, 0.963, 0.975, 0.983, 0.989, 0.992, 0.995, 0.997, 0.998, 0.999, 1)';
+export const RELEASE_MS = 500;
+export const RELEASE_EASE = 'linear(0, 0.104, 0.309, 0.517, 0.688, 0.814, 0.899, 0.951, 0.981, 0.997, 1.004, 1.006, 1.006, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1)';
 export const PARALLAX = 30;
-export const DIM = 0.12;
+export const DIM = 0.1;
 
 /** What screens use: stable functions, so a tab switch doesn't re-render every screen. */
 interface NavActions {

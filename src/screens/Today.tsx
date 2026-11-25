@@ -138,14 +138,13 @@ export function TodayScreen() {
           {food}
           {workout}
           <FitCard title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
-            <FitStat label="Today" value={`${fmt(waterOz)}/${fmt(settings.waterTargetOz)}`} unit="OZ" color={FITNESS.distance} />
+            <FitStat value={fmt(waterOz)} unit="OZ" color={FITNESS.distance} />
           </FitCard>
           <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
             <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
           </FitCard>
           <FitCard title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat
-              label="Today"
               value={weighedToday ? fmt(weighedToday.value, 1) : null}
               unit={weighedToday ? 'LB' : undefined}
               color={FITNESS.body}

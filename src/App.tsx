@@ -14,7 +14,7 @@ import { ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { DIM, InStack, NavProvider, PARALLAX, PUSH_EASE, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { DIM, InStack, NavProvider, PARALLAX, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -132,14 +132,14 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
     const u = under();
     if (!node) return;
     const p = Math.min(1, Math.max(0, dx / node.offsetWidth)); // 0 = fully shown, 1 = gone
-    const t = animate ? `transform ${SLIDE_MS}ms ${PUSH_EASE}` : 'none';
+    const t = animate ? `transform ${RELEASE_MS}ms ${RELEASE_EASE}` : 'none';
     node.style.transition = t;
     node.style.transform = `translateX(${p * 100}%)`;
     if (u) {
       u.style.transition = t;
       u.style.transform = `translateX(${-PARALLAX * (1 - p)}%)`;
       u.style.setProperty('--dim', String(DIM * (1 - p)));
-      u.style.setProperty('--dim-ms', animate ? `${SLIDE_MS}ms` : '0ms');
+      u.style.setProperty('--dim-ms', animate ? `${RELEASE_MS}ms` : '0ms');
     }
   };
   /** Hand both screens back to their classes once an animation has landed. */
@@ -182,29 +182,29 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
     if (!d?.active || !node) return;
     const dx = e.changedTouches[0].clientX - d.x;
     const fast = dx / Math.max(1, Date.now() - d.t) > 0.5;
-    if (dx > node.offsetWidth * 0.35 || (fast && dx > 40)) {
+    if (dx > node.offsetWidth * 0.3 || (fast && dx > 40)) {
       follow(node.offsetWidth, true);
       setTimeout(() => {
         release();
         pop(true);
-      }, SLIDE_MS);
+      }, RELEASE_MS);
     } else {
       follow(0, true);
-      setTimeout(release, SLIDE_MS);
+      setTimeout(release, RELEASE_MS);
     }
   };
 
   return (
     <div
       ref={el}
-      className={`stack-layer stack-page absolute inset-0 z-30 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'} ${covered ? 'is-covered' : ''}`}
+      className={`stack-layer stack-page absolute inset-0 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'} ${covered ? 'is-covered' : ''}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={() => {
         if (drag.current?.active) {
           follow(0, true);
-          setTimeout(release, SLIDE_MS);
+          setTimeout(release, RELEASE_MS);
         }
         drag.current = null;
       }}

@@ -160,11 +160,11 @@ select {
   color: #fff !important;
 }
 
-/* iOS push/pop: the new screen slides in from the right over the old one, which slides a
- * third of the way left and dims (values shared with nav.tsx). */
+/* iOS push/pop (measured, see nav.tsx): the new screen slides in from the right over the old
+ * one, which slides 30% left and dims to 10% black. The tab bar stays put above both. */
 :root {
-  --push-ms: 500ms;
-  --push-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --push-ms: 420ms;
+  --push-ease: linear(0, 0.079, 0.237, 0.404, 0.553, 0.673, 0.765, 0.834, 0.884, 0.92, 0.945, 0.963, 0.975, 0.983, 0.989, 0.992, 0.995, 0.997, 0.998, 0.999, 1);
 }
 .stack-layer {
   transition: transform var(--push-ms) var(--push-ease);
@@ -180,13 +180,14 @@ select {
   pointer-events: none;
 }
 .stack-layer.is-covered {
-  --dim: 0.12;
+  --dim: 0.1;
   transform: translateX(-30%);
   pointer-events: none;
 }
 .stack-page {
   background: #000;
-  box-shadow: -12px 0 24px rgba(0, 0, 0, 0.5);
+  /* UIKit's: a faint shadow just left of the incoming screen's edge (9pt, a few % dark). */
+  box-shadow: -3px 0 9px rgba(0, 0, 0, 0.18);
 }
 .stack-in {
   /* backwards: no transform left behind once it lands, so fixed sheets and alerts behave. */
@@ -413,13 +414,14 @@ select {
 
 /* Empty list placeholder: gray, one line ("No Items"). */
 .zoro-empty-row {
+  /* Same as a list row (52pt, 17pt text, 16pt inset), in the secondary label color. */
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 52px;
   padding: 0 16px;
   font-size: 17px;
   line-height: 22px;
-  color: #8d8d93;
+  color: rgba(235, 235, 245, 0.6);
   list-style: none;
 }
 

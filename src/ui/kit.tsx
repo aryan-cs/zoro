@@ -492,12 +492,12 @@ export function WorkoutCard(props: {
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
-export function FitStat(props: { label: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
+export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
   // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
   return (
     <div className={`fit-stat ${props.small ? 'is-small' : ''}`}>
-      <div className="fit-stat-label">{props.label}</div>
+      {props.label && <div className="fit-stat-label">{props.label}</div>}
       <div className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
         {empty ? '—' : props.value}
         {!empty && props.unit && <small>{props.unit}</small>}
@@ -614,6 +614,26 @@ export function SheetPage({ opened, onClose, title, children, closeLabel = 'Canc
  * iOS alert with a number field (like UIAlertController with a text field):
  * title, short message, the field with its unit, then Cancel / Save.
  */
+/** Units a prompt can switch between: the stored unit, and its alternative with the factor to it. */
+const ALT_UNITS: Record<string, { unit: string; per: number; digits: number }> = {
+  lb: { unit: 'kg', per: 0.45359237, digits: 1 },
+  oz: { unit: 'ml', per: 29.5735, digits: 0 },
+  in: { unit: 'cm', per: 2.54, digits: 1 },
+};
+const unitKey = (u: string) => `zoro.unit.${u}`;
+function readUnit(u: string) {
+  try {
+    return localStorage.getItem(unitKey(u)) === 'alt';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Asks for one number. When the unit has an alternative (lb/kg, oz/ml, in/cm), tapping the unit
+ * switches it; the value is converted back to the stored unit on save, and the choice is
+ * remembered for next time.
+ */
 export function NumberPrompt(props: {
   opened: boolean;
   title: string;
@@ -626,8 +646,32 @@ export function NumberPrompt(props: {
   max?: number;
 }) {
   const [v, setV] = useState('');
+  const alt = ALT_UNITS[props.unit];
+  const [useAlt, setUseAlt] = useState(() => !!alt && readUnit(props.unit));
+  const k = alt && useAlt ? alt.per : 1;
+  const shownUnit = alt && useAlt ? alt.unit : props.unit;
   const n = parseFloat(v);
-  const valid = Number.isFinite(n) && n >= (props.min ?? 0.01) && n <= (props.max ?? 10000);
+  const valid = Number.isFinite(n) && n >= (props.min ?? 0.01) * k && n <= (props.max ?? 10000) * k;
+  const initial = props.initial && k !== 1 ? fmt(parseFloat(props.initial) * k, alt!.digits).replace(/,/g, '') : props.initial;
+  const save = () => {
+    props.onSave(n / k);
+    setV('');
+  };
+  const switchUnit = () => {
+    if (!alt) return;
+    const next = !useAlt;
+    // Carry a typed value across so switching converts it instead of reinterpreting it.
+    if (Number.isFinite(n)) {
+      const conv = next ? n * alt.per : n / alt.per;
+      setV(String(Math.round(conv * 10 ** (next ? alt.digits : 1)) / 10 ** (next ? alt.digits : 1)));
+    }
+    setUseAlt(next);
+    try {
+      localStorage.setItem(unitKey(props.unit), next ? 'alt' : 'base');
+    } catch {
+      /* remembered for this session only */
+    }
+  };
   return (
     <Dialog
       opened={props.opened}
@@ -635,17 +679,24 @@ export function NumberPrompt(props: {
       content={
         <div className="space-y-3">
           {props.message && <div>{props.message}</div>}
-          <label className="flex items-center gap-2 rounded-xl bg-[rgba(118,118,128,0.24)] px-3">
+          <label className="flex items-center gap-2 rounded-xl bg-[rgba(118,118,128,0.24)] pl-3 pr-1">
             <input
               autoFocus
               inputMode="decimal"
               value={v}
-              placeholder={props.initial ?? ''}
+              placeholder={initial ?? ''}
               onChange={(e) => setV(e.target.value.replace(/[^\d.]/g, ''))}
-              onKeyDown={(e) => e.key === 'Enter' && valid && (props.onSave(n), setV(''))}
+              onKeyDown={(e) => e.key === 'Enter' && valid && save()}
               className="tabular min-w-0 flex-1 bg-transparent py-2.5 text-[17px] text-white outline-none placeholder:text-[rgba(235,235,245,0.3)]"
             />
-            <span className="text-[17px] text-[rgba(235,235,245,0.6)]">{props.unit}</span>
+            {alt ? (
+              <button type="button" className="unit-switch" onClick={switchUnit} aria-label={`Units: ${shownUnit}. Switch to ${useAlt ? props.unit : alt.unit}`}>
+                {shownUnit}
+                <Sym name="chevron.up.chevron.down" size={11} />
+              </button>
+            ) : (
+              <span className="pr-2 text-[17px] text-[rgba(235,235,245,0.6)]">{props.unit}</span>
+            )}
           </label>
         </div>
       }
@@ -659,14 +710,7 @@ export function NumberPrompt(props: {
           >
             Cancel
           </DialogButton>
-          <DialogButton
-            strong
-            disabled={!valid}
-            onClick={() => {
-              props.onSave(n);
-              setV('');
-            }}
-          >
+          <DialogButton strong disabled={!valid} onClick={save}>
             Save
           </DialogButton>
         </>

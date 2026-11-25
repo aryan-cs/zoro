@@ -687,8 +687,16 @@ button.meal-row:not(:disabled):active {
   background: var(--ios-cell);
   -webkit-tap-highlight-color: transparent;
 }
-.fit-card.is-link:active {
-  background: #2c2c2e;
+/* Press, as Fitness (iOS 27): the card grows about its center while held, ~4% by 165 ms and
+ * 7.5% by half a second, with no color change; on release it snaps back in one frame. */
+.fit-card.is-link,
+.wk-card.is-link {
+  transition: none;
+}
+.fit-card.is-link:active,
+.wk-card.is-link:active {
+  transform: scale(1.075);
+  transition: transform 0.9s cubic-bezier(0.15, 0.55, 0.3, 1);
 }
 .fit-card-head {
   display: flex;
@@ -801,9 +809,7 @@ button.meal-row:not(:disabled):active {
   background: color-mix(in srgb, var(--tint) 10%, #000);
   -webkit-tap-highlight-color: transparent;
 }
-.wk-card.is-link:active {
-  background: color-mix(in srgb, var(--tint) 14%, #000);
-}
+
 .wk-top {
   display: flex;
   align-items: flex-start;
@@ -1523,4 +1529,20 @@ button.meal-row:not(:disabled):active {
   font-size: 16px;
   line-height: 21px;
   color: #8d8d93;
+}
+
+/* Unit switch inside a number prompt's field (lb ⇄ kg, oz ⇄ ml, in ⇄ cm): blue like a pop-up button. */
+.unit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 17px;
+  color: var(--ios-blue);
+  -webkit-tap-highlight-color: transparent;
+}
+.unit-switch:active {
+  opacity: 0.4;
 }
