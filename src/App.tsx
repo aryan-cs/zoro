@@ -71,7 +71,7 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={<Sym name={t.icon} size={18} />}
+            icon={<Sym name={t.icon} size={19} />}
             label={t.label}
           />
         ))}
