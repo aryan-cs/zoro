@@ -144,7 +144,7 @@ export function LogSleepScreen() {
           <>
             <ListInput
               type="textarea"
-              label="Sleep data"
+              label="Sleep Data"
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               onPaste={(e) => {
@@ -164,8 +164,8 @@ export function LogSleepScreen() {
       </Section>
 
       <Section title="Manual">
-        <Field label="Fell asleep" type="time" value={bed} onChange={setBed} />
-        <Field label="Woke up" type="time" value={wake} onChange={setWake} />
+        <Field label="Fell Asleep" type="time" value={bed} onChange={setBed} />
+        <Field label="Woke Up" type="time" value={wake} onChange={setWake} />
         <Row accent title="Save" onClick={() => void saveManual()} />
       </Section>
 

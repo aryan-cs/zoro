@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { addDays, e1rm, nextMonday, programWeek, roundTo } from '../core/calc';
-import { BENCH_STEPS, DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
+import { addDays, e1rm, nextMonday, roundTo } from '../core/calc';
+import { BENCH_STEPS, EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
@@ -13,7 +13,6 @@ import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
 const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const shortDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 const SPAN = 26; // weeks you can swipe back and ahead
 
@@ -97,7 +96,6 @@ export function LiftScreen() {
   const nav = useNav();
   const settings = useSettings();
   const date = today();
-  const week = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS);
   const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
   // The day picked in the week strip (today by default); the card and exercises follow it.
@@ -136,7 +134,6 @@ export function LiftScreen() {
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
             color={FITNESS.exercise}
-            tiles={[{ icon: 'timer', text: 'In Progress' }]}
             onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
           />
@@ -148,12 +145,6 @@ export function LiftScreen() {
             color={FITNESS.exercise}
             done={todayDone}
             onPlay={isToday ? () => void start(todayId) : undefined}
-            tiles={[
-              { icon: 'list.bullet', text: `${plan?.exercises.length ?? '…'} Exercises` },
-              isToday
-                ? { icon: 'calendar', text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` }
-                : { icon: 'calendar', text: new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) },
-            ]}
           />
         ) : (
           <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
@@ -196,7 +187,7 @@ export function LiftScreen() {
         <FitCard title="Bench to 225">
           <div className="fit-grid !gap-3">
             <FitStat label="Block Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
-            <FitStat label="Best Est. Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : '--'} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
+            <FitStat label="Best Est. Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : null} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
           </div>
           <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-3" />
           <div className="fit-stat-sub mt-3 truncate">

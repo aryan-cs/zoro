@@ -4,7 +4,7 @@ import { Sym } from '../ui/Sym';
 import { useState, type ReactNode } from 'react';
 import { addDays, formatMinutes, nextMonday, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
-import { buildPlan, dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
+import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
 import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
@@ -39,13 +39,7 @@ export function TodayScreen() {
   const second = SECOND[weekday];
 
   const sessions = useLiveQuery(() => db.sessions.where('date').equals(date).toArray(), [date]) ?? [];
-  const sets = useLiveQuery(() => db.sets.where('date').equals(date).count(), [date]) ?? 0;
   const open = useLiveQuery(() => activeSession(), []);
-  const todaysSession = sessions.find((s) => s.templateId === templateId)?.id;
-  const plan = useLiveQuery(
-    () => (templateId ? buildPlan(templateId, date, db, todaysSession) : undefined),
-    [templateId, date, settings.daysPerWeek, todaysSession],
-  );
   const totals = useLiveQuery(() => dayTotals(date, db), [date]) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
@@ -75,8 +69,6 @@ export function TodayScreen() {
   const foodDone = totals.protein >= settings.proteinTarget && totals.kcal >= settings.kcalTarget * 0.9;
 
 
-  const shortDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  const weekTile = { icon: 'calendar' as const, text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` };
 
   // Fitness-style workout cards: what's in progress, today's session, then the optional one.
   const workout: ReactNode = (
@@ -86,7 +78,6 @@ export function TodayScreen() {
           title={TEMPLATES[open.templateId].name}
           glyph={TEMPLATE_GLYPH[open.templateId]}
           color={FITNESS.exercise}
-          tiles={[{ icon: 'timer', text: 'In Progress' }]}
           onPlay={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
           onOpen={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
         />
@@ -101,13 +92,9 @@ export function TodayScreen() {
           onOpen={() =>
             doneMain?.id !== undefined ? nav.go('lift', { name: 'workout', sessionId: doneMain.id }) : nav.go('lift')
           }
-          tiles={[
-            doneMain ? { icon: 'checkmark', text: `${sets} Sets` } : { icon: 'list.bullet', text: `${plan?.exercises.length ?? '…'} Exercises` },
-            weekTile,
-          ]}
         />
       ) : (
-        <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} tiles={[weekTile]} onOpen={() => nav.go('lift')} />
+        <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.go('lift')} />
       )}
       {second && !week.deload && (
         <WorkoutCard
@@ -115,7 +102,6 @@ export function TodayScreen() {
           glyph={TEMPLATE_GLYPH[second]}
           color={FITNESS.steps}
           onPlay={() => void start(second)}
-          tiles={[{ text: 'Optional' }, { icon: 'timer', text: TEMPLATES[second].short }]}
         />
       )}
     </div>
@@ -164,12 +150,12 @@ export function TodayScreen() {
             <FitStat label="Today" value={`${fmt(waterOz)}/${fmt(settings.waterTargetOz)}`} unit="OZ" color={FITNESS.distance} />
           </FitCard>
           <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
-            <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : '--'} color={FITNESS.sleep} />
+            <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
           </FitCard>
           <FitCard title="Weight" onOpen={() => (weighedToday ? nav.go('history') : setWeighing(true))}>
             <FitStat
               label="Today"
-              value={weighedToday ? fmt(weighedToday.value, 1) : '--'}
+              value={weighedToday ? fmt(weighedToday.value, 1) : null}
               unit={weighedToday ? 'LB' : undefined}
               color={FITNESS.body}
               sub={rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}

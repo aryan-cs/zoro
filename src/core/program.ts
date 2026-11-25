@@ -12,76 +12,76 @@ const ex = (
 export const EXERCISES: Record<string, ExerciseDef> = Object.fromEntries(
   [
     // Chest and pressing
-    ex('bench', 'Bench press', 'barbell', 5, ['chest', 'triceps'], {
+    ex('bench', 'Bench Press', 'barbell', 5, ['chest', 'triceps'], {
       cue: 'Bench inside the rack with safety arms just below your chest.',
     }),
-    ex('pausedBench', 'Paused bench', 'barbell', 5, ['chest', 'triceps'], {
+    ex('pausedBench', 'Paused Bench', 'barbell', 5, ['chest', 'triceps'], {
       cue: 'Pause 1 second on your chest.',
     }),
-    ex('closeGripBench', 'Close-grip bench', 'barbell', 5, ['triceps', 'chest']),
-    ex('inclineBarbell', 'Incline barbell press', 'barbell', 5, ['chest', 'shoulders'], {
+    ex('closeGripBench', 'Close-Grip Bench', 'barbell', 5, ['triceps', 'chest']),
+    ex('inclineBarbell', 'Incline Barbell Press', 'barbell', 5, ['chest', 'shoulders'], {
       cue: 'Incline bench set inside the rack.',
     }),
     ex('dips', 'Dips', 'bodyweight', 5, ['chest', 'triceps'], {
       addedLoad: true,
       cue: 'Rig dip handles. No handles? Decline dumbbell press.',
     }),
-    ex('cableFly', 'High-to-low cable fly', 'cable', 5, ['chest']),
-    ex('dbShoulderPress', 'Seated dumbbell shoulder press', 'dumbbell', 5, ['shoulders']),
+    ex('cableFly', 'High-to-Low Cable Fly', 'cable', 5, ['chest']),
+    ex('dbShoulderPress', 'Seated Dumbbell Shoulder Press', 'dumbbell', 5, ['shoulders']),
     // Back
-    ex('pullup', 'Pull-ups', 'bodyweight', 5, ['back', 'biceps'], {
+    ex('pullup', 'Pull-Ups', 'bodyweight', 5, ['back', 'biceps'], {
       addedLoad: true,
       cue: 'Or kneeling cable pulldown from the top pulley.',
     }),
-    ex('cableRow', 'Seated cable row', 'cable', 5, ['back'], { cue: 'Low pulley, feet braced.' }),
-    ex('barbellRow', 'Barbell row', 'barbell', 5, ['back'], { cue: 'Or single-arm cable row.' }),
-    ex('kneelingPulldown', 'Kneeling single-arm pulldown', 'cable', 5, ['back'], { perSide: true }),
-    ex('facePull', 'Face pulls', 'cable', 5, ['rear delts', 'upper back']),
-    ex('rearDeltFly', 'Rear-delt fly', 'dumbbell', 5, ['rear delts']),
+    ex('cableRow', 'Seated Cable Row', 'cable', 5, ['back'], { cue: 'Low pulley, feet braced.' }),
+    ex('barbellRow', 'Barbell Row', 'barbell', 5, ['back'], { cue: 'Or single-arm cable row.' }),
+    ex('kneelingPulldown', 'Kneeling Single-Arm Pulldown', 'cable', 5, ['back'], { perSide: true }),
+    ex('facePull', 'Face Pulls', 'cable', 5, ['rear delts', 'upper back']),
+    ex('rearDeltFly', 'Rear-Delt Fly', 'dumbbell', 5, ['rear delts']),
     // Shoulders
-    ex('cableLateral', 'Cable lateral raise', 'cable', 5, ['side delts'], { perSide: true }),
-    ex('lateralRaise', 'Lateral raise', 'dumbbell', 5, ['side delts']),
+    ex('cableLateral', 'Cable Lateral Raise', 'cable', 5, ['side delts'], { perSide: true }),
+    ex('lateralRaise', 'Lateral Raise', 'dumbbell', 5, ['side delts']),
     // Arms
-    ex('ohTricepsExt', 'Overhead cable triceps extension', 'cable', 5, ['triceps']),
-    ex('leaningOhExt', 'Leaning single-arm overhead extension', 'cable', 5, ['triceps'], { perSide: true }),
-    ex('pushdown', 'Triceps pushdown', 'cable', 5, ['triceps']),
-    ex('skullCrusher', 'Skull crushers', 'barbell', 5, ['triceps']),
-    ex('inclineCurl', 'Incline dumbbell curl', 'dumbbell', 5, ['biceps']),
-    ex('preacherCurl', 'Cable preacher curl', 'cable', 5, ['biceps'], { cue: 'Bench at the cable.' }),
-    ex('bayesianCurl', 'Bayesian curl', 'cable', 5, ['biceps'], { perSide: true }),
-    ex('hammerCurl', 'Hammer curl', 'dumbbell', 5, ['biceps', 'forearms']),
-    ex('ezCurl', 'EZ-bar or dumbbell curl', 'barbell', 5, ['biceps']),
+    ex('ohTricepsExt', 'Overhead Cable Triceps Extension', 'cable', 5, ['triceps']),
+    ex('leaningOhExt', 'Leaning Single-Arm Overhead Extension', 'cable', 5, ['triceps'], { perSide: true }),
+    ex('pushdown', 'Triceps Pushdown', 'cable', 5, ['triceps']),
+    ex('skullCrusher', 'Skull Crushers', 'barbell', 5, ['triceps']),
+    ex('inclineCurl', 'Incline Dumbbell Curl', 'dumbbell', 5, ['biceps']),
+    ex('preacherCurl', 'Cable Preacher Curl', 'cable', 5, ['biceps'], { cue: 'Bench at the cable.' }),
+    ex('bayesianCurl', 'Bayesian Curl', 'cable', 5, ['biceps'], { perSide: true }),
+    ex('hammerCurl', 'Hammer Curl', 'dumbbell', 5, ['biceps', 'forearms']),
+    ex('ezCurl', 'EZ-Bar or Dumbbell Curl', 'barbell', 5, ['biceps']),
     // Forearms
-    ex('reverseCurl', 'Reverse curl', 'barbell', 5, ['forearms']),
-    ex('wristCurl', 'Wrist curl', 'barbell', 5, ['forearms'], { cue: 'Full stretch at the bottom.' }),
-    ex('reverseWristCurl', 'Reverse wrist curl', 'barbell', 5, ['forearms']),
-    ex('deadHang', 'Dead hang', 'bodyweight', 5, ['forearms', 'grip'], { timed: true }),
+    ex('reverseCurl', 'Reverse Curl', 'barbell', 5, ['forearms']),
+    ex('wristCurl', 'Wrist Curl', 'barbell', 5, ['forearms'], { cue: 'Full stretch at the bottom.' }),
+    ex('reverseWristCurl', 'Reverse Wrist Curl', 'barbell', 5, ['forearms']),
+    ex('deadHang', 'Dead Hang', 'bodyweight', 5, ['forearms', 'grip'], { timed: true }),
     // Legs
-    ex('squat', 'Barbell back squat', 'barbell', 10, ['quads', 'glutes']),
-    ex('rdl', 'Barbell Romanian deadlift', 'barbell', 10, ['hamstrings', 'glutes']),
-    ex('walkingLunge', 'Walking lunges', 'dumbbell', 5, ['quads', 'glutes'], { perSide: true }),
-    ex('ballLegCurl', 'Stability-ball leg curl', 'bodyweight', 0, ['hamstrings'], {
+    ex('squat', 'Barbell Back Squat', 'barbell', 10, ['quads', 'glutes']),
+    ex('rdl', 'Barbell Romanian Deadlift', 'barbell', 10, ['hamstrings', 'glutes']),
+    ex('walkingLunge', 'Walking Lunges', 'dumbbell', 5, ['quads', 'glutes'], { perSide: true }),
+    ex('ballLegCurl', 'Stability-Ball Leg Curl', 'bodyweight', 0, ['hamstrings'], {
       cue: 'Or cable leg curl with an ankle strap.',
     }),
-    ex('calfRaise', 'Single-leg calf raise', 'dumbbell', 5, ['calves'], {
+    ex('calfRaise', 'Single-Leg Calf Raise', 'dumbbell', 5, ['calves'], {
       perSide: true,
       cue: 'Stand on a plate, hold a dumbbell.',
     }),
-    ex('bulgarian', 'Bulgarian split squat', 'dumbbell', 5, ['quads', 'glutes'], { perSide: true }),
-    ex('hipThrust', 'Barbell hip thrust', 'barbell', 10, ['glutes']),
-    ex('cableLegExt', 'Cable leg extension', 'cable', 5, ['quads'], {
+    ex('bulgarian', 'Bulgarian Split Squat', 'dumbbell', 5, ['quads', 'glutes'], { perSide: true }),
+    ex('hipThrust', 'Barbell Hip Thrust', 'barbell', 10, ['glutes']),
+    ex('cableLegExt', 'Cable Leg Extension', 'cable', 5, ['quads'], {
       perSide: true,
       cue: 'Ankle strap, seated on the bench. Or heels-raised goblet squat.',
     }),
     // Core
-    ex('hangingLegRaise', 'Hanging leg raise', 'bodyweight', 0, ['abs']),
-    ex('woodchopper', 'Cable woodchopper', 'cable', 5, ['obliques'], { perSide: true }),
-    ex('cableCrunch', 'Cable crunch', 'cable', 5, ['abs']),
-    ex('rollout', 'Barbell rollout', 'bodyweight', 0, ['abs'], { cue: 'Or stability-ball rollout.' }),
-    ex('sidePlank', 'Side plank', 'bodyweight', 0, ['obliques'], { timed: true, perSide: true }),
+    ex('hangingLegRaise', 'Hanging Leg Raise', 'bodyweight', 0, ['abs']),
+    ex('woodchopper', 'Cable Woodchopper', 'cable', 5, ['obliques'], { perSide: true }),
+    ex('cableCrunch', 'Cable Crunch', 'cable', 5, ['abs']),
+    ex('rollout', 'Barbell Rollout', 'bodyweight', 0, ['abs'], { cue: 'Or stability-ball rollout.' }),
+    ex('sidePlank', 'Side Plank', 'bodyweight', 0, ['obliques'], { timed: true, perSide: true }),
     ex('plank', 'Plank', 'bodyweight', 0, ['abs'], { timed: true }),
     // Cardio
-    ex('inclineWalk', 'Incline walk or StairMaster', 'machine', 0, ['cardio'], { timed: true }),
+    ex('inclineWalk', 'Incline Walk or StairMaster', 'machine', 0, ['cardio'], { timed: true }),
   ].map((e) => [e.id, e]),
 );
 
@@ -126,7 +126,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   arms: {
     id: 'arms',
-    name: 'Arms + shoulders',
+    name: 'Arms + Shoulders',
     short: 'Arms, delts, forearms',
     exercises: [
       p('closeGripBench', 3, 6, 8, 120),
@@ -174,7 +174,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   pmForearms: {
     id: 'pmForearms',
-    name: 'Forearms + grip',
+    name: 'Forearms + Grip',
     short: '15 min, light',
     secondary: true,
     exercises: [
@@ -185,21 +185,21 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   pmAbs: {
     id: 'pmAbs',
-    name: 'Abs + obliques',
+    name: 'Abs + Obliques',
     short: '10–15 min',
     secondary: true,
     exercises: [p('hangingLegRaise', 3, 12, 15, 45), p('woodchopper', 2, 12, 12, 45), p('plank', 2, 45, 60, 45)],
   },
   pmArms: {
     id: 'pmArms',
-    name: 'Arm pump',
+    name: 'Arm Pump',
     short: '15 min, light',
     secondary: true,
     exercises: [p('ezCurl', 2, 15, 20, 45, { superset: 'A' }), p('pushdown', 2, 15, 20, 45, { superset: 'A' })],
   },
   pmCardio: {
     id: 'pmCardio',
-    name: 'Incline walk',
+    name: 'Incline Walk',
     short: '20–30 min',
     secondary: true,
     exercises: [p('inclineWalk', 1, 1200, 1800, 0)],

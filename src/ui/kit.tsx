@@ -442,13 +442,15 @@ export function WorkoutCard(props: {
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
-export function FitStat(props: { label: string; value: ReactNode; unit?: string; color: string; sub?: ReactNode }) {
+export function FitStat(props: { label: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode }) {
+  // No value yet: Health shows a gray "No Data" in the value's place.
+  const empty = props.value === null;
   return (
     <div className="fit-stat">
       <div className="fit-stat-label">{props.label}</div>
-      <div className="fit-stat-value" style={{ color: props.color }}>
-        {props.value}
-        {props.unit && <small>{props.unit}</small>}
+      <div className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
+        {empty ? 'No Data' : props.value}
+        {!empty && props.unit && <small>{props.unit}</small>}
       </div>
       {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
     </div>

@@ -36,6 +36,10 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Activity rings (Apple Watch/Fitness) | Measured: stroke 23% of outer radius, gaps 2%, hole 25% (three rings); our four use stroke 19%, gap 1.7%. Track = ring color at 15% over the card; arc shaded start→end color over a full lap (`RING_GRADIENT`); black glyph on the start cap (→, ≫, ↑, ›) |
 | List rows | One line: title left, one gray value right. Details go in the sheet or action sheet, not a second line |
 | Week strip (Calendar) | Swipe or drag a week at a time; picked day in a filled circle (blue if today, white otherwise), today's number blue; "Today" in the bar jumps back |
+| Alert buttons (iOS 27, measured) | Never a flat fill. Others: gray glass (#4D4D4F on the #39393A alert), white 17pt medium; preferred: blue-tinted glass, lighter than system blue (#1CAEFF) brightening to #30C1FF on the right; destructive: red label on gray glass |
+| Text case | Title Case for titles, headers, rows, buttons, labels and workout/exercise names (small words like "to", "per", "or" lowercase mid-title); sentence case only for footnotes and messages |
+| Empty values | Gray "No Data" in the value's place (Health), never "--" |
+| Cards | No decorative info tiles that look like buttons; a tile must do something |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

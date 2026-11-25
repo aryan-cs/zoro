@@ -61,7 +61,7 @@ function Lifts() {
 
   return (
     <>
-      <Section title="Bench estimated max">
+      <Section title="Bench Estimated Max">
         {bench.length > 1 ? (
           <Cell className="py-3">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
@@ -86,7 +86,7 @@ function Lifts() {
       </Section>
 
       {logged.length > 0 && (
-        <Section title="Best sets">
+        <Section title="Best Sets">
           {logged.map((id) => {
             const list = best[id];
             const latest = list[list.length - 1];
@@ -178,11 +178,11 @@ function Body() {
         )}
       </Section>
 
-      <Section title="Daily calories">
+      <Section title="Daily Calories">
         {energy ? (
           <>
-            <Row title="Burn per day" right={`${fmt(energy.tdee)} kcal`} />
-            <Row title="Average intake" right={`${fmt(energy.avgIntake)} kcal`} />
+            <Row title="Burn per Day" right={`${fmt(energy.tdee)} kcal`} />
+            <Row title="Average Intake" right={`${fmt(energy.avgIntake)} kcal`} />
             <Row title={`For ${settings.targetRate} lb/week`} right={<span className="font-semibold text-accent">{fmt(energy.recommended)} kcal</span>} />
             {Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
               <Row
@@ -238,7 +238,7 @@ function Food() {
 
   return (
     <>
-      <Section title="7-day averages">
+      <Section title="7-Day Averages">
         <Stats
           items={[
             ['Calories', week.length ? fmt(avg('kcal')) : '—', `goal ${fmt(settings.kcalTarget)}`],
@@ -252,7 +252,7 @@ function Food() {
           </Cell>
         )}
       </Section>
-      <Section title="By day">
+      <Section title="By Day">
         {days
           .filter((d) => d.kcal > 0 || d.oz > 0)
           .map((d) => (

@@ -196,9 +196,9 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
         <Field label="Name" placeholder="Protein bar" value={f.name} onChange={set('name')} wide />
         <Field label="Brand" placeholder="Optional" value={f.brand} onChange={set('brand')} wide />
         <Field label="Serving" placeholder="1 bar" value={f.serving} onChange={set('serving')} />
-        <Field label="Serving weight (g)" inputMode="decimal" placeholder="Optional" value={f.grams} onChange={set('grams')} />
+        <Field label="Serving Weight (g)" inputMode="decimal" placeholder="Optional" value={f.grams} onChange={set('grams')} />
       </Section>
-      <Section title="Per serving">
+      <Section title="Per Serving">
         <Field label="Calories" inputMode="decimal" value={f.kcal} onChange={set('kcal')} />
         <Field label="Protein (g)" inputMode="decimal" value={f.protein} onChange={set('protein')} />
         <Field label="Carbs (g)" inputMode="decimal" value={f.carbs} onChange={set('carbs')} />
@@ -347,8 +347,8 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
       {error && <Block role="status" className="!my-3 text-[#ff453a]">{error}</Block>}
       {online && (
         <>
-          <Section title="Basic foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <EmptyRow>No Matches</EmptyRow>}</Section>
-          <Section title="Packaged foods">
+          <Section title="Basic Foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <EmptyRow>No Matches</EmptyRow>}</Section>
+          <Section title="Packaged Foods">
             {online.branded.length || online.off.length ? (
               <>
                 {list(online.branded, 'usdab')}

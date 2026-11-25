@@ -71,7 +71,7 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
   };
 
   return (
-    <SheetPage opened={opened} onClose={onClose} title="Scan barcode" closeLabel="Close">
+    <SheetPage opened={opened} onClose={onClose} title="Scan Barcode" closeLabel="Close">
       <div className="relative mx-4 mt-3 aspect-[4/3] overflow-hidden rounded-[22px] bg-black">
         <video ref={video} playsInline muted autoPlay className="h-full w-full object-cover" />
         <div className="pointer-events-none absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-2xl border-2 border-white/80" />
@@ -83,7 +83,7 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
           <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
         </label>
       </div>
-      <Section title="Or type it">
+      <Section title="Enter Manually">
         <Field label="Barcode" inputMode="numeric" placeholder="0123456789012" value={manual} onChange={(v) => setManual(v.replace(/\D/g, ''))} wide />
       </Section>
       <div className="mx-4 mt-3">

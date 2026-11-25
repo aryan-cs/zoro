@@ -187,7 +187,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
       <Section>
         <Row title="Sets" right={`${doneSets} of ${totalSets}`} />
-        {plan.deload && <Row title="Easy week" />}
+        {plan.deload && <Row title="Easy Week" />}
       </Section>
 
       {plan.newBenchMax && (

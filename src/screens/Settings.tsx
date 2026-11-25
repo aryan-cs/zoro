@@ -63,9 +63,9 @@ function CloudBackup() {
 
   return (
     <>
-      <Section title="Cloud backup">
+      <Section title="Cloud Backup">
         {status.state === 'off' ? (
-          <Row title="GitHub backup" chevron onClick={() => setOpen(true)} />
+          <Row title="GitHub Backup" chevron onClick={() => setOpen(true)} />
         ) : (
           <>
             <Row
@@ -90,7 +90,7 @@ function CloudBackup() {
       {status.state === 'error' && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{status.message}</p>}
 
       <SheetPage opened={open} onClose={() => setOpen(false)} title="GitHub Backup">
-        <Section title="1. Create token">
+        <Section title="1. Create Token">
           <Row accent title="Create Token" chevron onClick={() => window.open(tokenUrl, '_blank')} />
         </Section>
         <ol className="mx-8 mt-2 list-inside list-decimal space-y-1 text-sm text-white/60">
@@ -185,14 +185,14 @@ export function SettingsScreen() {
       <Header title="Settings" onBack={nav.pop} />
 
       <Section title="Plan">
-        <Field label="Program start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
-        <Row title="Days per week" right={<Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
-        <NumSetting label="Bench max (lb)" k="benchMax" settings={settings} />
-        <Field label="Bench block start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
-        <NumSetting label="Dumbbell max (lb)" k="dumbbellMax" settings={settings} />
+        <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
+        <Row title="Days per Week" right={<Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
+        <NumSetting label="Bench Max (lb)" k="benchMax" settings={settings} />
+        <Field label="Bench Block Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
+        <NumSetting label="Dumbbell Max (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
-      <Section title="Food targets">
+      <Section title="Food Targets">
         <Row title="Phase" right={
           <Seg<Phase>
             className="w-52 max-w-full"
@@ -205,7 +205,7 @@ export function SettingsScreen() {
             ]}
           />
         } />
-        <NumSetting label="Weekly change (lb)" k="targetRate" settings={settings} />
+        <NumSetting label="Weekly Change (lb)" k="targetRate" settings={settings} />
         <NumSetting label="Calories" k="kcalTarget" settings={settings} />
         <NumSetting label="Protein (g)" k="proteinTarget" settings={settings} />
         <NumSetting label="Fat (g)" k="fatTarget" settings={settings} />
@@ -213,18 +213,18 @@ export function SettingsScreen() {
         <NumSetting label="Water (oz)" k="waterTargetOz" settings={settings} />
       </Section>
 
-      <Section title="Food data">
-        <Field label="USDA key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+      <Section title="Food Data">
+        <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
       </Section>
 
       <CloudBackup />
 
       <Section title="Sleep">
-        <Row title="Apple Health shortcut" chevron onClick={() => setInstalling(true)} />
-        <Row title="Shortcut setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
+        <Row title="Apple Health Shortcut" chevron onClick={() => setInstalling(true)} />
+        <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
       </Section>
 
-      <Section title="This phone">
+      <Section title="This Phone">
         <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />
         <Row accent title="Export Backup" onClick={() => void exportData()} />
         <Row accent title="Restore Backup" onClick={() => fileInput.current?.click()} />

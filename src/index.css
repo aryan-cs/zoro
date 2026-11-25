@@ -187,10 +187,39 @@ select {
   }
 }
 
-/* Destructive alert action: red capsule with white text. */
-.k-dialog .k-button.destructive {
-  background-color: #ff453a !important;
+/*
+ * Alert buttons, measured from iOS 27 (Health's notification alert). Never a flat fill:
+ * - Other actions: a gray glass capsule (#4D4D4F on the alert's #39393A), white 17pt label.
+ * - The preferred action: glass tinted with system blue, which reads lighter (#1CAEFF) than
+ *   #0A84FF, with a soft highlight brightening its right half (#30C1FF).
+ * - Destructive: red label on the gray glass.
+ */
+.k-dialog .k-button {
+  height: 48px !important;
+  background: rgba(255, 255, 255, 0.105) !important;
   color: #fff !important;
+  font-weight: 500 !important;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.06) !important;
+}
+.k-dialog .k-button:active {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+.k-dialog .k-button.bg-primary {
+  background: linear-gradient(90deg, #1caeff 0%, #1caeff 38%, #30c1ff 76%, #29baff 100%) !important;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.15) !important;
+}
+.k-dialog .k-button.bg-primary:active {
+  background: linear-gradient(90deg, #45bcff 0%, #45bcff 38%, #5ccdff 76%, #52c6ff 100%) !important;
+}
+.k-dialog .k-button.pointer-events-none {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+.k-dialog .k-button.destructive {
+  color: #ff453a !important;
 }
 
 
@@ -401,4 +430,10 @@ select {
   font-size: 10px !important;
   font-weight: 600 !important;
   line-height: 12px !important;
+}
+.k-dialog .k-button.bg-primary.destructive {
+  background: rgba(255, 255, 255, 0.105) !important;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.06) !important;
 }
