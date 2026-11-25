@@ -61,8 +61,19 @@ export function TabBar<T extends string>({ tabs, active, onSelect }: { tabs: Tab
 
 /** iOS navigation bar: 44pt row, centered 17pt semibold title, round glass buttons, optional row below. */
 export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
+  // Show the scroll-edge fade only while content is scrolled under the bar.
+  const ref = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const page = ref.current?.closest('.k-page');
+    if (!page) return;
+    const onScroll = () => setScrolled(page.scrollTop > 2);
+    onScroll();
+    page.addEventListener('scroll', onScroll, { passive: true });
+    return () => page.removeEventListener('scroll', onScroll);
+  }, []);
   return (
-    <header className="ios-navbar">
+    <header ref={ref} className={`ios-navbar ${scrolled ? 'is-scrolled' : ''}`}>
       <div className="ios-navbar-row">
         <div className="ios-navbar-side">
           {props.onBack ? (
