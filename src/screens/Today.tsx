@@ -6,7 +6,7 @@ import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/cal
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
@@ -123,7 +123,11 @@ export function TodayScreen() {
         {food}
         {workout}
         <FitCard title="Sleep" className="is-rect" onOpen={() => nav.push({ name: 'logSleep' })}>
-          <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
+          {/* Last night against the sleep goal: the ring on the left, the hours on the right. */}
+          <div className="rect-row">
+            <SingleRing className="rect-ring" value={sleep?.minutes ?? 0} target={settings.sleepTargetMin} colors={RING_GRADIENT.sleep} glyph="moon.fill" />
+            <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
+          </div>
         </FitCard>
         <div className="fit-grid is-squares">
           <FitCard title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>

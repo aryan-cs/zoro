@@ -255,6 +255,7 @@ export const RING_GRADIENT = {
   carbs: ['#ff6a00', '#ffb800'],
   steps: ['#7d5bf0', '#c3a8ff'],
   distance: ['#0091ff', '#00d9ff'],
+  sleep: ['#5e5ce6', '#a09eff'],
 } as const;
 
 /** Fitness's stroked arrow, or an SF Symbol drawn filled on the start cap (the macro rings). */
@@ -391,6 +392,15 @@ export function BigRing(props: { value: number; target: number; colors: readonly
   return (
     <svg viewBox="0 0 220 220" className="big-ring" aria-hidden>
       <Ring c={[110, 110]} r={110 - w / 2} w={w} value={props.value} target={props.target} colors={props.colors} glyph="drop.fill" />
+    </svg>
+  );
+}
+
+/** A single Fitness ring on its own (Today's Sleep card). */
+export function SingleRing(props: { value: number; target: number; colors: readonly [string, string]; glyph: SFName; className?: string }) {
+  return (
+    <svg viewBox="0 0 110 110" className={props.className} aria-hidden>
+      <Ring c={[55, 55]} r={44} w={22} value={props.value} target={props.target} colors={props.colors} glyph={props.glyph} />
     </svg>
   );
 }

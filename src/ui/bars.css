@@ -1336,9 +1336,28 @@ button.meal-row:not(:disabled):active {
   margin-top: auto;
   text-align: right;
 }
+/* Ring on the left, the value on the right, along the card's bottom (Sleep). */
+.rect-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.rect-ring {
+  flex: none;
+  width: 92px;
+  height: 92px;
+}
+.rect-row .fit-stat {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
 .wk-circles.is-row {
   display: flex;
   flex: none;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: auto;
 }
