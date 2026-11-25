@@ -79,7 +79,7 @@ export function LiftScreen() {
           title={`Today · ${TEMPLATES[todayId].name}`}
           right={
             !todayDone && open?.templateId !== todayId ? (
-              <Btn size="sm" kind="tint" onClick={() => void start(todayId)}>
+              <Btn size="sm" kind="plain" className="!-me-3" onClick={() => void start(todayId)}>
                 Start
               </Btn>
             ) : undefined

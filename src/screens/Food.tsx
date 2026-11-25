@@ -208,7 +208,7 @@ export function FoodScreen() {
       />
 
       <Section>
-        <Cell>
+        <Cell className="">
           <MacroSummary totals={totals} settings={settings} />
         </Cell>
       </Section>

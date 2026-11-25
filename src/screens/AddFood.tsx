@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, dim, Field, fmt, GlassSheet, Header, Row, Section, Seg, SheetPage, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, Field, fmt, GlassSheet, Header, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -312,7 +312,7 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
       {error && <Block role="status" className="!my-3 text-[#ff453a]">{error}</Block>}
       {online && (
         <>
-          <Section title="Basic foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <Row title="No matches" />}</Section>
+          <Section title="Basic foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <EmptyRow>No Matches</EmptyRow>}</Section>
           <Section title="Packaged foods">
             {online.branded.length || online.off.length ? (
               <>
@@ -320,7 +320,7 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
                 {list(online.off, 'off')}
               </>
             ) : (
-              <Row title="No matches" />
+              <EmptyRow>No Matches</EmptyRow>
             )}
           </Section>
         </>

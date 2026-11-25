@@ -98,7 +98,7 @@ export function TodayScreen() {
           innerClassName="zoro-workout-preview"
           titleWrapClassName="min-w-0"
           after={
-            <Btn kind="tint" onClick={() => void start(templateId)}>
+            <Btn kind="tint" size="sm" onClick={() => void start(templateId)}>
               {open?.templateId === templateId ? 'Resume' : 'Start'}
             </Btn>
           }
@@ -130,7 +130,7 @@ export function TodayScreen() {
         linkProps={{ type: 'button' }}
         chevron={false}
         onClick={() => nav.go('food')}
-        innerClassName="!py-2.5"
+        innerClassName="!py-0"
         innerChildren={<div className="w-full"><MacroSummary totals={totals} settings={settings} /></div>}
       />
     </Section>

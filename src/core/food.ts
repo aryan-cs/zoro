@@ -73,7 +73,8 @@ export function parseOffProduct(p: OffProduct): FoodItem | null {
   const pkg = num(p.product_quantity);
   if (!servingMacros && !grams && pkg && pkg <= (liquid ? 600 : 250)) {
     grams = pkg;
-    label = `1 package (${p.quantity?.trim() || `${pkg} ${liquid ? 'ml' : 'g'}`})`;
+    // Drop the EU estimated-quantity mark ("400 g e", "400 g ℮").
+    label = `1 package (${p.quantity?.replace(/\s*(℮|\be)$/u, '').trim() || `${pkg} ${liquid ? 'ml' : 'g'}`})`;
   }
   if (!servingMacros && per100g && grams) servingMacros = scaled(per100g, grams);
   if (!name || (!per100g && !servingMacros)) return null;

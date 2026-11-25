@@ -23,6 +23,9 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Row icon tile | 28pt square, 8pt radius, 14pt in from the card edge, ~18pt white glyph; row text and its separator then start 56pt in |
 | Navigation bar | 44pt row directly under the status bar; 17pt semibold centered title; 44pt round glass back button 16pt from the edge |
 | First section under the nav bar | header 19pt below (card 20pt if untitled) |
+| Buttons (Fitness setup's Continue) | Liquid Glass capsule, white 17pt semibold label: lg 52pt full width, md 44pt, sm 34pt / 15pt inside rows; red label for destructive, blue text only in headers |
+| Activity ring (Fitness) | 110pt across, 22pt stroke, track = ring color at ~18%, round caps from 12 o'clock, black arrow at the start, second lap past the goal with a shadow at its tip |
+| Ring values (Fitness) | label 15pt white, value below in the ring color, SF Rounded semibold (20pt; 28pt for a single ring) with a smaller uppercase unit ("41/170CAL") |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

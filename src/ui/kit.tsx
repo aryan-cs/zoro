@@ -1,7 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   BlockTitle,
-  Button,
   Dialog,
   DialogButton,
   List,
@@ -98,6 +97,11 @@ export function Section(props: { title?: ReactNode; right?: ReactNode; children:
   );
 }
 
+/** Gray placeholder row for an empty list ("No Items"), like Apple's empty states. */
+export function EmptyRow({ children }: { children: ReactNode }) {
+  return <li className="zoro-empty-row">{children}</li>;
+}
+
 /** A standard list row (Konsta ListItem). Accent and danger rows are list buttons. */
 export function Row(props: {
   title: ReactNode;
@@ -180,10 +184,7 @@ export function Field(props: {
 
 // ---------- Controls ----------
 
-/**
- * iOS button (Konsta Button): `tint` is the filled accent button, `glass` the tinted
- * secondary one (like iOS's gray/tinted buttons), `plain` is text only.
- */
+/** iOS button: a glass capsule with a white label (`tint` and `glass` look the same), red for `danger`, blue text for `plain`. */
 export function Btn(props: {
   children: ReactNode;
   onClick?: () => void;
@@ -192,26 +193,18 @@ export function Btn(props: {
   className?: string;
   disabled?: boolean;
 }) {
-  const kind = props.kind ?? 'glass';
-  const size = props.size ?? 'md';
-  const sizes = { sm: '!h-9 !px-3.5 !text-[15px]', md: '!h-11 !px-4 !text-[17px]', lg: '' };
-  const danger = { tonalTextIos: 'text-[#ff453a]', tonalBgIos: 'bg-[#ff453a]/15 active:bg-[#ff453a]/25' };
-  // iOS gray button: tertiary fill with blue text.
-  const gray = { tonalTextIos: 'text-[#0a84ff]', tonalBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-[rgba(118,118,128,0.4)]' };
+  // Liquid Glass capsule with a white label, like the Continue button in Fitness setup.
+  // sm 34pt / 15pt (inside rows), md 44pt / 17pt, lg 52pt / 17pt full width.
+  const kind = props.kind === 'tint' ? 'glass' : props.kind ?? 'glass';
   return (
-    <Button
-      rounded
-      inline={size !== 'lg'}
-      large={size === 'lg'}
-      tonal={kind === 'glass' || kind === 'danger'}
-      clear={kind === 'plain'}
-      colors={kind === 'danger' ? danger : kind === 'glass' ? gray : undefined}
+    <button
+      type="button"
       disabled={props.disabled}
       onClick={props.onClick}
-      className={`shrink-0 gap-1.5 font-semibold ${sizes[size]} ${props.className ?? ''}`}
+      className={`ios-btn is-${props.size ?? 'md'} is-${kind} ${props.className ?? ''}`}
     >
       {props.children}
-    </Button>
+    </button>
   );
 }
 
@@ -234,33 +227,72 @@ export function Bar(props: { value: number; target: number; color: string; class
 }
 
 /** Calories left plus protein, carbs and fat, in one compact block. */
-/** One ring of the summary, like Apple Fitness: a tinted track, the progress arc, and a second lap that overlaps it past the goal. */
-function Ring({ r, value, target, color }: { r: number; value: number; target: number; color: string }) {
-  const c = 2 * Math.PI * r;
+/**
+ * Activity ring, drawn like Apple Fitness: a dark track in the ring's color, a round-capped arc
+ * from 12 o'clock, and past the goal a second lap whose tip casts a shadow on the first.
+ */
+function Ring({ c: [cx, cy], r, w, value, target, color, arrow }: { c: [number, number]; r: number; w: number; value: number; target: number; color: string; arrow?: boolean }) {
+  const len = 2 * Math.PI * r;
   const p = target > 0 ? Math.max(0, value / target) : 0;
-  const arc = (frac: number, shadow?: boolean) => (
-    <circle
-      cx="52"
-      cy="52"
-      r={r}
-      fill="none"
-      stroke={color}
-      strokeWidth="10"
-      strokeLinecap="round"
-      strokeDasharray={`${Math.min(frac, 1) * c} ${c}`}
-      style={shadow ? { filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.7))' } : undefined}
-    />
+  const lap = p > 1 ? Math.min(p - 1, 1) : 0;
+  const arc = (frac: number) => (
+    <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${frac * len} ${len}`} />
   );
+  const tip = 2 * Math.PI * lap;
   return (
-    <g transform="rotate(-90 52 52)">
-      <circle cx="52" cy="52" r={r} fill="none" stroke={color} strokeOpacity="0.22" strokeWidth="10" />
-      {p > 0 && arc(p)}
-      {p > 1 && arc(p - 1, true)}
-    </g>
+    <>
+      <g transform={`rotate(-90 ${cx} ${cy})`}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeOpacity="0.18" strokeWidth={w} />
+        {p > 0 && arc(Math.min(p, 1))}
+        {lap > 0 && (
+          <>
+            <circle cx={cx + r * Math.cos(tip)} cy={cy + r * Math.sin(tip)} r={w / 2} fill={color} style={{ filter: `drop-shadow(0 0 ${w / 5}px rgba(0,0,0,0.75))` }} />
+            {arc(lap)}
+          </>
+        )}
+      </g>
+      {arrow && (
+        <path
+          d={`M${cx - w * 0.28} ${cy - r}h${w * 0.56}m${-w * 0.24} ${-w * 0.24}l${w * 0.24} ${w * 0.24}l${-w * 0.24} ${w * 0.24}`}
+          fill="none"
+          stroke="#000"
+          strokeWidth={w * 0.11}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </>
   );
 }
 
-/** Today's calories and macros as concentric rings with the numbers beside them (Fitness's summary card). */
+/** "Move" over "41/170CAL": white label, then the value in the ring's color in SF Rounded with a small uppercase unit. */
+function RingValue({ label, value, target, unit, color, big }: { label: string; value: number; target: number; unit: string; color: string; big?: boolean }) {
+  return (
+    <div className={`ring-value ${big ? 'is-big' : ''}`}>
+      <div className="ring-value-label">{label}</div>
+      <div className="ring-value-num" style={{ color }}>
+        {fmt(value)}/{fmt(target)}
+        <small>{unit}</small>
+      </div>
+    </div>
+  );
+}
+
+/** One goal as a single Fitness ring with its value beside it (Water). */
+export function GoalRing(props: { label: string; value: number; target: number; unit: string; color: string }) {
+  return (
+    <div className="ring-card">
+      <svg viewBox="0 0 110 110" className="ring-art" aria-hidden>
+        <Ring c={[55, 55]} r={44} w={22} value={props.value} target={props.target} color={props.color} arrow />
+      </svg>
+      <div className="ring-legend">
+        <RingValue {...props} big />
+      </div>
+    </div>
+  );
+}
+
+/** Calories and macros as concentric Fitness rings, each labeled beside them like Move, Exercise and Stand. */
 export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const rows: [string, number, number, string, string][] = [
@@ -270,21 +302,15 @@ export function MacroSummary({ totals, settings }: { totals: Macros; settings: S
     ['Fat', totals.fat, settings.fatTarget, '#bf5af2', 'G'],
   ];
   return (
-    <div className="macro-rings">
-      <svg viewBox="0 0 104 104" className="macro-rings-art" aria-hidden>
+    <div className="ring-card is-multi">
+      <svg viewBox="0 0 110 110" className="ring-art" aria-hidden>
         {rows.map(([label, v, t, color], i) => (
-          <Ring key={label} r={47 - i * 12} value={v} target={t} color={color} />
+          <Ring key={label} c={[55, 55]} r={49.5 - i * 13} w={11} value={v} target={t} color={color} />
         ))}
       </svg>
-      <div className="macro-rings-legend">
+      <div className="ring-legend">
         {rows.map(([label, v, t, color, unit]) => (
-          <div key={label} className="macro-rings-row">
-            <span>{label}</span>
-            <span className="macro-rings-value" style={{ color }}>
-              {fmt(v)}/{fmt(t)}
-              <small>{unit}</small>
-            </span>
-          </div>
+          <RingValue key={label} label={label} value={v} target={t} unit={unit} color={color} />
         ))}
       </div>
     </div>

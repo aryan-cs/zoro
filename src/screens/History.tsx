@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Cell, db, dim, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
+import { Cell, db, dim, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -67,12 +67,12 @@ function Lifts() {
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </Cell>
         ) : (
-          <Row title="2 sessions needed" />
+          <EmptyRow>Needs 2 Sessions</EmptyRow>
         )}
       </Section>
 
       <Section title="Workouts">
-        {history.length === 0 && <Row title="No workouts" />}
+        {history.length === 0 && <EmptyRow>No Workouts</EmptyRow>}
         {history.slice(0, 15).map((h) => (
           <Row
             key={h.sessionId}
@@ -196,7 +196,7 @@ function Body() {
             )}
           </>
         ) : (
-          <Row title="2 weeks of logs needed" />
+          <EmptyRow>Needs 2 Weeks of Logs</EmptyRow>
         )}
       </Section>
 
@@ -258,7 +258,7 @@ function Food() {
           .map((d) => (
             <Row key={d.date} title={longDate(d.date)} sub={`${fmt(d.protein)} g protein · ${fmt(d.oz)} oz water`} right={`${fmt(d.kcal)} kcal`} />
           ))}
-        {!logged.length && !water.length && <Row title="No food logs" />}
+        {!logged.length && !water.length && <EmptyRow>No Food Logs</EmptyRow>}
       </Section>
     </>
   );
@@ -301,7 +301,7 @@ function Sleep() {
               right={formatMinutes(e.minutes)}
             />
           ))}
-        {!entries.length && <Row title="No sleep logs" />}
+        {!entries.length && <EmptyRow>No Sleep Logs</EmptyRow>}
       </Section>
     </>
   );

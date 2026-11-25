@@ -3,32 +3,9 @@ import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta
 import { useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
-import { Btn, Cell, db, dim, fmt, Header, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, db, fmt, GoalRing, Header, NumberPrompt, Row, Section, useSettings, useToast, EmptyRow } from '../ui/kit';
 
 const QUICK = [8, 16, 24, 32];
-
-function Ring({ value, target }: { value: number; target: number }) {
-  const pct = target > 0 ? Math.min(1, value / target) : 0;
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  return (
-    <svg viewBox="0 0 120 120" className="h-36 w-36 -rotate-90">
-      <circle cx="60" cy="60" r={r} fill="none" strokeWidth="11" className="stroke-white/12" />
-      <circle
-        cx="60"
-        cy="60"
-        r={r}
-        fill="none"
-        strokeWidth="11"
-        strokeLinecap="round"
-        stroke="#64d2ff"
-        strokeDasharray={c}
-        strokeDashoffset={c * (1 - pct)}
-        style={{ transition: 'stroke-dashoffset 0.4s ease' }}
-      />
-    </svg>
-  );
-}
 
 export function WaterScreen() {
   const toast = useToast();
@@ -38,7 +15,6 @@ export function WaterScreen() {
   const [custom, setCustom] = useState(false);
   const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
-  const left = Math.max(0, settings.waterTargetOz - total);
   const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const add = async (oz: number) => {
@@ -51,28 +27,21 @@ export function WaterScreen() {
       <Header title="Water" />
 
       <Section>
-        <Cell className="flex flex-col items-center pb-4 pt-5">
-          <div className="relative">
-            <Ring value={total} target={settings.waterTargetOz} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="tabular text-[30px] font-bold leading-none">{fmt(total)}</span>
-              <span className={`text-[13px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
-            </div>
-          </div>
-          <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-[#30d158]'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
-          <div className="mt-4 grid w-full grid-cols-4 gap-2">
-            {QUICK.map((oz) => (
-              <Btn key={oz} className="!w-full !px-0" onClick={() => void add(oz)}>
-                +{oz} oz
-              </Btn>
-            ))}
-          </div>
+        <Cell className="">
+          <GoalRing label="Water" value={total} target={settings.waterTargetOz} unit="OZ" color="#64d2ff" />
         </Cell>
         <Row accent title="Other Amount…" onClick={() => setCustom(true)} />
       </Section>
+      <div className="mx-4 mt-3 grid grid-cols-4 gap-2">
+        {QUICK.map((oz) => (
+          <Btn key={oz} className="!w-full !px-0" onClick={() => void add(oz)}>
+            +{oz} oz
+          </Btn>
+        ))}
+      </div>
 
       <Section title="Today">
-        {entries.length === 0 && <Row title="No water logged" />}
+        {entries.length === 0 && <EmptyRow>No Water Logged</EmptyRow>}
         {[...entries].reverse().map((e) => (
           <Row key={e.id} title={`${fmt(e.oz, e.oz % 1 ? 1 : 0)} oz`} right={time(e.at)} onClick={() => setSelected(e)} />
         ))}

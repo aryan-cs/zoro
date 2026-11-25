@@ -90,7 +90,7 @@ select {
   padding-block: 15px;
   line-height: 22px;
 }
-.zoro-list-action > .k-list-button::after {
+.k-list .zoro-list-action > .k-list-button::after {
   left: 16px !important;
   right: 16px !important;
   width: auto !important;
@@ -334,4 +334,16 @@ select {
   color: #98989f;
   margin-inline-start: 11px !important;
   margin-inline-end: 3px;
+}
+
+/* Empty list placeholder: gray, one line ("No Items"). */
+.zoro-empty-row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 17px;
+  line-height: 22px;
+  color: #8d8d93;
+  list-style: none;
 }

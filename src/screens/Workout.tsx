@@ -258,7 +258,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             <Btn kind="tint" size="lg" onClick={() => void finish()}>
               Finish Workout
             </Btn>
-            <Btn kind="plain" size="lg" className="!text-[#ff453a]" onClick={() => setConfirmDiscard(true)}>
+            <Btn kind="danger" size="lg" onClick={() => setConfirmDiscard(true)}>
               Discard Workout
             </Btn>
           </>
