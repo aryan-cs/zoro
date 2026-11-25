@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, e1rm, nextMonday, roundTo } from '../core/calc';
-import { BENCH_STEPS, EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
+import { EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
@@ -117,7 +117,6 @@ export function LiftScreen() {
 
   const bench = benchProgress(settings, history);
   const blockMax = bench.newMax ?? settings.benchMax;
-  const step = BENCH_STEPS[bench.step];
   const benchBest = history
     .flatMap((h) => h.sets.filter((s) => s.exerciseId === 'bench' || s.exerciseId === 'pausedBench'))
     .reduce((m, s) => Math.max(m, e1rm(s.weight, s.reps)), 0);
@@ -189,10 +188,8 @@ export function LiftScreen() {
             <FitStat label="Training Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
             <FitStat label="Estimated Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : null} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
           </div>
-          <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-3" />
-          <div className="fit-stat-sub mt-3 truncate">
-            Next Bench (Step {bench.step + 1} of 12): {step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)} lb`).join(', ')}
-          </div>
+          {/* Progress toward 225 along the bottom: 16pt from the card's left, right and bottom edges. */}
+          <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-4" />
         </FitCard>
       </div>
     </Page>
