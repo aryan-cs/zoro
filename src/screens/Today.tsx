@@ -1,10 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { addDays, carbTarget, e1rm, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
+import { addDays, carbTarget, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
 import { TEMPLATES } from '../core/program';
-import { benchProgress } from '../core/progression';
-import { dayTotals, loadHistory, metricsOf, saveMetric, today, waterFor } from '../core/store';
+import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
@@ -68,7 +67,7 @@ function ChartHead(props: { label: string; value: ReactNode; color: string; righ
 
 /**
  * Today: a welcome page. A greeting, rings for sleep, water and the week's workouts, a bar for
- * each macro, then weight and bench strength with their trends. Every block opens its screen.
+ * each macro, then weight with its trend. Every block opens its screen.
  */
 export function TodayScreen() {
   const nav = useNav();
@@ -84,7 +83,6 @@ export function TodayScreen() {
   const weekSessions = useLiveQuery(() => db.sessions.where('date').between(monday, addDays(monday, 6), true, true).toArray(), [monday]) ?? [];
   const weekDone = new Set(weekSessions.filter((x) => x.finishedAt && !TEMPLATES[x.templateId].secondary).map((x) => x.date)).size;
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
-  const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
   const [weighing, setWeighing] = useState(false);
 
   // Weight: the latest weigh-in, its change since the one before, and a month of trend.
@@ -103,29 +101,6 @@ export function TodayScreen() {
           ]
         : [],
     [month],
-  );
-
-  // Strength: the bench training max, the best estimated max so far, and its history against 225.
-  const bench = useMemo(() => {
-    const out: { date: string; e1rm: number }[] = [];
-    for (const h of [...history].reverse()) {
-      const sets = h.sets.filter((s) => (s.exerciseId === 'bench' || s.exerciseId === 'pausedBench') && s.weight > 0);
-      if (sets.length) out.push({ date: h.date, e1rm: Math.max(...sets.map((s) => e1rm(s.weight, s.reps))) });
-    }
-    return out;
-  }, [history]);
-  const trainingMax = benchProgress(settings, history).newMax ?? settings.benchMax;
-  const best = bench.length ? Math.max(...bench.map((b) => b.e1rm)) : null;
-  const benchLabels = useMemo(() => (bench.length ? bench.map((b) => short(b.date)) : Array.from({ length: 30 }, (_, i) => short(addDays(date, i - 29)))), [bench, date]);
-  const benchSeries = useMemo<Series[]>(
-    () =>
-      bench.length
-        ? [
-            { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-            { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
-          ]
-        : [],
-    [bench],
   );
 
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
@@ -230,23 +205,6 @@ export function TodayScreen() {
           </div>
         </FitCard>
 
-        <FitCard bare title="Bench Press" onOpen={() => nav.push({ name: 'screen', tab: 'history', section: 'lifts' })}>
-          <ChartHead
-            label="Bench Training Max"
-            color={FITNESS.exercise}
-            value={
-              <>
-                {fmt(trainingMax)}
-                <small>LB</small>
-              </>
-            }
-            right={<span className="chart-note">{best ? `Best ${fmt(best)} · Goal 225` : 'Goal 225 lb'}</span>}
-          />
-          <Bar value={best ?? trainingMax} target={225} color={FITNESS.exercise} className="mt-3" />
-          <div className="fit-chart">
-            <LineChart labels={benchLabels} series={benchSeries} unit=" lb" height={120} />
-          </div>
-        </FitCard>
       </div>
 
       <NumberPrompt
