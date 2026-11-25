@@ -1,9 +1,9 @@
-import { Dialog, DialogButton, Page } from 'konsta/react';
+import { Dialog, DialogButton, ListInput, Page } from 'konsta/react';
 import { useEffect, useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
-import { Btn, Cell, db, Field, Header, Note, Row, Section, useToast } from '../ui/kit';
+import { db, Field, Header, Row, Section, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 const SHORTCUT_URL = `${import.meta.env.BASE_URL}ZoroSleep.shortcut`;
@@ -58,7 +58,7 @@ export function InstallShortcutDialog({ opened, onClose, onManual }: { opened: b
     const data = f ? { files: [f], title: 'Zoro Sleep' } : null;
     if (!data || !navigator.canShare?.(data)) {
       onClose();
-      toast("This phone can't hand the file to Shortcuts. Build it by hand instead.");
+      toast("Set up the shortcut manually.");
       onManual?.();
       return;
     }
@@ -74,8 +74,8 @@ export function InstallShortcutDialog({ opened, onClose, onManual }: { opened: b
   return (
     <Dialog
       opened={opened}
-      title="Add “Zoro Sleep”?"
-      content="It copies last night's sleep from Apple Health so Zoro can read it. In the share sheet, choose Shortcuts, then tap Add Shortcut."
+      title="Add Zoro Sleep?"
+      content="Choose Shortcuts in the share sheet, then Add Shortcut."
       buttons={
         <>
           <DialogButton onClick={onClose}>Cancel</DialogButton>
@@ -100,7 +100,7 @@ export function LogSleepScreen() {
 
   const importText = async (text: string) => {
     const s = parseSleepImport(text);
-    if (!s) return toast("That doesn't look like sleep from the shortcut.");
+    if (!s) return toast("Invalid sleep data");
     await saveSleep(s, db);
     setShortcutState('ok');
     setPaste('');
@@ -129,20 +129,22 @@ export function LogSleepScreen() {
       <Header title="Log Sleep" onBack={nav.pop} />
 
       <Section title="From Apple Health">
-        {!installed && <Row title="Add the Zoro Sleep Shortcut" sub="One time. Copies sleep from Apple Health." chevron onClick={() => setInstalling(true)} />}
+        {!installed && <Row title="Add Zoro Sleep Shortcut" chevron onClick={() => setInstalling(true)} />}
         <Row
           accent
-          title="1. Copy last night's sleep"
+          title="1. Copy Sleep"
           onClick={() => {
             // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
             if (shortcutState() === 'none') setInstalling(true);
             else window.location.href = RUN_URL;
           }}
         />
-        <Row accent title="2. Paste it here" onClick={() => void pasteFromClipboard()} />
+        <Row accent title="2. Paste Sleep" onClick={() => void pasteFromClipboard()} />
         {manualPaste && (
-          <Cell className="space-y-2 py-2.5">
-            <textarea
+          <>
+            <ListInput
+              type="textarea"
+              label="Sleep data"
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               onPaste={(e) => {
@@ -152,21 +154,16 @@ export function LogSleepScreen() {
                   void importText(text);
                 }
               }}
-              rows={2}
-              placeholder="Touch and hold, then Paste"
-              className="w-full rounded-xl bg-[rgba(118,118,128,0.24)] px-3 py-2 outline-none"
+              placeholder="Touch and hold to paste"
             />
             {paste.trim() && (
-              <Btn kind="tint" size="lg" onClick={() => void importText(paste)}>
-                Import
-              </Btn>
+              <Row accent title="Import" onClick={() => void importText(paste)} />
             )}
-          </Cell>
+          </>
         )}
       </Section>
-      <Note>Web apps can’t read Apple Health directly, so a small shortcut copies last night’s sleep for Zoro.</Note>
 
-      <Section title="Or Enter It by Hand">
+      <Section title="Manual">
         <Field label="Fell asleep" type="time" value={bed} onChange={setBed} />
         <Field label="Woke up" type="time" value={wake} onChange={setWake} />
         <Row accent title="Save" onClick={() => void saveManual()} />

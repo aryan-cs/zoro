@@ -4,7 +4,7 @@ import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { exportAll, importAll, today } from '../core/store';
 import type { Phase, Settings } from '../core/types';
-import { Btn, Cell, Field, fmt, Header, Note, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
+import { Btn, Field, fmt, Header, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { InstallShortcutDialog } from './LogSleep';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
@@ -51,7 +51,7 @@ function CloudBackup() {
       const result = await connect({ token: token.trim(), repo: repo.trim() });
       setOpen(false);
       setToken('');
-      toast(result === 'restored' ? 'Restored your data from GitHub' : result === 'saved' ? 'Connected. Backups are on.' : 'Pick which copy to keep');
+      toast(result === 'restored' ? 'Backup restored' : result === 'saved' ? 'Backup connected' : 'Choose a backup');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not connect.');
     } finally {
@@ -65,51 +65,44 @@ function CloudBackup() {
     <>
       <Section title="Cloud backup">
         {status.state === 'off' ? (
-          <Row title="Back Up to GitHub" sub="A private repo only you can open" chevron onClick={() => setOpen(true)} />
+          <Row title="GitHub backup" chevron onClick={() => setOpen(true)} />
         ) : (
           <>
             <Row
               title="Backup"
-              sub={syncConfig()?.repo}
               right={
                 status.state === 'saving' ? (
                   'Saving…'
                 ) : status.state === 'error' ? (
                   <span className="text-[#ff453a]">Not saved</span>
                 ) : status.state === 'conflict' ? (
-                  <span className="text-[#ff9f0a]">Needs a choice</span>
+                  <span className="text-[#ff9f0a]">Choose backup</span>
                 ) : (
                   `Saved ${timeAgo(status.lastSavedAt)}`
                 )
               }
             />
-            <Row accent title="Back up now" onClick={() => void backupNow()} />
+            <Row accent title="Back Up Now" onClick={() => void backupNow()} />
             <Row danger title="Disconnect" onClick={() => disconnect()} />
           </>
         )}
       </Section>
-      {status.state === 'error' ? (
-        <Note className="!text-[#ff453a]">{status.message}</Note>
-      ) : (
-        <Note>Saves automatically a few seconds after every change. Connect once; the key stays on this phone.</Note>
-      )}
+      {status.state === 'error' && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{status.message}</p>}
 
-      <SheetPage opened={open} onClose={() => setOpen(false)} title="Back up to GitHub">
-        <Note className="mt-3">
-          Your data goes to a private repo that only your GitHub account can open. You make a key that can touch only that repo, and paste it here once.
-        </Note>
-        <Section title="1. Make a key">
-          <Row accent title="Open GitHub to create the key" chevron onClick={() => window.open(tokenUrl, '_blank')} />
+      <SheetPage opened={open} onClose={() => setOpen(false)} title="GitHub Backup">
+        <Section title="1. Create token">
+          <Row accent title="Create Token" chevron onClick={() => window.open(tokenUrl, '_blank')} />
         </Section>
-        <Note>
-          Under <b>Repository access</b>, choose <b>Only select repositories</b> → <b>{repo.split('/')[1] || 'zoro-data'}</b>. Check that <b>Contents</b> says{' '}
-          <b>Read and write</b>. Tap <b>Generate token</b> and copy it.
-        </Note>
-        <Section title="2. Paste it">
+        <ol className="mx-8 mt-2 list-inside list-decimal space-y-1 text-sm text-white/60">
+          <li>Repository access: Only select repositories → {repo.split('/')[1] || 'zoro-data'}.</li>
+          <li>Contents: Read and write.</li>
+          <li>Generate token, then copy it.</li>
+        </ol>
+        <Section title="2. Connect">
           <Field label="Key" secret placeholder="github_pat_…" value={token} onChange={setToken} wide />
           <Field label="Repo" value={repo} onChange={setRepo} wide />
         </Section>
-        {error && <Note className="!text-[#ff453a]">{error}</Note>}
+        {error && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{error}</p>}
         <div className="mx-4 mt-4">
           <Btn kind="tint" size="lg" disabled={busy || token.trim().length < 20} onClick={() => void submit()}>
             {busy ? 'Connecting…' : 'Connect'}
@@ -119,17 +112,17 @@ function CloudBackup() {
 
       <Dialog
         opened={!!conflict}
-        title="Which copy should Zoro keep?"
+        title="Choose Backup"
         content={
           conflict
-            ? `GitHub has a copy saved ${new Date(conflict.remote.backup.exportedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} from another device. This phone has different data.`
+            ? `GitHub backup: ${new Date(conflict.remote.backup.exportedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.`
             : ''
         }
         buttons={
           <>
-            <DialogButton onClick={() => void resolveConflict('phone').then(() => toast('Saved this phone to GitHub'))}>This phone's</DialogButton>
+            <DialogButton onClick={() => void resolveConflict('phone').then(() => toast('Backup saved'))}>This iPhone</DialogButton>
             <DialogButton strong onClick={() => void resolveConflict('github').then(() => toast('Restored from GitHub'))}>
-              GitHub's
+              GitHub
             </DialogButton>
           </>
         }
@@ -193,20 +186,16 @@ export function SettingsScreen() {
 
       <Section title="Plan">
         <Field label="Program start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
-        <Cell className="flex items-center justify-between py-1.5">
-          <span className="text-[17px]">Days per week</span>
-          <Seg className="!w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />
-        </Cell>
-        <NumSetting label="Bench max this block (lb)" k="benchMax" settings={settings} />
-        <Field label="Bench block started" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
-        <NumSetting label="Heaviest dumbbells (lb)" k="dumbbellMax" settings={settings} />
+        <Row title="Days per week" right={<Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
+        <NumSetting label="Bench max (lb)" k="benchMax" settings={settings} />
+        <Field label="Bench block start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
+        <NumSetting label="Dumbbell max (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
       <Section title="Food targets">
-        <Cell className="flex items-center justify-between gap-3 py-1.5">
-          <span className="text-[17px]">Phase</span>
+        <Row title="Phase" right={
           <Seg<Phase>
-            className="!w-52"
+            className="w-52 max-w-full"
             value={settings.phase}
             onChange={(p) => void saveSettings({ phase: p, targetRate: p === 'cut' ? -0.875 : p === 'bulk' ? 0.375 : 0 })}
             options={[
@@ -215,40 +204,39 @@ export function SettingsScreen() {
               ['bulk', 'Bulk'],
             ]}
           />
-        </Cell>
+        } />
         <NumSetting label="Weekly change (lb)" k="targetRate" settings={settings} />
         <NumSetting label="Calories" k="kcalTarget" settings={settings} />
         <NumSetting label="Protein (g)" k="proteinTarget" settings={settings} />
         <NumSetting label="Fat (g)" k="fatTarget" settings={settings} />
-        <Row title="Carbs (what's left)" right={`${fmt(carbs)} g`} />
+        <Row title="Carbs" right={`${fmt(carbs)} g`} />
         <NumSetting label="Water (oz)" k="waterTargetOz" settings={settings} />
       </Section>
 
       <Section title="Food data">
         <Field label="USDA key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
       </Section>
-      <Note>Zoro comes with a USDA key for barcode scans and search. Only add your own if lookups start failing.</Note>
 
       <CloudBackup />
 
       <Section title="Sleep">
-        <Row title="Add the Apple Health shortcut" chevron onClick={() => setInstalling(true)} />
-        <Row title="Build it by hand instead" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
+        <Row title="Apple Health shortcut" chevron onClick={() => setInstalling(true)} />
+        <Row title="Shortcut setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
       </Section>
 
       <Section title="This phone">
-        <Row title="Saved on this phone" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />
-        <Row accent title="Export a backup file" onClick={() => void exportData()} />
-        <Row accent title="Restore from a file" onClick={() => fileInput.current?.click()} />
+        <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />
+        <Row accent title="Export Backup" onClick={() => void exportData()} />
+        <Row accent title="Restore Backup" onClick={() => fileInput.current?.click()} />
       </Section>
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
-      <Note className="mb-2 mt-6 text-center">Zoro · food data from USDA FoodData Central and Open Food Facts (ODbL)</Note>
+      <p className="mx-4 mb-2 mt-6 text-center text-[11px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
 
       <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} onManual={() => nav.push({ name: 'sleepSetup' })} />
       <Dialog
         opened={pendingImport !== null}
         title="Replace Everything?"
-        content="Restoring a backup replaces all workouts, food, water, sleep and measurements on this phone."
+        content="This replaces all data on this iPhone."
         buttons={
           <>
             <DialogButton onClick={() => setPendingImport(null)}>Cancel</DialogButton>

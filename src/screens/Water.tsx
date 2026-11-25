@@ -72,7 +72,7 @@ export function WaterScreen() {
       </Section>
 
       <Section title="Today">
-        {entries.length === 0 && <Row title="Tap an amount above each time you drink." />}
+        {entries.length === 0 && <Row title="No water logged" />}
         {[...entries].reverse().map((e) => (
           <Row key={e.id} title={`${fmt(e.oz, e.oz % 1 ? 1 : 0)} oz`} right={time(e.at)} onClick={() => setSelected(e)} />
         ))}

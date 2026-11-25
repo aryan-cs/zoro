@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ListItem, Page, Preloader, Searchbar, Stepper } from 'konsta/react';
+import { Block, List, ListItem, Page, Preloader, Searchbar, Stepper } from 'konsta/react';
 import { PenLine, ScanBarcode, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, dim, Field, fmt, GlassSheet, Header, Note, Row, Section, Seg, SheetPage, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, Field, fmt, GlassSheet, Header, Row, Section, Seg, SheetPage, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -20,7 +20,7 @@ function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => vo
     <ListItem
       link
       chevron={false}
-      title={food.name}
+      title={<span className="block truncate">{food.name}</span>}
       subtitle={[food.brand, food.serving ? food.serving.label : `100 ${food.liquid ? 'ml' : 'g'}`].filter(Boolean).join(' · ')}
       after={
         basis && (
@@ -34,7 +34,7 @@ function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => vo
       }
       onClick={() => onPick(food)}
       innerClassName="!py-2"
-      titleWrapClassName="min-w-0"
+      titleWrapClassName="min-w-0 flex-1 overflow-hidden"
       strongTitle={false}
     />
   );
@@ -55,7 +55,6 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
   const canGrams = !!food?.per100g || !!food?.serving?.grams;
   const g = food?.liquid ? 'ml' : 'g';
   const step = unit === 'g' ? 10 : 0.5;
-  const allZero = !!food && [food.per100g, food.serving?.macros].every((m) => !m || (m.kcal === 0 && m.protein === 0 && m.carbs === 0 && m.fat === 0));
 
   const add = async () => {
     if (!food || num(qty) <= 0) return;
@@ -68,9 +67,7 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
       {food && macros && (
         <div className="px-4 pt-3">
           <div className="text-[17px] font-semibold leading-snug">{food.name}</div>
-          <div className={`text-[13px] ${dim}`}>
-            {[food.brand, food.source === 'usda' ? 'USDA' : food.source === 'off' ? 'Open Food Facts' : null].filter(Boolean).join(' · ')}
-          </div>
+          {food.brand && <div className={`text-[13px] ${dim}`}>{food.brand}</div>}
           {canServing && canGrams && (
             <Seg
               className="mt-3"
@@ -85,24 +82,25 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
               ]}
             />
           )}
-          <div className="surface mt-3 flex items-center gap-3 rounded-2xl px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="text-[15px]">{unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}</div>
-              <div className={`text-[13px] leading-snug ${dim}`}>
-                {unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : `per 100 ${g}: ${fmt(food.per100g?.kcal ?? 0)} kcal`}
-              </div>
-            </div>
-            <Stepper
-              rounded
-              colors={{ fillBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-white/20', fillTextIos: 'text-white' }}
-              input
-              inputType="number"
-              value={qty as unknown as number}
-              onInput={(e: React.ChangeEvent<HTMLInputElement>) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
-              onMinus={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}
-              onPlus={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}
+          <List strong className="!my-3">
+            <ListItem
+              title={unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}
+              subtitle={unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : undefined}
+              titleWrapClassName="min-w-0 flex-1 overflow-hidden"
+              after={
+                <Stepper
+                  rounded
+                  colors={{ fillBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-white/20', fillTextIos: 'text-white' }}
+                  input
+                  inputType="number"
+                  value={qty as unknown as number}
+                  onInput={(e: React.ChangeEvent<HTMLInputElement>) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
+                  onMinus={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}
+                  onPlus={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}
+                />
+              }
             />
-          </div>
+          </List>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {(
               [
@@ -121,9 +119,8 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
               </div>
             ))}
           </div>
-          {allZero && <div className={`mt-2 text-center text-[12px] ${dim}`}>The label lists no calories or macros (diet drinks, water, coffee).</div>}
           <Btn kind="tint" size="lg" className="mt-4" disabled={!(num(qty) > 0)} onClick={() => void add()}>
-            Add to {MEALS.find((m) => m.id === meal)?.label.toLowerCase()}
+            Add to {MEALS.find((m) => m.id === meal)?.label}
           </Btn>
         </div>
       )}
@@ -155,8 +152,8 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
     onCreated({ ...food, id });
   };
   return (
-    <SheetPage opened={opened} onClose={onClose} title="New food">
-      {barcode && <Note className="mt-3">Barcode {barcode} isn't in USDA or Open Food Facts. Copy it from the label once and it's saved for next time.</Note>}
+    <SheetPage opened={opened} onClose={onClose} title="New Food">
+      {barcode && <Section><Row title="Barcode" right={barcode} /></Section>}
       <Section>
         <Field label="Name" placeholder="Protein bar" value={f.name} onChange={set('name')} wide />
         <Field label="Brand" placeholder="Optional" value={f.brand} onChange={set('brand')} wide />
@@ -171,7 +168,7 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
       </Section>
       <div className="mx-4 mt-4">
         <Btn kind="tint" size="lg" disabled={!f.name.trim() || !f.kcal} onClick={() => void save()}>
-          Save food
+          Save Food
         </Btn>
       </div>
     </SheetPage>
@@ -189,7 +186,7 @@ function QuickAddSheet({ opened, meal, date, onClose, onDone }: { opened: boolea
     onDone();
   };
   return (
-    <SheetPage opened={opened} onClose={onClose} title="Quick add">
+    <SheetPage opened={opened} onClose={onClose} title="Quick Add">
       <Section>
         <Field label="Name" placeholder="Optional" value={f.name} onChange={set('name')} wide />
         <Field label="Calories" inputMode="decimal" value={f.kcal} onChange={set('kcal')} />
@@ -233,8 +230,8 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
     ]);
     const ok = <T,>(r: PromiseSettledResult<T[]>) => (r.status === 'fulfilled' ? r.value : []);
     setOnline({ off: ok(off), usda: ok(usda), branded: ok(branded) });
-    if (usda.status === 'rejected' && String(usda.reason).includes('USDA_LIMIT')) setError("USDA's shared hourly limit is used up. Add your free key in Settings.");
-    else if (off.status === 'rejected' && usda.status === 'rejected') setError('Search failed. Check your connection, or try again in a minute.');
+    if (usda.status === 'rejected' && String(usda.reason).includes('USDA_LIMIT')) setError("USDA limit reached. Add a key in Settings.");
+    else if (off.status === 'rejected' && usda.status === 'rejected') setError('Search failed. Try again.');
     setLoading(false);
   };
 
@@ -267,7 +264,7 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
 
   return (
     <Page className="tab-safe">
-      <Header title={`Add to ${mealLabel.toLowerCase()}`} onBack={nav.pop}>
+      <Header title={`Add to ${mealLabel}`} onBack={nav.pop}>
         <form
           className="w-full"
           onSubmit={(e) => {
@@ -300,8 +297,8 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
         {(
           [
             ['Scan', ScanBarcode, () => setScanning(true)],
-            ['Quick add', Zap, () => setQuick(true)],
-            ['New food', PenLine, () => setCustom({})],
+            ['Quick Add', Zap, () => setQuick(true)],
+            ['New Food', PenLine, () => setCustom({})],
           ] as const
         ).map(([label, Icon, onClick]) => (
           <Btn key={label} className="!px-2 !text-[15px]" onClick={onClick}>
@@ -318,14 +315,14 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
       )}
 
       <Section title={q.trim() ? 'Your foods' : 'Recent'}>
-        {local.length ? list(local, 'local') : <Row title={q.trim() ? 'No saved matches.' : 'Foods you log show up here.'} />}
-        {q.trim() && !online && !loading && <Row accent title={`Search online for “${q.trim()}”`} onClick={() => void search()} />}
+        {local.length ? list(local, 'local') : <Row title={q.trim() ? 'No saved matches' : 'No recent foods'} />}
+        {q.trim() && !online && !loading && <Row accent title="Search Online" onClick={() => void search()} />}
       </Section>
 
-      {error && <Note className="mt-3 !text-[#ff453a]">{error}</Note>}
+      {error && <Block role="status" className="!my-3 text-[#ff453a]">{error}</Block>}
       {online && (
         <>
-          <Section title="Basic foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <Row title="No matches." />}</Section>
+          <Section title="Basic foods · USDA">{online.usda.length ? list(online.usda, 'usda') : <Row title="No matches" />}</Section>
           <Section title="Packaged foods">
             {online.branded.length || online.off.length ? (
               <>
@@ -333,10 +330,9 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
                 {list(online.off, 'off')}
               </>
             ) : (
-              <Row title="No matches." />
+              <Row title="No matches" />
             )}
           </Section>
-          {!settings.usdaApiKey && <Note>Add your free USDA key in Settings to search US brands too.</Note>}
         </>
       )}
 

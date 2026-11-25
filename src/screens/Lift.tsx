@@ -49,7 +49,10 @@ export function LiftScreen() {
 
   return (
     <Page className="tab-safe">
-      <Header title="Lift" sub={week.week >= 1 ? `Week ${week.week}${week.deload ? ' · easy week' : ''}` : `Plan starts ${longDate(settings.programStart)}`} />
+      <Header title="Lift" />
+      <Section>
+        <Row title={week.week >= 1 ? `Week ${week.week}` : 'Plan starts'} right={week.week >= 1 ? (week.deload ? 'Easy week' : undefined) : longDate(settings.programStart)} />
+      </Section>
 
       <div className="mx-4 mt-3 grid grid-cols-7 gap-1">
         {days.map((d, i) => {
@@ -67,7 +70,7 @@ export function LiftScreen() {
 
       {open?.id !== undefined && (
         <Section>
-          <Row accent title={`Resume ${TEMPLATES[open.templateId].name}`} sub="In progress" chevron onClick={() => nav.push({ name: 'workout', sessionId: open.id! })} />
+          <Row accent title={`Resume ${TEMPLATES[open.templateId].name}`} chevron onClick={() => nav.push({ name: 'workout', sessionId: open.id! })} />
         </Section>
       )}
 
@@ -101,7 +104,6 @@ export function LiftScreen() {
           <Row
             key={id}
             title={TEMPLATES[id].name}
-            sub={TEMPLATES[id].short}
             right={id === todayId ? <span className="font-semibold text-accent">Today</span> : undefined}
             chevron
             onClick={() => void start(id)}
@@ -118,16 +120,15 @@ export function LiftScreen() {
       <Section title="Bench to 225">
         <Row title="Block max" right={`${fmtLb(blockMax)} lb`} />
         <Row
-          title={`Next heavy day · step ${bench.step + 1}/12`}
+          title={`Step ${bench.step + 1}/12`}
           right={step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)}`).join(', ')}
         />
         <Cell>
-          <div className="flex justify-between text-[17px]">
-            <span>Best estimated max</span>
-            <span className={`tabular ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
+          <div className="flex items-center justify-between gap-3 text-[17px]">
+            <span className="truncate">Best estimated max</span>
+            <span className={`tabular shrink-0 ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
           </div>
           <Bar value={benchBest || blockMax} target={225} color="#48fa78" className="mt-2" />
-          <div className={`mt-1 text-[13px] ${dim}`}>Goal: 225 lb by the end of May</div>
         </Cell>
       </Section>
     </Page>

@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Page } from 'konsta/react';
+import { ListItem, Page } from 'konsta/react';
 import { Check, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { buildPlan, dayTotals, metricsOf, saveMetric, today } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { Btn, Cell, db, dim, fmt, Header, IconBtn, MacroSummary, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, fmt, Header, IconBtn, MacroSummary, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
 
@@ -83,27 +83,25 @@ export function TodayScreen() {
         />
       )}
       {!templateId ? (
-        <Row title="Rest day" sub="Walk 8–10k steps and stretch." />
+        <Row title="Rest day" />
       ) : doneMain ? (
         <Row
           title={TEMPLATES[templateId].name}
-          sub={`${sets} sets logged`}
-          right="View"
+          right={`${sets} sets`}
           chevron
           onClick={() => doneMain.id !== undefined && nav.go('lift', { name: 'workout', sessionId: doneMain.id })}
         />
       ) : (
-        <Cell className="flex items-center gap-3 py-2.5">
-          <div className="min-w-0 flex-1">
-            <div className="text-[17px] font-semibold leading-snug">{TEMPLATES[templateId].name}</div>
-            <div className={`text-[15px] leading-snug ${dim}`}>
-              {TEMPLATES[templateId].short} · {plan?.exercises.length ?? '…'} exercises
-            </div>
-          </div>
-          <Btn kind="tint" onClick={() => void start(templateId)}>
-            {open?.templateId === templateId ? 'Resume' : 'Start'}
-          </Btn>
-        </Cell>
+        <ListItem
+          title={<span className="block truncate">{TEMPLATES[templateId].name}</span>}
+          subtitle={`${plan?.exercises.length ?? '…'} exercises`}
+          titleWrapClassName="min-w-0"
+          after={
+            <Btn kind="tint" onClick={() => void start(templateId)}>
+              {open?.templateId === templateId ? 'Resume' : 'Start'}
+            </Btn>
+          }
+        />
       )}
       {second && !week.deload && (
         <Row title={`Optional: ${TEMPLATES[second].name}`} right={TEMPLATES[second].short} chevron onClick={() => void start(second)} />
@@ -119,57 +117,38 @@ export function TodayScreen() {
           <DoneMark />
         ) : (
           <Btn kind="plain" size="sm" className="!-me-3" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
-            <Plus className="h-4 w-4" /> Log food
+            <Plus className="h-4 w-4" /> Log Food
           </Btn>
         )
       }
     >
-      <li>
-        <button type="button" className="block w-full px-4 py-2.5 text-left active:bg-white/5" onClick={() => nav.go('food')}>
-          <MacroSummary totals={totals} settings={settings} />
-        </button>
-      </li>
+      <ListItem
+        link
+        linkComponent="button"
+        contentClassName="w-full text-left"
+        linkProps={{ type: 'button' }}
+        chevron={false}
+        onClick={() => nav.go('food')}
+        innerChildren={<div className="w-full"><MacroSummary totals={totals} settings={settings} /></div>}
+      />
     </Section>
   );
 
   const body: ReactNode = (
     <Section title="Body" right={bodyDone ? <DoneMark /> : undefined}>
-      <li className="grid grid-cols-2">
-        <button type="button" className="px-4 py-3 text-left active:bg-white/5" onClick={() => (weighedToday ? nav.go('history') : setWeighing(true))}>
-          <div className={`text-[13px] ${dim}`}>Weight</div>
-          {weighedToday ? (
-            <>
-              <div className="tabular text-[20px] font-semibold leading-tight">
-                {fmt(weighedToday.value, 1)} <span className={`text-[13px] font-normal ${dim}`}>lb</span>
-              </div>
-              <div className={`text-[12px] ${rate !== null && rate < 0 ? 'text-accent' : dim}`}>
-                {rate === null ? 'Weigh in daily' : `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk`}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-[20px] font-semibold leading-tight text-accent">Log</div>
-              <div className={`text-[12px] ${dim}`}>This morning</div>
-            </>
-          )}
-        </button>
-        <button type="button" className="border-l border-white/10 px-4 py-3 text-left active:bg-white/5" onClick={() => nav.push({ name: 'logSleep' })}>
-          <div className={`text-[13px] ${dim}`}>Sleep</div>
-          {sleep ? (
-            <>
-              <div className="tabular text-[20px] font-semibold leading-tight">{formatMinutes(sleep.minutes)}</div>
-              <div className={`text-[12px] ${sleep.minutes >= settings.sleepTargetMin ? 'text-accent' : dim}`}>
-                {sleep.minutes >= settings.sleepTargetMin ? 'On target' : `Goal ${formatMinutes(settings.sleepTargetMin)}`}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-[20px] font-semibold leading-tight text-accent">Log</div>
-              <div className={`text-[12px] ${dim}`}>Last night</div>
-            </>
-          )}
-        </button>
-      </li>
+      <Row
+        title="Weight"
+        right={weighedToday ? `${fmt(weighedToday.value, 1)} lb` : 'Log'}
+        sub={weighedToday && rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
+        chevron
+        onClick={() => (weighedToday ? nav.go('history') : setWeighing(true))}
+      />
+      <Row
+        title="Sleep"
+        right={sleep ? formatMinutes(sleep.minutes) : 'Log'}
+        chevron
+        onClick={() => nav.push({ name: 'logSleep' })}
+      />
     </Section>
   );
 
@@ -180,12 +159,10 @@ export function TodayScreen() {
     { key: 'body', done: bodyDone, el: body },
   ].sort((a, b) => Number(a.done) - Number(b.done));
 
-  const title = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-
   return (
     <Page className="tab-safe">
       <Header
-        title={title}
+        title={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
         right={
           <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
             <SettingsIcon className="h-5 w-5" />
@@ -198,7 +175,6 @@ export function TodayScreen() {
       <NumberPrompt
         opened={weighing}
         title="Morning Weight"
-        message="Weigh in after waking up, before eating."
         unit="lb"
         initial={weights.length ? fmt(weights[weights.length - 1].value, 1) : undefined}
         min={80}

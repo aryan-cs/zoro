@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { addDays, sumEntries } from '../core/calc';
 import { entriesFor, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { Cell, db, dim, fmt, Header, IconBtn, MacroSummary, Note, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Cell, db, dim, fmt, Header, IconBtn, MacroSummary, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 export const MEALS: { id: Meal; label: string }[] = [
@@ -81,17 +81,15 @@ export function FoodScreen() {
             {items.map((e) => (
               <Row key={e.id} title={e.name} sub={`${amountText(e)} · ${fmt(e.macros.protein)} g protein`} right={fmt(e.macros.kcal)} onClick={() => setSelected(e)} />
             ))}
-            <Row accent title="Add food" onClick={() => nav.push({ name: 'addFood', meal: m.id, date })} />
+            <Row accent title="Add Food" onClick={() => nav.push({ name: 'addFood', meal: m.id, date })} />
           </Section>
         );
       })}
 
-      <Note className="mt-4 text-center">Food data from USDA FoodData Central and Open Food Facts (ODbL).</Note>
-
       <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
         <ActionsGroup>
           <ActionsLabel>{selected?.name}</ActionsLabel>
-          {selected && selected.date !== today() && <ActionsButton onClick={() => void duplicateToToday()}>Log again today</ActionsButton>}
+          {selected && selected.date !== today() && <ActionsButton onClick={() => void duplicateToToday()}>Log Again Today</ActionsButton>}
           <ActionsButton className="!text-[#ff453a]" onClick={() => void remove()}>
             Delete
           </ActionsButton>

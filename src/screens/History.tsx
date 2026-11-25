@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Cell, db, dim, fmt, fmtLb, Header, Note, NumberPrompt, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
+import { Cell, db, dim, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -17,8 +17,8 @@ const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 /** Three numbers side by side in one card. */
 function Stats({ items }: { items: [string, string, string?][] }) {
   return (
-    <li className="relative">
-      <div className="hairline-b relative grid grid-cols-3">
+    <Cell className="!px-0 !py-0">
+      <div className="grid grid-cols-3">
         {items.map(([label, value, sub], i) => (
           <div key={label} className={`px-4 py-2.5 ${i ? 'border-l border-white/10' : ''}`}>
             <div className={`text-[13px] ${dim}`}>{label}</div>
@@ -27,7 +27,7 @@ function Stats({ items }: { items: [string, string, string?][] }) {
           </div>
         ))}
       </div>
-    </li>
+    </Cell>
   );
 }
 
@@ -67,12 +67,12 @@ function Lifts() {
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </Cell>
         ) : (
-          <Row title="Log two bench sessions to see your trend." />
+          <Row title="2 sessions needed" />
         )}
       </Section>
 
       <Section title="Workouts">
-        {history.length === 0 && <Row title="Finished workouts show up here." />}
+        {history.length === 0 && <Row title="No workouts" />}
         {history.slice(0, 15).map((h) => (
           <Row
             key={h.sessionId}
@@ -125,8 +125,7 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
       />
       <NumberPrompt
         opened={editing}
-        title={label}
-        message="Measure in the morning, same spot each time."
+        title={label === 'Flexed arm' ? 'Flexed Arm' : label}
         unit="in"
         initial={latest ? fmt(latest.value, 2) : start ? fmt(start, 2) : undefined}
         max={80}
@@ -179,16 +178,16 @@ function Body() {
         )}
       </Section>
 
-      <Section title="Calories you burn">
+      <Section title="Daily calories">
         {energy ? (
           <>
             <Row title="Burn per day" right={`${fmt(energy.tdee)} kcal`} />
-            <Row title="Your average intake" right={`${fmt(energy.avgIntake)} kcal`} />
+            <Row title="Average intake" right={`${fmt(energy.avgIntake)} kcal`} />
             <Row title={`For ${settings.targetRate} lb/week`} right={<span className="font-semibold text-accent">{fmt(energy.recommended)} kcal</span>} />
             {Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
               <Row
                 accent
-                title={`Use ${fmt(energy.recommended)} as my target`}
+                title={`Set Target to ${fmt(energy.recommended)}`}
                 onClick={async () => {
                   await saveSettings({ kcalTarget: energy.recommended });
                   toast(`Target set to ${fmt(energy.recommended)} kcal`);
@@ -197,7 +196,7 @@ function Body() {
             )}
           </>
         ) : (
-          <Row title="Needs 2 weeks of food logs and weigh-ins" sub={`Until then, stick with ${fmt(settings.kcalTarget)} kcal.`} />
+          <Row title="2 weeks of logs needed" />
         )}
       </Section>
 
@@ -206,7 +205,6 @@ function Body() {
           <SizeRow key={s.type} {...s} />
         ))}
       </Section>
-      <Note>Every 4 weeks, in the morning, same spot. June targets: waist 31–32", arm ~16" lean, forearm 12–12½".</Note>
     </>
   );
 }
@@ -240,7 +238,7 @@ function Food() {
 
   return (
     <>
-      <Section title="Last 7 days, average">
+      <Section title="7-day averages">
         <Stats
           items={[
             ['Calories', week.length ? fmt(avg('kcal')) : '—', `goal ${fmt(settings.kcalTarget)}`],
@@ -260,7 +258,7 @@ function Food() {
           .map((d) => (
             <Row key={d.date} title={longDate(d.date)} sub={`${fmt(d.protein)} g protein · ${fmt(d.oz)} oz water`} right={`${fmt(d.kcal)} kcal`} />
           ))}
-        {!logged.length && !water.length && <Row title="Days you log food show up here." />}
+        {!logged.length && !water.length && <Row title="No food logs" />}
       </Section>
     </>
   );
@@ -303,7 +301,7 @@ function Sleep() {
               right={formatMinutes(e.minutes)}
             />
           ))}
-        {!entries.length && <Row title="Nights you log show up here." />}
+        {!entries.length && <Row title="No sleep logs" />}
       </Section>
     </>
   );

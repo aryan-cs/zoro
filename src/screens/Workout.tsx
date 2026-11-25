@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Checkbox, Dialog, DialogButton, Glass, List, Page } from 'konsta/react';
+import { Checkbox, Dialog, DialogButton, Glass, List, ListItem, Page } from 'konsta/react';
 import { Timer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { platesPerSide } from '../core/calc';
@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Btn, db, dim, fmtLb, Header, NavText, NumField, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, fmtLb, Header, NavText, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -101,8 +101,8 @@ function SetRow(props: {
   };
 
   return (
-    <li className={`relative ${done ? 'bg-accent/10' : ''}`}>
-      <div className="hairline-b relative ms-4 flex items-center gap-2 py-1.5 pe-4">
+    <ListItem innerClassName="!py-1.5" innerChildren={
+      <div className="flex w-full min-w-0 items-center gap-2">
       <div className="w-[76px] shrink-0">
         <div className="text-[15px] font-medium">{props.target.label ?? `Set ${props.index + 1}`}</div>
         <div className={`tabular text-[13px] ${dim}`}>{targetText}</div>
@@ -126,7 +126,7 @@ function SetRow(props: {
         {...({ 'aria-label': `${done ? 'Undo' : 'Log'} ${def.name}, set ${props.index + 1}` } as object)}
       />
       </div>
-    </li>
+    } />
   );
 }
 
@@ -174,8 +174,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   return (
     <Page className="tab-safe">
       <Header
-        title={TEMPLATES[session.templateId].name}
-        sub={`${doneSets} of ${totalSets} sets${plan.deload ? ' · easy week' : ''}`}
+        title={TEMPLATES[session.templateId].name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}
         onBack={nav.pop}
         right={
           !finished && (
@@ -186,9 +185,14 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         }
       />
 
+      <Section>
+        <Row title="Sets" right={`${doneSets} of ${totalSets}`} />
+        {plan.deload && <Row title="Easy week" />}
+      </Section>
+
       {plan.newBenchMax && (
         <div className="surface mx-4 mt-3 rounded-3xl px-4 py-2.5 text-[15px]">
-          New bench block from your tested max of <b>{plan.newBenchMax} lb</b>. Every bench weight went up.
+          Bench block max: <b>{plan.newBenchMax} lb</b>
         </div>
       )}
 
@@ -232,14 +236,17 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
                   {plates.leftover > 0 ? ` (+${plates.leftover} lb short)` : ''}
                 </div>
               )}
+              {ex.notes.filter((note) => /^(First time:|Only go for|Light week, then test\.)/.test(note)).map((note) => (
+                <div key={note}>{note
+                  .replace('First time: pick a weight you could do about ', 'Start with a weight you could lift ')
+                  .replace('Only go for the top single if last week’s single moved fast.', 'Top single only if last week’s single moved fast.')
+                  .replace('Light week, then test. Warm up: bar ×10, then build up in 3–4 sets.', 'Before testing: bar ×10, then 3–4 warm-up sets.')}</div>
+              ))}
               {ex.last && (
                 <div>
-                  Last time ({ex.last.date.slice(5).replace('-', '/')}): {ex.last.sets.map((s) => (s.weight ? `${fmtLb(s.weight)}×${s.reps}` : `${s.reps}`)).join(', ')}
+                  Last ({ex.last.date.slice(5).replace('-', '/')}): {ex.last.sets.map((s) => (s.weight ? `${fmtLb(s.weight)}×${s.reps}` : `${s.reps}`)).join(', ')}
                 </div>
               )}
-              {ex.notes.map((n) => (
-                <div key={n}>{n}</div>
-              ))}
             </div>
           </section>
         );
@@ -249,15 +256,15 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         {!finished ? (
           <>
             <Btn kind="tint" size="lg" onClick={() => void finish()}>
-              Finish workout
+              Finish Workout
             </Btn>
             <Btn kind="plain" size="lg" className="!text-[#ff453a]" onClick={() => setConfirmDiscard(true)}>
-              Discard workout
+              Discard Workout
             </Btn>
           </>
         ) : (
           <Btn kind="danger" size="lg" onClick={() => setConfirmDiscard(true)}>
-            Delete this workout
+            Delete Workout
           </Btn>
         )}
       </div>
@@ -267,8 +274,8 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
       <Dialog
         opened={confirmDiscard}
-        title="Delete this workout?"
-        content="Its logged sets will be removed. This can't be undone."
+        title="Delete Workout?"
+        content="This will delete all logged sets."
         buttons={
           <>
             <DialogButton onClick={() => setConfirmDiscard(false)}>Cancel</DialogButton>

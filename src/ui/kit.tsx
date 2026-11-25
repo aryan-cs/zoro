@@ -12,12 +12,13 @@ import {
   NavbarBackLink,
   Page,
   Popup,
+  Progressbar,
   Segmented,
   SegmentedButton,
   Sheet,
   Toast,
 } from 'konsta/react';
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
@@ -55,11 +56,10 @@ export function timeAgo(t: number | undefined): string {
 // ---------- Navigation bar ----------
 
 /** iOS navigation bar (Konsta Navbar) on a solid background, with optional back button and a row underneath. */
-export function Header(props: { title: ReactNode; sub?: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
+export function Header(props: { title: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
   return (
     <Navbar
       title={props.title}
-      subtitle={props.sub}
       left={props.onBack ? <NavbarBackLink onClick={() => props.onBack?.()} /> : props.left}
       right={props.right}
       subnavbar={props.children}
@@ -129,7 +129,7 @@ export function Row(props: {
   danger?: boolean;
   accent?: boolean;
 }) {
-  // Action rows are centered list buttons; rows that open something keep their chevron and subtitle.
+  // Action rows use native list buttons.
   if ((props.accent || props.danger) && props.onClick && !props.chevron && !props.sub) {
     return (
       <ListButton onClick={props.onClick} className={`!h-11 ${props.danger ? '!text-[#ff453a]' : ''}`}>
@@ -143,10 +143,10 @@ export function Row(props: {
       chevron={!!props.chevron}
       title={props.accent ? <span className="text-accent">{props.title}</span> : props.title}
       subtitle={props.sub}
-      after={props.right}
+      after={props.right == null ? undefined : <div className="min-w-0 truncate">{props.right}</div>}
       onClick={props.onClick}
-      innerClassName="!py-2"
-      titleWrapClassName="min-w-0"
+      innerClassName={props.sub ? 'min-w-0 !py-2' : 'min-w-0 !py-0'}
+      titleWrapClassName={`${props.sub ? '' : '!min-h-11'} min-w-0 [&>div:first-child:not(:last-of-type)]:shrink-0 [&>div:first-child:not(:last-of-type)]:max-w-[65%] [&>div:first-child]:min-w-0 [&>div:first-child]:truncate [&>div:last-of-type]:min-w-0 [&>div:last-of-type]:shrink [&>div:last-of-type]:overflow-hidden [&>div:last-of-type]:whitespace-nowrap [&>div:last-of-type]:text-ellipsis`}
       strongTitle={false}
     />
   );
@@ -155,9 +155,10 @@ export function Row(props: {
 /** A list row with custom content, divided like the others. */
 export function Cell(props: { children: ReactNode; className?: string }) {
   return (
-    <li className="relative">
-      <div className={`hairline-b relative ms-4 pe-4 ${props.className ?? 'py-2.5'}`}>{props.children}</div>
-    </li>
+    <ListItem
+      innerClassName="min-w-0 !py-0"
+      innerChildren={<div className={props.className ?? 'py-2.5'}>{props.children}</div>}
+    />
   );
 }
 
@@ -174,23 +175,27 @@ export function Field(props: {
   secret?: boolean;
 }) {
   return (
-    <li className="relative">
-      <label className="hairline-b relative ms-4 flex min-h-11 items-center gap-3 py-1.5 pe-4">
-        <span className="min-w-0 max-w-[60%] shrink-0 truncate text-[17px]">{props.label}</span>
-        <input
-          type={props.secret ? 'password' : (props.type ?? 'text')}
-          inputMode={props.inputMode}
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder={props.placeholder}
-          value={props.value}
-          onChange={(e) => props.onChange(e.target.value)}
-          onBlur={props.onBlur}
-          className={`tabular min-w-0 flex-1 bg-transparent py-2.5 text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
-        />
-      </label>
-    </li>
+    <ListItem
+      label
+      innerClassName="min-w-0 !py-0"
+      innerChildren={
+        <div className="flex h-11 min-w-0 items-center gap-3">
+          <span className="max-w-[65%] shrink-0 truncate text-[17px]">{props.label}</span>
+          <input
+            type={props.secret ? 'password' : (props.type ?? 'text')}
+            inputMode={props.inputMode}
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder={props.placeholder}
+            value={props.value}
+            onChange={(e) => props.onChange(e.target.value)}
+            onBlur={props.onBlur}
+            className={`tabular h-11 min-w-0 flex-1 truncate bg-transparent text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
+          />
+        </div>
+      }
+    />
   );
 }
 
@@ -246,9 +251,12 @@ export function Seg<T extends string | number>(props: { value: T; options: [T, s
 export function Bar(props: { value: number; target: number; color: string; className?: string }) {
   const pct = props.target > 0 ? Math.min(1, props.value / props.target) : 0;
   return (
-    <div className={`h-1.5 overflow-hidden rounded-full bg-white/12 ${props.className ?? ''}`}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct * 100}%`, background: props.color }} />
-    </div>
+    <Progressbar
+      progress={pct}
+      className={props.className}
+      style={{ '--bar-color': props.color } as CSSProperties}
+      colors={{ activeBgIos: 'bg-[var(--bar-color)]', trackBgIos: 'bg-white/15' }}
+    />
   );
 }
 
