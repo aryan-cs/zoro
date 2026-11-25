@@ -192,3 +192,15 @@ select {
 .stack-page .k-page {
   touch-action: pan-y;
 }
+
+/*
+ * Tab bar selection. Konsta draws two layers: a flat gray pill at rest and a Liquid Glass
+ * lens only while a tab is pressed, so every tap visibly swaps styles. Keep the glass lens
+ * as the resting selection too; pressing then just grows it, like iOS 26.
+ */
+.k-toolbar-pane > span > span:first-child {
+  opacity: 0 !important;
+}
+.k-toolbar-pane > span > span:last-child {
+  opacity: 1 !important;
+}

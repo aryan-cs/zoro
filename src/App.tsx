@@ -53,7 +53,7 @@ function TabRoot({ tab }: { tab: Tab }) {
   }
 }
 
-/** iOS 26 tab bar (Konsta Tabbar with the sliding glass thumb), a bit slimmer than the default. */
+/** iOS 26 tab bar: Konsta's Tabbar + ToolbarPane, with its glass selection (see index.css). */
 function TabBar() {
   const { tab, setTab } = useNav();
   return (
@@ -61,7 +61,6 @@ function TabBar() {
       labels
       icons
       className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]"
-      innerClassName="!h-[60px]"
       bgClassName="!hidden"
     >
       <ToolbarPane>
@@ -71,7 +70,7 @@ function TabBar() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             icon={<t.icon className="h-6 w-6" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
-            label={<span className="text-[10px]">{t.label}</span>}
+            label={t.label}
           />
         ))}
       </ToolbarPane>
