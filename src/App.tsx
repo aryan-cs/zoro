@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'food', label: 'Food', icon: 'fork.knife' },
   { id: 'today', label: 'Today', icon: 'calendar' },
   { id: 'lift', label: 'Lift', icon: 'figure.run.circle.fill' },
-  { id: 'history', label: 'History', icon: 'text.book.closed.fill' },
+  { id: 'history', label: 'History', icon: 'chart.bar.fill' },
 ];
 
 function RouteScreen({ route }: { route: Route }) {
