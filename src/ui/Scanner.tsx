@@ -1,5 +1,4 @@
 import { BarcodeDetector, prepareZXingModule } from 'barcode-detector/ponyfill';
-import { Camera } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
 import { Btn, Field, Note, Section, SheetPage } from './kit';
@@ -79,8 +78,8 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
       </div>
       {error && <Note className="mt-3 !text-[#ff453a]">{error}</Note>}
       <div className="mx-4 mt-3">
-        <label className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[rgba(118,118,128,0.24)] text-[17px] font-semibold text-accent active:opacity-60">
-          <Camera className="h-[18px] w-[18px]" /> Take a photo instead
+        <label className="ios-btn is-lg is-glass">
+          Take a Photo
           <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
         </label>
       </div>

@@ -90,6 +90,19 @@ export function NavButton(props: { label: string; onClick?: () => void; children
   );
 }
 
+/** Several icon buttons sharing one glass capsule, like iOS 26 groups bar buttons. */
+export function NavButtonGroup({ items }: { items: { label: string; icon: ReactNode; onClick: () => void }[] }) {
+  return (
+    <div className="ios-navgroup ios-glass">
+      {items.map((i) => (
+        <button key={i.label} type="button" aria-label={i.label} className="ios-navgroup-btn" onClick={i.onClick}>
+          {i.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
 export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
   return (

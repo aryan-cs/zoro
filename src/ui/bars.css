@@ -583,3 +583,43 @@ button.meal-row:not(:disabled):active {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 45%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 45%);
 }
+
+/* Grouped bar buttons: one capsule, 44pt per icon. */
+.ios-navgroup {
+  display: flex;
+  height: 44px;
+  border-radius: 999px;
+}
+.ios-navgroup-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+}
+.ios-navgroup-btn:active {
+  opacity: 0.4;
+}
+
+/* Pop-up menu value in a row ("Meal  Other ⌃⌄"): the native picker sits invisibly on top. */
+.ios-popup {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 17px;
+  color: #98989f;
+}
+.ios-popup select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  font-size: 17px;
+}
+.ios-popup svg {
+  width: 14px;
+  height: 14px;
+}

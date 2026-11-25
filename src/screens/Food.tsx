@@ -1,22 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
-import { ChevronLeft, ChevronRight, Cookie, Inbox, Moon, Plus, Sandwich, ScanBarcode, Sunrise, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Cookie, Ellipsis, Moon, Plus, Sandwich, ScanBarcode, Sunrise, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
 import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { Cell, db, fmt, Header, IconBtn, MacroSummary, Section, useSettings, useToast } from '../ui/kit';
+import { Cell, db, fmt, Header, IconGroup, MacroSummary, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 
-/** Meals in the order they're shown, with Settings-style icon tiles. Scanned foods land in Unsorted until you drag them. */
+/**
+ * Meals in the order they're shown, with Settings-style icon tiles. Food added without a meal
+ * goes to Other ('unsorted' in the data) until you drag it somewhere.
+ */
 export const MEALS: { id: Meal; label: string; icon: LucideIcon; color: string }[] = [
-  { id: 'unsorted', label: 'Unsorted', icon: Inbox, color: '#8e8e93' },
   { id: 'breakfast', label: 'Breakfast', icon: Sunrise, color: '#ff9f0a' },
   { id: 'lunch', label: 'Lunch', icon: Sandwich, color: '#30d158' },
   { id: 'dinner', label: 'Dinner', icon: Moon, color: '#5e5ce6' },
   { id: 'snack', label: 'Snacks', icon: Cookie, color: '#ff375f' },
+  { id: 'unsorted', label: 'Other', icon: Ellipsis, color: '#8e8e93' },
 ];
 
 function dayLabel(date: string): string {
@@ -160,7 +163,7 @@ export function FoodScreen() {
   const move = useCallback((id: number, meal: Meal) => void db.entries.update(id, { meal }), []);
   useMealDrag(listRef, move);
 
-  // Scan: add one serving straight to Unsorted. Unknown barcodes open New Food with it filled in.
+  // Scan: add one serving straight to Other. Unknown barcodes open New Food with it filled in.
   const onCode = useCallback(
     async (code: string) => {
       setScanning(false);
@@ -168,7 +171,7 @@ export function FoodScreen() {
         const saved = await db.foods.where('barcode').equals(normalizeBarcode(code)).first();
         const food = saved ?? (await lookupBarcode(code, settings.usdaApiKey));
         if (!food) {
-          nav.push({ name: 'addFood', meal: 'unsorted', date, barcode: code });
+          nav.push({ name: 'addFood', date, barcode: code });
           return;
         }
         await logFood({ food, quantity: food.serving ? 1 : 100, unit: food.serving ? 'serving' : 'g', meal: 'unsorted', date }, db);
@@ -201,9 +204,12 @@ export function FoodScreen() {
       <Header
         title={<DayTitle date={date} onChange={setDate} />}
         right={
-          <IconBtn label="Scan barcode" onClick={() => setScanning(true)}>
-            <ScanBarcode className="h-5 w-5" />
-          </IconBtn>
+          <IconGroup
+            items={[
+              { label: 'Scan barcode', icon: <ScanBarcode className="h-5 w-5" />, onClick: () => setScanning(true) },
+              { label: 'Add food', icon: <Plus className="h-[22px] w-[22px]" />, onClick: () => nav.push({ name: 'addFood', date }) },
+            ]}
+          />
         }
       />
 
@@ -219,22 +225,16 @@ export function FoodScreen() {
           if (m.id === 'unsorted' && items.length === 0) return null;
           const kcal = sumEntries(items).kcal;
           const Icon = m.icon;
-          const add = m.id === 'unsorted' ? undefined : () => nav.push({ name: 'addFood', meal: m.id, date });
           return (
             <div key={m.id} data-meal={m.id} className="zoro-section-untitled">
               <div className="meal-card">
-                <button type="button" className="meal-row is-head" disabled={!add} onClick={add}>
+                <div className="meal-row is-head">
                   <span className="meal-tile" style={{ background: m.color }}>
                     <Icon strokeWidth={2.2} />
                   </span>
                   <span className="meal-row-title">{m.label}</span>
                   {items.length > 0 && <span className="meal-row-value tabular">{fmt(kcal)} kcal</span>}
-                  {add && (
-                    <span className="meal-add" aria-label={`Add to ${m.label}`}>
-                      <Plus strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
+                </div>
                 {items.length === 0 && <div className="meal-row is-empty">No Items</div>}
                 {items.map((e) => (
                   <button type="button" key={e.id} data-entry-id={e.id} className="meal-row is-item meal-entry" onClick={() => setSelected(e)}>
@@ -258,7 +258,7 @@ export function FoodScreen() {
       <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
         <ActionsGroup>
           <ActionsLabel>{selected?.name}</ActionsLabel>
-          {MEALS.filter((m) => m.id !== 'unsorted' && m.id !== selected?.meal).map((m) => (
+          {MEALS.filter((m) => m.id !== selected?.meal).map((m) => (
             <ActionsButton key={m.id} onClick={() => void moveSelected(m.id)}>
               Move to {m.label}
             </ActionsButton>

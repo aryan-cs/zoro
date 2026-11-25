@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Block, List, ListItem, Page, Preloader, Stepper } from 'konsta/react';
 import { SearchField } from '../ui/bars';
-import { PenLine, ScanBarcode, Zap } from 'lucide-react';
+import { ChevronsUpDown, PenLine, ScanBarcode, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, dim, Field, fmt, GlassSheet, Header, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, db, dim, Field, fmt, GlassSheet, Header, IconGroup, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -14,6 +14,31 @@ const num = (s: string) => {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 };
+
+/** "Meal  Other ⌃⌄": optional; food without a meal goes to Other. */
+function MealRow({ value, onChange, flush }: { value: Meal; onChange: (m: Meal) => void; flush?: boolean }) {
+  return (
+    <ListItem
+      title="Meal"
+      contentClassName={flush ? '!ps-0' : undefined}
+      innerClassName={`zoro-row-inner ${flush ? '!pe-0' : ''}`}
+      titleWrapClassName="zoro-row-title"
+      after={
+        <label className="ios-popup">
+          {MEALS.find((m) => m.id === value)?.label}
+          <ChevronsUpDown />
+          <select aria-label="Meal" value={value} onChange={(e) => onChange(e.target.value as Meal)}>
+            {MEALS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      }
+    />
+  );
+}
 
 function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => void }) {
   const basis = food.serving ? food.serving.macros : food.per100g;
@@ -42,7 +67,7 @@ function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => vo
 }
 
 /** Pick an amount and log it. */
-function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem | null; meal: Meal; date: ISODate; onClose: () => void; onLogged: () => void }) {
+function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: FoodItem | null; meal: Meal; onMeal: (m: Meal) => void; date: ISODate; onClose: () => void; onLogged: () => void }) {
   const [unit, setUnit] = useState<'serving' | 'g'>('serving');
   const [qty, setQty] = useState('1');
   useEffect(() => {
@@ -103,6 +128,7 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
                 />
               }
             />
+            <MealRow value={meal} onChange={onMeal} flush />
           </List>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {(
@@ -123,7 +149,7 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
             ))}
           </div>
           <Btn kind="tint" size="lg" className="mt-4" disabled={!(num(qty) > 0)} onClick={() => void add()}>
-            Add to {MEALS.find((m) => m.id === meal)?.label}
+            Add
           </Btn>
         </div>
       )}
@@ -178,7 +204,7 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
   );
 }
 
-function QuickAddSheet({ opened, meal, date, onClose, onDone }: { opened: boolean; meal: Meal; date: ISODate; onClose: () => void; onDone: () => void }) {
+function QuickAddSheet({ opened, meal, onMeal, date, onClose, onDone }: { opened: boolean; meal: Meal; onMeal: (m: Meal) => void; date: ISODate; onClose: () => void; onDone: () => void }) {
   const blank = { name: '', kcal: '', protein: '', carbs: '', fat: '' };
   const [f, setF] = useState(blank);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
@@ -197,6 +223,9 @@ function QuickAddSheet({ opened, meal, date, onClose, onDone }: { opened: boolea
         <Field label="Carbs (g)" inputMode="decimal" value={f.carbs} onChange={set('carbs')} />
         <Field label="Fat (g)" inputMode="decimal" value={f.fat} onChange={set('fat')} />
       </Section>
+      <Section>
+        <MealRow value={meal} onChange={onMeal} />
+      </Section>
       <div className="mx-4 mt-4">
         <Btn kind="tint" size="lg" disabled={!f.kcal} onClick={() => void save()}>
           Add
@@ -206,8 +235,9 @@ function QuickAddSheet({ opened, meal, date, onClose, onDone }: { opened: boolea
   );
 }
 
-export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODate; barcode?: string }) {
+export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Meal; date: ISODate; barcode?: string }) {
   const nav = useNav();
+  const [meal, setMeal] = useState<Meal>(initialMeal ?? 'unsorted');
   const toast = useToast();
   const settings = useSettings();
   const [q, setQ] = useState('');
@@ -266,12 +296,23 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
     nav.pop();
   };
 
-  const mealLabel = MEALS.find((m) => m.id === meal)?.label ?? 'Food';
   const list = (foods: FoodItem[], prefix: string) => foods.map((f) => <FoodRow key={`${prefix}:${f.id ?? f.sourceId ?? f.name}`} food={f} onPick={setPicked} />);
 
   return (
     <Page className="tab-safe">
-      <Header title={`Add to ${mealLabel}`} onBack={nav.pop}>
+      <Header
+        title="Add Food"
+        onBack={nav.pop}
+        right={
+          <IconGroup
+            items={[
+              { label: 'Scan barcode', icon: <ScanBarcode className="h-5 w-5" />, onClick: () => setScanning(true) },
+              { label: 'Quick add calories', icon: <Zap className="h-5 w-5" />, onClick: () => setQuick(true) },
+              { label: 'New food', icon: <PenLine className="h-5 w-5" />, onClick: () => setCustom({}) },
+            ]}
+          />
+        }
+      >
         <SearchField
           value={q}
           placeholder="Search foods"
@@ -283,21 +324,6 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
         />
       </Header>
 
-      <div className="mx-4 mt-3 grid grid-cols-3 gap-2">
-        {(
-          [
-            ['Scan', ScanBarcode, () => setScanning(true)],
-            ['Quick Add', Zap, () => setQuick(true)],
-            ['New Food', PenLine, () => setCustom({})],
-          ] as const
-        ).map(([label, Icon, onClick]) => (
-          <Btn key={label} className="!px-2 !text-[15px]" onClick={onClick}>
-            <Icon className="h-[18px] w-[18px]" />
-            {label}
-          </Btn>
-        ))}
-      </div>
-
       {loading && (
         <div className="mt-4 text-center">
           <Preloader />
@@ -305,7 +331,7 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
       )}
 
       <Section title={q.trim() ? 'Your foods' : 'Recent'}>
-        {local.length ? list(local, 'local') : <Row title={q.trim() ? 'No saved matches' : 'No recent foods'} />}
+        {local.length ? list(local, 'local') : <EmptyRow>{q.trim() ? 'No Saved Matches' : 'No Recent Foods'}</EmptyRow>}
         {q.trim() && !online && !loading && <Row accent title="Search Online" onClick={() => void search()} />}
       </Section>
 
@@ -326,11 +352,12 @@ export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODa
         </>
       )}
 
-      <AmountSheet food={picked} meal={meal} date={date} onClose={() => setPicked(null)} onLogged={logged} />
+      <AmountSheet food={picked} meal={meal} onMeal={setMeal} date={date} onClose={() => setPicked(null)} onLogged={logged} />
       <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={onCode} />
       <QuickAddSheet
         opened={quick}
         meal={meal}
+        onMeal={setMeal}
         date={date}
         onClose={() => setQuick(false)}
         onDone={() => {

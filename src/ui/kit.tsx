@@ -14,7 +14,7 @@ import {
 } from 'konsta/react';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
-import { NavBar, NavButton, NavTextButton, SegmentedControl } from './bars';
+import { NavBar, NavButton, NavButtonGroup, NavTextButton, SegmentedControl } from './bars';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
@@ -63,6 +63,9 @@ export function IconBtn(props: { label: string; onClick?: () => void; children: 
     </NavButton>
   );
 }
+
+/** Icon buttons grouped in one glass capsule in the navigation bar. */
+export const IconGroup = NavButtonGroup;
 
 /** Text button for the navigation bar (Done, Cancel, Finish). */
 export function NavText(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {

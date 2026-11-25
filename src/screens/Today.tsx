@@ -22,8 +22,8 @@ export function mealNow(): Meal {
 
 function DoneMark() {
   return (
-    <span className="inline-flex items-center gap-1 text-[15px] font-semibold text-[#30d158]">
-      <Check className="h-3.5 w-3.5" strokeWidth={3} /> Done
+    <span role="img" aria-label="Done" className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#30d158] text-black">
+      <Check className="h-3.5 w-3.5" strokeWidth={3.2} />
     </span>
   );
 }
@@ -117,9 +117,9 @@ export function TodayScreen() {
         foodDone ? (
           <DoneMark />
         ) : (
-          <Btn kind="plain" size="sm" className="!-me-3" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
-            <Plus className="h-4 w-4" /> Log Food
-          </Btn>
+          <button type="button" aria-label="Log food" className="zoro-header-icon" onClick={() => nav.go('food', { name: 'addFood', date })}>
+            <Plus className="h-[22px] w-[22px]" strokeWidth={2.4} />
+          </button>
         )
       }
     >

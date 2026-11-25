@@ -5,7 +5,7 @@ export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
 
 export type Route =
   | { name: 'workout'; sessionId: number }
-  | { name: 'addFood'; meal: Meal; date: ISODate; barcode?: string }
+  | { name: 'addFood'; meal?: Meal; date: ISODate; barcode?: string }
   | { name: 'logSleep' }
   | { name: 'sleepSetup' }
   | { name: 'settings' };

@@ -347,3 +347,18 @@ select {
   color: #8d8d93;
   list-style: none;
 }
+
+/* Icon-only button in a section header (e.g. + next to Food): blue, centered in the 22pt slot. */
+.zoro-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -11px -11px -11px 0;
+  color: var(--ios-blue);
+  -webkit-tap-highlight-color: transparent;
+}
+.zoro-header-icon:active {
+  opacity: 0.4;
+}
