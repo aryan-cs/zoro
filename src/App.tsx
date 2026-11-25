@@ -28,7 +28,7 @@ function RouteScreen({ route }: { route: Route }) {
     case 'workout':
       return <WorkoutScreen key={route.sessionId} sessionId={route.sessionId} />;
     case 'addFood':
-      return <AddFoodScreen meal={route.meal} date={route.date} />;
+      return <AddFoodScreen meal={route.meal} date={route.date} barcode={route.barcode} />;
     case 'logSleep':
       return <LogSleepScreen />;
     case 'sleepSetup':

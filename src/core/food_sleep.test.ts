@@ -162,4 +162,17 @@ describe('better food data', () => {
     expect(f.serving?.label).toBe('1 package (355 ml)');
     expect(f.serving?.macros.kcal).toBe(149);
   });
+
+  it("doesn't treat a big jar as one serving", () => {
+    const f = parseOffProduct({
+      code: '2',
+      product_name: 'Nutella',
+      quantity: '400 g',
+      product_quantity: 400,
+      product_quantity_unit: 'g',
+      nutriments: { 'energy-kcal_100g': 539, fat_100g: 30.9 },
+    })!;
+    expect(f.serving).toBeUndefined();
+    expect(f.per100g?.kcal).toBe(539);
+  });
 });

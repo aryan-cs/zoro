@@ -206,7 +206,7 @@ function QuickAddSheet({ opened, meal, date, onClose, onDone }: { opened: boolea
   );
 }
 
-export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
+export function AddFoodScreen({ meal, date, barcode }: { meal: Meal; date: ISODate; barcode?: string }) {
   const nav = useNav();
   const toast = useToast();
   const settings = useSettings();
@@ -218,6 +218,10 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
   const [scanning, setScanning] = useState(false);
   const [quick, setQuick] = useState(false);
   const [custom, setCustom] = useState<{ barcode?: string } | null>(null);
+  // Arrived from a scan that found nothing: go straight to entering it from the label.
+  useEffect(() => {
+    if (barcode) setCustom({ barcode });
+  }, [barcode]);
 
   const local = useLiveQuery(() => (q.trim() ? searchLocalFoods(q, db) : recentFoods(25, db)), [q]) ?? [];
   const key = settings.usdaApiKey || USDA_DEMO_KEY;

@@ -125,7 +125,8 @@ export interface FoodItem {
   liquid?: boolean;
 }
 
-export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+/** 'unsorted' holds scanned foods until they're dragged into a meal. */
+export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unsorted';
 
 export interface FoodEntry {
   id?: number;

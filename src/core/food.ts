@@ -69,9 +69,9 @@ export function parseOffProduct(p: OffProduct): FoodItem | null {
   let grams = num(p.serving_quantity);
   let label = p.serving_size;
   const liquid = isMl(p.serving_quantity_unit ?? p.product_quantity_unit, p.serving_size ?? p.quantity);
-  // No serving on file: use the whole package if it's a single item (a can, a bar).
+  // No serving on file: use the whole package if it's a single item (a can, a bar), not a jar or a bag.
   const pkg = num(p.product_quantity);
-  if (!servingMacros && !grams && pkg && pkg <= 1000) {
+  if (!servingMacros && !grams && pkg && pkg <= (liquid ? 600 : 250)) {
     grams = pkg;
     label = `1 package (${p.quantity?.trim() || `${pkg} ${liquid ? 'ml' : 'g'}`})`;
   }
