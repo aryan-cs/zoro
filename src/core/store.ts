@@ -1,3 +1,4 @@
+import { searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
 import { templateFor, templateForWeekday } from './program';
@@ -168,10 +169,14 @@ export async function recentFoods(limit = 20, db: ZoroDB = getDB()): Promise<Foo
   return (await db.foods.orderBy('lastUsedAt').reverse().limit(limit * 2).toArray()).filter((f) => f.lastUsedAt).slice(0, limit);
 }
 
+/** Foods you've used before plus the built-in list, without hitting the network. */
 export async function searchLocalFoods(q: string, db: ZoroDB = getDB()): Promise<FoodItem[]> {
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
-  return db.foods.filter((f) => `${f.name} ${f.brand ?? ''}`.toLowerCase().includes(needle)).limit(25).toArray();
+  const saved = await db.foods.filter((f) => `${f.name} ${f.brand ?? ''}`.toLowerCase().includes(needle)).limit(25).toArray();
+  const savedIds = new Set(saved.map((f) => `${f.source}:${f.sourceId ?? f.name}`));
+  const builtin = searchBuiltin(needle).filter((f) => !savedIds.has(`builtin:${f.sourceId}`));
+  return [...saved, ...builtin];
 }
 
 export async function saveMeal(meal: SavedMeal, db: ZoroDB = getDB()): Promise<number> {
