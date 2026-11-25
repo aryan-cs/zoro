@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Block, List, ListItem, Page, Preloader, Stepper } from 'konsta/react';
 import { SearchField } from '../ui/bars';
-import { ChevronsUpDown, PenLine, ScanBarcode, Zap } from 'lucide-react';
+import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
@@ -26,7 +26,7 @@ function MealRow({ value, onChange, flush }: { value: Meal; onChange: (m: Meal) 
       after={
         <label className="ios-popup">
           {MEALS.find((m) => m.id === value)?.label}
-          <ChevronsUpDown />
+          <Sym name="chevron.up.chevron.down" size={13} />
           <select aria-label="Meal" value={value} onChange={(e) => onChange(e.target.value as Meal)}>
             {MEALS.map((m) => (
               <option key={m.id} value={m.id}>
@@ -306,9 +306,9 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <ScanBarcode className="h-5 w-5" />, onClick: () => setScanning(true) },
-              { label: 'Quick add calories', icon: <Zap className="h-5 w-5" />, onClick: () => setQuick(true) },
-              { label: 'New food', icon: <PenLine className="h-5 w-5" />, onClick: () => setCustom({}) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={18} />, onClick: () => setScanning(true) },
+              { label: 'Quick add calories', icon: <Sym name="bolt.fill" size={18} />, onClick: () => setQuick(true) },
+              { label: 'New food', icon: <Sym name="square.and.pencil" size={18} />, onClick: () => setCustom({}) },
             ]}
           />
         }

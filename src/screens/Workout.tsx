@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Checkbox, Dialog, DialogButton, Glass, List, ListItem, Page } from 'konsta/react';
-import { Timer } from 'lucide-react';
+import { Sym } from '../ui/Sym';
 import { useEffect, useMemo, useState } from 'react';
 import { platesPerSide } from '../core/calc';
 import { EXERCISES, TEMPLATES } from '../core/program';
@@ -45,7 +45,7 @@ function RestTimer({ endsAt, onAdd, onSkip }: { endsAt: number; onAdd: () => voi
   return (
     <Glass className="fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5 !touch-auto" style={{ bottom: 'calc(var(--tabbar-bottom) + 4px)' }}>
       <div className="flex items-center gap-2">
-        <Timer className={`h-5 w-5 ${done ? 'text-[#30d158]' : 'text-accent'}`} />
+        <Sym name="timer" size={18} className={done ? 'text-[#30d158]' : 'text-accent'} />
         <span className="tabular text-[20px] font-semibold">
           {done ? 'Go' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`}
         </span>

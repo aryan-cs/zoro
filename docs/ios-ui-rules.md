@@ -26,6 +26,8 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Buttons (Fitness setup's Continue) | Liquid Glass capsule, white 17pt semibold label: lg 52pt full width, md 44pt, sm 34pt / 15pt inside rows; red label for destructive, blue text only in headers |
 | Activity ring (Fitness) | 110pt across, 22pt stroke, track = ring color at ~18%, round caps from 12 o'clock, black arrow at the start, second lap past the goal with a shadow at its tip |
 | Ring values (Fitness) | label 15pt white, value below in the ring color, SF Rounded semibold (20pt; 28pt for a single ring) with a smaller uppercase unit ("41/170CAL") |
+| Tab bar (Fitness, iOS 27) | Liquid Glass capsule 62pt tall, 21pt side margins, 20pt above the bottom edge; selected pill inset 4pt, same gray as the bar with a 0.5pt rim; SF Symbol (~18.8pt) centered 24pt from the top, 10pt semibold label 4pt below; selected = tint |
+| Icons | Apple SF Symbols (medium; chevrons semibold) from `src/ui/sf.ts` via `<Sym name size>`; export more with `scripts/sf-symbols.swift` |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

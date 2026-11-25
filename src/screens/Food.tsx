@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
-import { ChevronLeft, ChevronRight, Cookie, Ellipsis, Moon, Plus, Sandwich, ScanBarcode, Sunrise, type LucideIcon } from 'lucide-react';
+import type { SFName } from '../ui/sf';
+import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
@@ -14,12 +15,12 @@ import { Scanner } from '../ui/Scanner';
  * Meals in the order they're shown, with Settings-style icon tiles. Food added without a meal
  * goes to Other ('unsorted' in the data) until you drag it somewhere.
  */
-export const MEALS: { id: Meal; label: string; icon: LucideIcon; color: string }[] = [
-  { id: 'breakfast', label: 'Breakfast', icon: Sunrise, color: '#ff9f0a' },
-  { id: 'lunch', label: 'Lunch', icon: Sandwich, color: '#30d158' },
-  { id: 'dinner', label: 'Dinner', icon: Moon, color: '#5e5ce6' },
-  { id: 'snack', label: 'Snacks', icon: Cookie, color: '#ff375f' },
-  { id: 'unsorted', label: 'Other', icon: Ellipsis, color: '#8e8e93' },
+export const MEALS: { id: Meal; label: string; icon: SFName; color: string }[] = [
+  { id: 'breakfast', label: 'Breakfast', icon: 'sunrise.fill', color: '#ff9f0a' },
+  { id: 'lunch', label: 'Lunch', icon: 'sun.max.fill', color: '#30d158' },
+  { id: 'dinner', label: 'Dinner', icon: 'moon.fill', color: '#5e5ce6' },
+  { id: 'snack', label: 'Snacks', icon: 'popcorn.fill', color: '#ff375f' },
+  { id: 'unsorted', label: 'Other', icon: 'ellipsis', color: '#8e8e93' },
 ];
 
 function dayLabel(date: string): string {
@@ -37,11 +38,11 @@ function DayTitle({ date, onChange }: { date: string; onChange: (d: string) => v
   return (
     <span className="flex items-center justify-center">
       <button type="button" aria-label="Previous day" className="ios-title-chevron" onClick={() => onChange(addDays(date, -1))}>
-        <ChevronLeft className="h-5 w-5" strokeWidth={2.6} />
+        <Sym name="chevron.left" size={17} />
       </button>
       <span className="truncate px-1">{dayLabel(date)}</span>
       <button type="button" aria-label="Next day" className="ios-title-chevron" disabled={date >= today()} onClick={() => onChange(addDays(date, 1))}>
-        <ChevronRight className="h-5 w-5" strokeWidth={2.6} />
+        <Sym name="chevron.right" size={17} />
       </button>
     </span>
   );
@@ -206,8 +207,8 @@ export function FoodScreen() {
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <ScanBarcode className="h-5 w-5" />, onClick: () => setScanning(true) },
-              { label: 'Add food', icon: <Plus className="h-[22px] w-[22px]" />, onClick: () => nav.push({ name: 'addFood', date }) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={18} />, onClick: () => setScanning(true) },
+              { label: 'Add food', icon: <Sym name="plus" size={19} />, onClick: () => nav.push({ name: 'addFood', date }) },
             ]}
           />
         }
@@ -224,13 +225,12 @@ export function FoodScreen() {
           const items = entries.filter((e) => e.meal === m.id);
           if (m.id === 'unsorted' && items.length === 0) return null;
           const kcal = sumEntries(items).kcal;
-          const Icon = m.icon;
           return (
             <div key={m.id} data-meal={m.id} className="zoro-section-untitled">
               <div className="meal-card">
                 <div className="meal-row is-head">
                   <span className="meal-tile" style={{ background: m.color }}>
-                    <Icon strokeWidth={2.2} />
+                    <Sym name={m.icon} size={12.5} />
                   </span>
                   <span className="meal-row-title">{m.label}</span>
                   {items.length > 0 && <span className="meal-row-value tabular">{fmt(kcal)} kcal</span>}

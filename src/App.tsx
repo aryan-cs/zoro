@@ -1,5 +1,4 @@
 import { Dialog, DialogButton, App as KonstaApp, Tabbar, TabbarLink, ToolbarPane } from 'konsta/react';
-import { CalendarDays, Droplet, Dumbbell, History, Salad } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AddFoodScreen } from './screens/AddFood';
 import { FoodScreen } from './screens/Food';
@@ -12,15 +11,17 @@ import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { ToastProvider } from './ui/kit';
+import type { SFName } from './ui/sf';
+import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { NavProvider, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
-const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
-  { id: 'water', label: 'Water', icon: Droplet },
-  { id: 'food', label: 'Food', icon: Salad },
-  { id: 'today', label: 'Today', icon: CalendarDays },
-  { id: 'lift', label: 'Lift', icon: Dumbbell },
-  { id: 'history', label: 'History', icon: History },
+const TABS: { id: Tab; label: string; icon: SFName }[] = [
+  { id: 'water', label: 'Water', icon: 'drop.fill' },
+  { id: 'food', label: 'Food', icon: 'fork.knife' },
+  { id: 'today', label: 'Today', icon: 'calendar' },
+  { id: 'lift', label: 'Lift', icon: 'figure.run.circle.fill' },
+  { id: 'history', label: 'History', icon: 'text.book.closed.fill' },
 ];
 
 function RouteScreen({ route }: { route: Route }) {
@@ -62,7 +63,7 @@ function Tabs() {
   const { tab } = useNavState();
   const { setTab } = useNav();
   return (
-    <Tabbar icons className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
+    <Tabbar icons labels className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
       <ToolbarPane {...({ highlight: false } as object)}>
         {TABS.map((t) => (
           <TabbarLink
@@ -70,7 +71,8 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={<t.icon className="h-6 w-6" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
+            icon={<Sym name={t.icon} size={18} />}
+            label={t.label}
           />
         ))}
       </ToolbarPane>

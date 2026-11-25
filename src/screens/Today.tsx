@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ListItem, Page } from 'konsta/react';
-import { Check, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Sym } from '../ui/Sym';
 import { useState, type ReactNode } from 'react';
 import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
@@ -23,7 +23,7 @@ export function mealNow(): Meal {
 function DoneMark() {
   return (
     <span role="img" aria-label="Done" className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#30d158] text-black">
-      <Check className="h-3.5 w-3.5" strokeWidth={3.2} />
+      <Sym name="checkmark" size={10} />
     </span>
   );
 }
@@ -118,7 +118,7 @@ export function TodayScreen() {
           <DoneMark />
         ) : (
           <button type="button" aria-label="Log food" className="zoro-header-icon" onClick={() => nav.go('food', { name: 'addFood', date })}>
-            <Plus className="h-[22px] w-[22px]" strokeWidth={2.4} />
+            <Sym name="plus" size={19} />
           </button>
         )
       }
@@ -167,7 +167,7 @@ export function TodayScreen() {
         title={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
         right={
           <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
-            <SettingsIcon className="h-5 w-5" />
+            <Sym name="gearshape" size={19} />
           </IconBtn>
         }
       />

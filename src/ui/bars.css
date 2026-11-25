@@ -352,10 +352,6 @@ button.meal-row:not(:disabled):active {
   border-radius: 8px;
   color: #fff;
 }
-.meal-tile svg {
-  width: 18px;
-  height: 18px;
-}
 .meal-row-text {
   display: flex;
   flex: 1;
@@ -518,10 +514,6 @@ button.meal-row:not(:disabled):active {
 .ios-btn:disabled {
   color: rgba(235, 235, 245, 0.3);
 }
-.ios-btn svg {
-  width: 18px;
-  height: 18px;
-}
 
 /* ---------- Week row (Calendar): letters, date numbers, today in a filled circle ---------- */
 .lift-week {
@@ -618,8 +610,4 @@ button.meal-row:not(:disabled):active {
   width: 100%;
   opacity: 0;
   font-size: 17px;
-}
-.ios-popup svg {
-  width: 14px;
-  height: 14px;
 }

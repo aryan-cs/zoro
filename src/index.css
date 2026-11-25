@@ -48,11 +48,12 @@ select {
 /* Bottom of the tab bar: just above the home indicator. */
 :root {
   /* env() directly: Konsta's safe-area variables only exist inside .k-app, not on :root. */
-  --tabbar-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) - 4px));
+  /* Fitness: the tab bar sits 20pt above the bottom edge on Face ID iPhones. */
+  --tabbar-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) - 14px));
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 84px);
+  padding-bottom: calc(var(--tabbar-bottom) + 82px);
 }
 
 
@@ -294,12 +295,11 @@ select {
 }
 .k-toolbar-pane > span > span:last-child {
   opacity: 1 !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  /* Fitness (dark): the selected pill is the bar's own gray, set off by a faint rim and shadow. */
+  background: transparent !important;
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -0.5px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
-    inset 0 0 8px rgba(255, 255, 255, 0.06) !important;
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.13),
+    0 0 6px rgba(0, 0, 0, 0.3) !important;
   transition:
     scale 0.25s ease-out,
     opacity 0.2s ease-out !important;
@@ -361,4 +361,37 @@ select {
 }
 .zoro-header-icon:active {
   opacity: 0.4;
+}
+
+/* ---------- Tab bar layout, measured from Fitness (iOS 27) ----------
+ * Capsule 62pt tall with 21pt side margins; selected pill inset 4pt (54pt tall); symbol box
+ * 24pt centered 24pt from the top; label 10pt semibold, 4pt under the symbol box.
+ */
+.zoro-tabbar {
+  padding-left: 21px !important;
+  padding-right: 21px !important;
+}
+.zoro-tabbar .h-16 {
+  height: 62px !important;
+}
+.zoro-tabbar .k-link {
+  z-index: 1; /* above the selection pill, so the pill never tints the symbol or label */
+  padding: 0 !important;
+}
+/* Fitness's bar reads #212121 over black; Konsta's glass alone was a little darker. */
+.zoro-tabbar .k-toolbar-pane {
+  background-color: rgba(52, 52, 54, 0.62) !important;
+}
+.zoro-tabbar .k-link > span {
+  gap: 4px;
+  padding: 0 !important;
+}
+.zoro-tabbar .k-tabbar-link-icon {
+  width: auto !important;
+  height: 24px !important;
+}
+.zoro-tabbar .k-link > span > span:last-child:not(.k-tabbar-link-icon) {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 12px !important;
 }

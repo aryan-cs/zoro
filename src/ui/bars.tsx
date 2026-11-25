@@ -1,4 +1,4 @@
-import { ChevronLeft, Search, XCircle } from 'lucide-react';
+import { Sym } from './Sym';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import './bars.css';
 
@@ -67,7 +67,7 @@ export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: Re
         <div className="ios-navbar-side">
           {props.onBack ? (
             <NavButton label="Back" onClick={props.onBack}>
-              <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.4} />
+              <Sym name="chevron.left" size={19} />
             </NavButton>
           ) : (
             props.left
@@ -128,7 +128,7 @@ export function SearchField(props: { value: string; onChange: (v: string) => voi
       }}
     >
       <label className="ios-search-field">
-        <Search className="h-4 w-4 shrink-0 text-[var(--ios-label-3)]" strokeWidth={2.4} />
+        <Sym name="magnifyingglass" size={14} className="text-[var(--ios-label-2)]" />
         <input
           ref={input}
           type="search"
@@ -141,7 +141,7 @@ export function SearchField(props: { value: string; onChange: (v: string) => voi
         />
         {props.value && (
           <button type="button" aria-label="Clear" className="ios-search-clear" onMouseDown={(e) => e.preventDefault()} onClick={() => props.onChange('')}>
-            <XCircle className="h-[18px] w-[18px]" fill="currentColor" stroke="#000" strokeWidth={2} />
+            <Sym name="xmark.circle.fill" size={14} />
           </button>
         )}
       </label>
