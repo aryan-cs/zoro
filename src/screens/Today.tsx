@@ -21,12 +21,11 @@ export function mealNow(): Meal {
   return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
 }
 
-/** One goal as a ring with its name and value under it (Sleep, Water, Workouts). */
+/** One goal as a ring with its value under it (Sleep, Water, Workouts); the name is for VoiceOver. */
 function RingTile(props: { label: string; value: string; progress: number; goal: number; colors: readonly [string, string]; glyph: SFName; color: string; onOpen: () => void }) {
   return (
-    <button type="button" className="ring-tile" onClick={props.onOpen}>
+    <button type="button" className="ring-tile" onClick={props.onOpen} aria-label={`${props.label}: ${props.value}`}>
       <SingleRing value={props.progress} target={props.goal} colors={props.colors} glyph={props.glyph} />
-      <span className="ring-tile-label">{props.label}</span>
       <span className="ring-tile-value" style={{ color: props.color }}>
         {props.value}
       </span>
@@ -173,7 +172,7 @@ export function TodayScreen() {
           />
           <RingTile
             label="Workouts"
-            value={`${weekDone}/${settings.daysPerWeek}`}
+            value={String(weekDone)}
             progress={weekDone}
             goal={settings.daysPerWeek}
             colors={RING_GRADIENT.exercise}

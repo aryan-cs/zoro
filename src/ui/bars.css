@@ -1677,13 +1677,8 @@ button.meal-row:not(:disabled):active {
   width: 84px;
   height: 84px;
 }
-.ring-tile-label {
-  margin-top: 8px;
-  font-size: 13px;
-  line-height: 18px;
-  color: #8d8d93;
-}
 .ring-tile-value {
+  margin-top: 8px;
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
   font-size: 20px;
   font-weight: 600;
