@@ -222,11 +222,19 @@ export function FoodScreen() {
           if (m.id === 'unsorted' && items.length === 0) return null;
           const kcal = sumEntries(items).kcal;
           return (
-            <div key={m.id} data-meal={m.id} className="zoro-section-untitled">
+            <div key={m.id} data-meal={m.id} className="meal-gap">
               <div className="meal-card">
                 <div className="meal-row is-head">
                   <span className="meal-row-title">{m.label}</span>
                   {items.length > 0 && <span className="meal-row-value tabular">{fmt(kcal)} kcal</span>}
+                  <button
+                    type="button"
+                    aria-label={`Add to ${m.label}`}
+                    className="meal-add"
+                    onClick={() => nav.push({ name: 'addFood', date, meal: m.id })}
+                  >
+                    <Sym name="plus" size={19} />
+                  </button>
                 </div>
                 {items.length === 0 && <div className="meal-row is-empty">No Items</div>}
                 {items.map((e) => (

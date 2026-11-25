@@ -364,17 +364,24 @@ button.meal-row:not(:disabled):active {
   flex-shrink: 0;
   color: #98989f;
 }
-/* plus.circle.fill */
+/* Plain blue + (as in the Food header on Today): 44pt hit area without growing the row. */
 .meal-add {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--ios-blue);
-  color: #fff;
+  width: 44px;
+  height: 44px;
+  margin: -8px -12px -8px -4px;
+  color: var(--ios-blue);
+  -webkit-tap-highlight-color: transparent;
+}
+.meal-add:active {
+  opacity: 0.4;
+}
+/* Fitness spaces its summary cards 12pt apart (Settings' 35pt is for long lists). */
+.meal-gap {
+  margin-top: 12px;
 }
 .meal-add svg {
   width: 14px;

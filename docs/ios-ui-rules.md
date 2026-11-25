@@ -18,7 +18,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Trailing value | 17pt, `#98989F` (secondary label on a cell), ends 16pt from the card edge when there's no chevron |
 | Chevron | 6.5x11.5pt, `#98989F`, 11pt after the value, 19pt from the card edge |
 | Section header | 17pt semibold, `#8D8D93`, sentence case, at x=32pt; cap top 32pt below the card above, baseline 10pt above its card |
-| Cards with no header between | 35pt apart |
+| Cards with no header between | 35pt apart in Settings-style lists; 12pt between Fitness-style summary cards (Fitness, iOS 27) |
 | Footnote | 15pt, `#8D8D93`, at x=32pt, ~10pt below its card |
 | Row icon tile | 28pt square, 8pt radius, 14pt in from the card edge, ~18pt white glyph; row text and its separator then start 56pt in |
 | Navigation bar | 44pt row directly under the status bar; 17pt semibold centered title; 44pt round glass back button 16pt from the edge |
