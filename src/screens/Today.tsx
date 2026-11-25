@@ -6,9 +6,9 @@ import { addDays, formatMinutes, nextMonday, programWeek, weeklyRate, weightTren
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { buildPlan, dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { Btn, db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast } from '../ui/kit';
+import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { activeSession, startWorkout } from '../ui/workouts';
+import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
 const SECOND: Record<number, TemplateId> = { 1: 'pmCardio', 2: 'pmForearms', 3: 'pmAbs', 4: 'pmCardio', 6: 'pmForearms' };
 
@@ -74,53 +74,51 @@ export function TodayScreen() {
   const workoutDone = !templateId || !!doneMain;
   const foodDone = totals.protein >= settings.proteinTarget && totals.kcal >= settings.kcalTarget * 0.9;
 
-  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
+  const shortDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const weekTile = { icon: 'calendar' as const, text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` };
+
+  // Fitness-style workout cards: what's in progress, today's session, then the optional one.
   const workout: ReactNode = (
-    <FitCard title="Workout" onOpen={() => nav.go('lift')} trailing={workoutDone && templateId ? <DoneMark /> : undefined}>
+    <div className="flex flex-col gap-3">
       {open && open.templateId !== templateId && (
-        <button
-          type="button"
-          className="fit-link"
-          onClick={(e) => {
-            stop(e);
-            if (open.id !== undefined) nav.go('lift', { name: 'workout', sessionId: open.id });
-          }}
-        >
-          Resume {TEMPLATES[open.templateId].name}
-        </button>
+        <WorkoutCard
+          title={TEMPLATES[open.templateId].name}
+          glyph={TEMPLATE_GLYPH[open.templateId]}
+          color={FITNESS.exercise}
+          tiles={[{ icon: 'timer', text: 'In Progress' }]}
+          onPlay={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
+          onOpen={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
+        />
       )}
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <FitStat
-            label={week.week >= 1 ? `Today · Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${longDate(settings.programStart)}`}
-            value={templateId ? TEMPLATES[templateId].name : 'Rest Day'}
-            color={FITNESS.exercise}
-            sub={templateId ? (doneMain ? `${sets} sets` : `${plan?.exercises.length ?? '…'} exercises`) : undefined}
-          />
-        </div>
-        {templateId && !doneMain && (
-          <span className="mb-1" onClick={stop}>
-            <Btn size="sm" onClick={() => void start(templateId)}>
-              {open?.templateId === templateId ? 'Resume' : 'Start'}
-            </Btn>
-          </span>
-        )}
-      </div>
+      {templateId ? (
+        <WorkoutCard
+          title={TEMPLATES[templateId].name}
+          glyph={TEMPLATE_GLYPH[templateId]}
+          color={FITNESS.exercise}
+          done={!!doneMain}
+          onPlay={() => void start(templateId)}
+          onOpen={() =>
+            doneMain?.id !== undefined ? nav.go('lift', { name: 'workout', sessionId: doneMain.id }) : nav.go('lift')
+          }
+          tiles={[
+            doneMain ? { icon: 'checkmark', text: `${sets} Sets` } : { icon: 'list.bullet', text: `${plan?.exercises.length ?? '…'} Exercises` },
+            weekTile,
+          ]}
+        />
+      ) : (
+        <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} tiles={[weekTile]} onOpen={() => nav.go('lift')} />
+      )}
       {second && !week.deload && (
-        <button
-          type="button"
-          className="fit-link is-row"
-          onClick={(e) => {
-            stop(e);
-            void start(second);
-          }}
-        >
-          <span>Optional: {TEMPLATES[second].name}</span>
-          <span className="fit-link-value">{TEMPLATES[second].short}</span>
-        </button>
+        <WorkoutCard
+          title={TEMPLATES[second].name}
+          glyph={TEMPLATE_GLYPH[second]}
+          color={FITNESS.steps}
+          onPlay={() => void start(second)}
+          tiles={[{ text: 'Optional' }, { icon: 'timer', text: TEMPLATES[second].short }]}
+        />
       )}
-    </FitCard>
+    </div>
   );
 
   const food: ReactNode = (

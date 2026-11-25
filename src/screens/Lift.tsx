@@ -5,13 +5,14 @@ import { BENCH_STEPS, DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekd
 import { benchProgress } from '../core/progression';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { Bar, Btn, Cell, db, dim, fmtLb, Header, Row, Section, useSettings } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, FitStat, fmtLb, Header, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { activeSession, startWorkout } from '../ui/workouts';
+import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
 const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
 const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const shortDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 export function LiftScreen() {
   const nav = useNav();
@@ -69,30 +70,43 @@ export function LiftScreen() {
         })}
       </div>
 
-      {open?.id !== undefined && (
-        <Section>
-          <Row accent title={`Resume ${TEMPLATES[open.templateId].name}`} chevron onClick={() => nav.push({ name: 'workout', sessionId: open.id! })} />
-        </Section>
-      )}
+      <div className="fit-stack">
+        {open?.id !== undefined && open.templateId !== todayId && (
+          <WorkoutCard
+            title={TEMPLATES[open.templateId].name}
+            glyph={TEMPLATE_GLYPH[open.templateId]}
+            color={FITNESS.exercise}
+            tiles={[{ icon: 'timer', text: 'In Progress' }]}
+            onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
+            onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
+          />
+        )}
+        {todayId ? (
+          <WorkoutCard
+            title={TEMPLATES[todayId].name}
+            glyph={TEMPLATE_GLYPH[todayId]}
+            color={FITNESS.exercise}
+            done={todayDone}
+            onPlay={() => void start(todayId)}
+            tiles={[
+              { icon: 'list.bullet', text: `${plan?.exercises.length ?? '…'} Exercises` },
+              { icon: 'calendar', text: week.week >= 1 ? `Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${shortDate(settings.programStart)}` },
+            ]}
+          />
+        ) : (
+          <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
+        )}
+      </div>
 
       {todayId && plan && (
-        <Section
-          title={`Today · ${TEMPLATES[todayId].name}`}
-          right={
-            !todayDone && open?.templateId !== todayId ? (
-              <Btn size="sm" kind="plain" className="!-me-3" onClick={() => void start(todayId)}>
-                Start
-              </Btn>
-            ) : undefined
-          }
-        >
+        <Section title="Exercises">
           {plan.exercises.map((e) => {
             const def = EXERCISES[e.exerciseId];
             const s = e.sets[0];
             return (
               <Row
                 key={e.exerciseId}
-                title={def.name}
+                title={<span className="block truncate">{def.name}</span>}
                 right={`${e.sets.length} × ${s.reps}${s.repMax && s.repMax > s.reps ? `–${s.repMax}` : ''}${def.timed ? 's' : ''}${s.weight ? ` @ ${fmtLb(s.weight)}` : ''}`}
               />
             );
@@ -100,38 +114,34 @@ export function LiftScreen() {
         </Section>
       )}
 
-      <Section title="Workouts">
-        {MAIN.filter((id) => settings.daysPerWeek === 5 || id !== 'arms').map((id) => (
-          <Row
-            key={id}
-            title={TEMPLATES[id].name}
-            right={id === todayId ? <span className="font-semibold text-accent">Today</span> : undefined}
-            chevron
-            onClick={() => void start(id)}
-          />
-        ))}
+      <Section title="Workouts" plain>
+        <div className="fit-grid">
+          {MAIN.filter((id) => settings.daysPerWeek === 5 || id !== 'arms').map((id) => (
+            <WorkoutCard key={id} title={TEMPLATES[id].name} glyph={TEMPLATE_GLYPH[id]} color={FITNESS.exercise} onPlay={() => void start(id)} />
+          ))}
+        </div>
       </Section>
 
-      <Section title="Second sessions" right={week.deload ? <span className="text-[12px] text-[#ff9f0a]">Skip on easy weeks</span> : undefined}>
-        {SECONDARY.map((id) => (
-          <Row key={id} title={TEMPLATES[id].name} right={TEMPLATES[id].short} chevron onClick={() => void start(id)} />
-        ))}
+      <Section title="Second Sessions" plain>
+        <div className="fit-grid">
+          {SECONDARY.map((id) => (
+            <WorkoutCard key={id} title={TEMPLATES[id].name} glyph={TEMPLATE_GLYPH[id]} color={FITNESS.steps} onPlay={() => void start(id)} />
+          ))}
+        </div>
       </Section>
 
-      <Section title="Bench to 225">
-        <Row title="Block max" right={`${fmtLb(blockMax)} lb`} />
-        <Row
-          title={`Step ${bench.step + 1}/12`}
-          right={step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)}`).join(', ')}
-        />
-        <Cell>
-          <div className="flex items-center justify-between gap-3 text-[17px]">
-            <span className="truncate">Best estimated max</span>
-            <span className={`tabular shrink-0 ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
+      <div className="fit-stack">
+        <FitCard title="Bench to 225">
+          <div className="fit-grid !gap-3">
+            <FitStat label="Block Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
+            <FitStat label="Best Est. Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : '--'} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
           </div>
-          <Bar value={benchBest || blockMax} target={225} color="#0a84ff" className="mt-2" />
-        </Cell>
-      </Section>
+          <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-3" />
+          <div className="fit-stat-sub mt-3 truncate">
+            Step {bench.step + 1} of 12 · {step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)}`).join(', ')}
+          </div>
+        </FitCard>
+      </div>
     </Page>
   );
 }

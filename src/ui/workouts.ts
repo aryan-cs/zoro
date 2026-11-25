@@ -1,6 +1,7 @@
 import { addDays } from '../core/calc';
 import { buildPlan, startSession, today } from '../core/store';
 import type { TemplateId, WorkoutSession } from '../core/types';
+import type { SFName } from './sf';
 import { db } from './kit';
 
 /** The newest unfinished workout from today or yesterday, if any. */
@@ -16,3 +17,16 @@ export async function startWorkout(templateId: TemplateId): Promise<number> {
   const plan = await buildPlan(templateId, today(), db);
   return startSession(plan, today(), db);
 }
+
+/** The Fitness workout glyph for each session. */
+export const TEMPLATE_GLYPH: Record<TemplateId, SFName> = {
+  upperA: 'figure.strengthtraining.traditional',
+  lowerA: 'figure.strengthtraining.traditional',
+  arms: 'figure.strengthtraining.traditional',
+  upperB: 'figure.strengthtraining.traditional',
+  lowerB: 'figure.strengthtraining.traditional',
+  pmForearms: 'figure.strengthtraining.functional',
+  pmAbs: 'figure.core.training',
+  pmArms: 'figure.strengthtraining.functional',
+  pmCardio: 'figure.walk',
+};

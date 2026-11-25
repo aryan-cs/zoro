@@ -761,3 +761,92 @@ button.meal-row:not(:disabled):active {
 .fit-card > .ring-card:first-child {
   padding-top: 2px;
 }
+
+/* ---------- Workout cards (Fitness's Outdoor Walk card, iOS 27) ----------
+ * Card = workout color at ~10% over black, 26pt corners, 20pt padding; glyph in the color;
+ * 44pt round play button filled with the color; 22pt bold title; 56pt tiles at ~14%.
+ */
+.wk-card {
+  padding: 18px 20px 20px;
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--tint) 10%, #000);
+  -webkit-tap-highlight-color: transparent;
+}
+.wk-card.is-link:active {
+  background: color-mix(in srgb, var(--tint) 14%, #000);
+}
+.wk-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 44px;
+}
+.wk-glyph {
+  display: flex;
+  align-items: center;
+  height: 44px; /* same box for tall and wide glyphs, so titles line up */
+  color: var(--tint);
+}
+.wk-play {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: #000;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease-out;
+}
+.wk-play:active {
+  transform: scale(0.92);
+}
+.wk-play svg {
+  margin-left: 2px; /* optical center for play.fill */
+}
+.wk-play.is-done svg {
+  margin-left: 0;
+}
+.wk-title {
+  margin: 10px 0 0;
+  overflow: hidden;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ios-label);
+}
+.wk-tiles {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.wk-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 48px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--tint) 14%, #000);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ios-label);
+}
+.wk-tile svg {
+  color: var(--tint);
+}
+/* Smaller workout cards in a two-column grid (Lift's list of sessions). */
+.fit-grid .wk-card {
+  padding: 14px 16px 16px;
+}
+.fit-grid .wk-title {
+  margin-top: 8px;
+  font-size: 17px;
+  line-height: 22px;
+}

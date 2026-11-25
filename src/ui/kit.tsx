@@ -16,6 +16,7 @@ import { createContext, useCallback, useContext, useRef, useState, type ReactNod
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, SegmentedControl } from './bars';
 import { Sym } from './Sym';
+import type { SFName } from './sf';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
@@ -336,6 +337,62 @@ export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing
         </span>
       </header>
       {props.children}
+    </section>
+  );
+}
+
+/**
+ * A workout card in Fitness's style (its Outdoor Walk card): the card tinted with the workout's
+ * color, a large glyph and a round play button on top, a bold one-line title, then a row of
+ * small tinted tiles with one short fact each. Measured from Fitness (iOS 27).
+ */
+export function WorkoutCard(props: {
+  title: string;
+  glyph: SFName;
+  color: string;
+  tiles?: { icon?: SFName; text: string }[];
+  onPlay?: () => void;
+  done?: boolean;
+  onOpen?: () => void;
+}) {
+  const style = { '--tint': props.color } as CSSProperties;
+  return (
+    <section className={`wk-card ${props.onOpen ? 'is-link' : ''}`} style={style} onClick={props.onOpen} role={props.onOpen ? 'button' : undefined}>
+      <div className="wk-top">
+        <span className="wk-glyph">
+          <Sym name={props.glyph} size={30} />
+        </span>
+        {props.done ? (
+          <span className="wk-play is-done" role="img" aria-label="Done">
+            <Sym name="checkmark.bold" size={17} />
+          </span>
+        ) : (
+          props.onPlay && (
+            <button
+              type="button"
+              aria-label={`Start ${props.title}`}
+              className="wk-play"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onPlay?.();
+              }}
+            >
+              <Sym name="play.fill" size={17} />
+            </button>
+          )
+        )}
+      </div>
+      <h2 className="wk-title">{props.title}</h2>
+      {props.tiles && props.tiles.length > 0 && (
+        <div className="wk-tiles" style={{ gridTemplateColumns: `repeat(${props.tiles.length}, minmax(0, 1fr))` }}>
+          {props.tiles.map((t) => (
+            <span key={t.text} className="wk-tile">
+              {t.icon && <Sym name={t.icon} size={14} />}
+              <span className="truncate">{t.text}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
