@@ -1,0 +1,185 @@
+import { ChevronLeft, Search, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import './bars.css';
+
+/**
+ * Navigation chrome drawn to match iOS 26 directly (no Konsta): the floating tab bar,
+ * the navigation bar, its round glass buttons, the search field and the segmented control.
+ * Styles live in index.css under "iOS bars".
+ */
+
+// ---------- Tab bar ----------
+
+export interface TabItem<T extends string> {
+  id: T;
+  label: string;
+  icon: ReactNode;
+}
+
+/** Floating glass tab bar with a selection pill that slides between tabs. Icons only. */
+export function TabBar<T extends string>({ tabs, active, onSelect }: { tabs: TabItem<T>[]; active: T; onSelect: (id: T) => void }) {
+  const index = Math.max(0, tabs.findIndex((t) => t.id === active));
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const release = () => {
+    window.clearTimeout(timer.current);
+    setHolding(false);
+  };
+  return (
+    <nav className="ios-tabbar" aria-label="Tabs">
+      <div
+        className="ios-tabbar-capsule ios-glass"
+        style={{ '--count': tabs.length, '--index': index } as CSSProperties}
+        onPointerDown={() => {
+          window.clearTimeout(timer.current);
+          // Only a real long press magnifies the selection, like iOS.
+          timer.current = window.setTimeout(() => setHolding(true), 450);
+        }}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onPointerLeave={release}
+      >
+        <span className={`ios-tabbar-pill ${holding ? 'is-holding' : ''}`} aria-hidden />
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            aria-label={t.label}
+            aria-current={t.id === active ? 'page' : undefined}
+            className={`ios-tabbar-item ${t.id === active ? 'is-active' : ''}`}
+            onClick={() => onSelect(t.id)}
+          >
+            {t.icon}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+// ---------- Navigation bar ----------
+
+/** iOS navigation bar: 44pt row, centered 17pt semibold title, round glass buttons, optional row below. */
+export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="ios-navbar">
+      <div className="ios-navbar-row">
+        <div className="ios-navbar-side">
+          {props.onBack ? (
+            <NavButton label="Back" onClick={props.onBack}>
+              <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.4} />
+            </NavButton>
+          ) : (
+            props.left
+          )}
+        </div>
+        <h1 className="ios-navbar-title">{props.title}</h1>
+        <div className="ios-navbar-side is-right">{props.right}</div>
+      </div>
+      {props.children && <div className="ios-navbar-sub">{props.children}</div>}
+    </header>
+  );
+}
+
+/** Round glass button for an icon in the navigation bar. */
+export function NavButton(props: { label: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
+  return (
+    <button type="button" aria-label={props.label} disabled={props.disabled} onClick={props.onClick} className="ios-navbtn ios-glass">
+      {props.children}
+    </button>
+  );
+}
+
+/** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
+export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
+  return (
+    <button type="button" onClick={props.onClick} className={`ios-navbtn is-text ${props.strong ? 'is-prominent' : 'ios-glass'}`}>
+      {props.children}
+    </button>
+  );
+}
+
+// ---------- Search field ----------
+
+/** iOS search field: capsule, magnifier, clear button, and Cancel while editing. */
+export function SearchField(props: { value: string; onChange: (v: string) => void; onSubmit?: () => void; onCancel?: () => void; placeholder?: string }) {
+  const [editing, setEditing] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <form
+      className="ios-search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        input.current?.blur();
+        props.onSubmit?.();
+      }}
+    >
+      <label className="ios-search-field">
+        <Search className="h-4 w-4 shrink-0 text-[var(--ios-label-3)]" strokeWidth={2.4} />
+        <input
+          ref={input}
+          type="search"
+          enterKeyHint="search"
+          value={props.value}
+          placeholder={props.placeholder ?? 'Search'}
+          onFocus={() => setEditing(true)}
+          onBlur={() => setEditing(false)}
+          onChange={(e) => props.onChange(e.target.value)}
+        />
+        {props.value && (
+          <button type="button" aria-label="Clear" className="ios-search-clear" onMouseDown={(e) => e.preventDefault()} onClick={() => props.onChange('')}>
+            <XCircle className="h-[18px] w-[18px]" fill="currentColor" stroke="#000" strokeWidth={2} />
+          </button>
+        )}
+      </label>
+      {(editing || props.value) && (
+        <button
+          type="button"
+          className="ios-search-cancel"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            props.onChange('');
+            input.current?.blur();
+            props.onCancel?.();
+          }}
+        >
+          Cancel
+        </button>
+      )}
+    </form>
+  );
+}
+
+// ---------- Segmented control ----------
+
+/** iOS segmented control: gray track, a lighter selected capsule that slides between segments. */
+export function SegmentedControl<T extends string | number>(props: { value: T; options: [T, string][]; onChange: (v: T) => void; className?: string }) {
+  const index = Math.max(0, props.options.findIndex(([v]) => v === props.value));
+  const [ready, setReady] = useState(false);
+  // Skip the slide on first paint so it doesn't animate in from the left.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div
+      role="tablist"
+      className={`ios-segmented ${ready ? 'is-ready' : ''} ${props.className ?? ''}`}
+      style={{ '--count': props.options.length, '--index': index } as CSSProperties}
+    >
+      <span className="ios-segmented-thumb" aria-hidden />
+      {props.options.map(([v, label]) => (
+        <button
+          key={String(v)}
+          type="button"
+          role="tab"
+          aria-selected={v === props.value}
+          className={`ios-segmented-item ${v === props.value ? 'is-active' : ''}`}
+          onClick={() => props.onChange(v)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}

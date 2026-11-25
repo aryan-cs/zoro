@@ -1,4 +1,5 @@
-import { Dialog, DialogButton, App as KonstaApp, Tabbar, TabbarLink, ToolbarPane } from 'konsta/react';
+import { Dialog, DialogButton, App as KonstaApp } from 'konsta/react';
+import { TabBar } from './ui/bars';
 import { CalendarDays, Droplet, Dumbbell, History, Salad } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AddFoodScreen } from './screens/AddFood';
@@ -53,27 +54,15 @@ function TabRoot({ tab }: { tab: Tab }) {
   }
 }
 
-/** iOS 26 tab bar: Konsta's Tabbar + ToolbarPane, with its glass selection (see index.css). */
-function TabBar() {
+/** iOS 26 tab bar (our own, see ui/bars.tsx): icons only, sliding glass selection, no flash on tap. */
+function Tabs() {
   const { tab, setTab } = useNav();
   return (
-    <Tabbar
-      icons
-      className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]"
-      bgClassName="!hidden"
-    >
-      <ToolbarPane>
-        {TABS.map((t) => (
-          <TabbarLink
-            key={t.id}
-            active={tab === t.id}
-            onClick={() => setTab(t.id)}
-            icon={<t.icon className="h-6 w-6" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
-            aria-label={t.label}
-          />
-        ))}
-      </ToolbarPane>
-    </Tabbar>
+    <TabBar
+      tabs={TABS.map((t) => ({ id: t.id, label: t.label, icon: <t.icon strokeWidth={tab === t.id ? 2.2 : 1.8} /> }))}
+      active={tab}
+      onSelect={setTab}
+    />
   );
 }
 
@@ -164,7 +153,7 @@ function Shell() {
           ))}
         </div>
       ))}
-      <TabBar />
+      <Tabs />
     </>
   );
 }

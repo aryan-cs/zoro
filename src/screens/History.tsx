@@ -52,7 +52,7 @@ function Lifts() {
   const labels = useMemo(() => bench.map((b) => short(b.date)), [bench]);
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: '#48fa78' },
+      { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: '#0a84ff' },
       { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
     ],
     [bench],
@@ -155,8 +155,8 @@ function Body() {
   const labels = useMemo(() => recent.map((t) => short(t.date)), [recent]);
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(72,250,120,0.45)', dots: true },
-      { label: 'Trend', data: recent.map((t) => roundTo(t.trend, 0.1)), color: '#48fa78' },
+      { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(10,132,255,0.45)', dots: true },
+      { label: 'Trend', data: recent.map((t) => roundTo(t.trend, 0.1)), color: '#0a84ff' },
     ],
     [recent],
   );

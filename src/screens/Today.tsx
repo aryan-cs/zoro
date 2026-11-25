@@ -22,7 +22,7 @@ export function mealNow(): Meal {
 
 function DoneMark() {
   return (
-    <span className="inline-flex items-center gap-1 text-[15px] font-semibold text-accent">
+    <span className="inline-flex items-center gap-1 text-[15px] font-semibold text-[#30d158]">
       <Check className="h-3.5 w-3.5" strokeWidth={3} /> Done
     </span>
   );

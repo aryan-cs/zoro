@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Block, List, ListItem, Page, Preloader, Searchbar, Stepper } from 'konsta/react';
+import { Block, List, ListItem, Page, Preloader, Stepper } from 'konsta/react';
+import { SearchField } from '../ui/bars';
 import { PenLine, ScanBarcode, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
@@ -267,32 +268,15 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
   return (
     <Page className="tab-safe">
       <Header title={`Add to ${mealLabel}`} onBack={nav.pop}>
-        <form
-          className="w-full"
-          onSubmit={(e) => {
-            e.preventDefault();
-            (document.activeElement as HTMLElement | null)?.blur();
-            void search();
+        <SearchField
+          value={q}
+          placeholder="Search foods"
+          onChange={(v) => {
+            setQ(v);
+            setOnline(null);
           }}
-        >
-          <Searchbar
-            placeholder="Search foods"
-            value={q}
-            onInput={(e: React.ChangeEvent<HTMLInputElement>) => {
-              setQ(e.target.value);
-              setOnline(null);
-            }}
-            onClear={() => {
-              setQ('');
-              setOnline(null);
-            }}
-            disableButton
-            onDisable={() => {
-              setQ('');
-              setOnline(null);
-            }}
-          />
-        </form>
+          onSubmit={() => void search()}
+        />
       </Header>
 
       <div className="mx-4 mt-3 grid grid-cols-3 gap-2">

@@ -3,11 +3,11 @@
 
 /* ---------- Theme: Apple dark with a mint accent ---------- */
 @theme {
-  --color-brand-primary: #48fa78;
-  --color-accent: #48fa78;
+  --color-brand-primary: #0a84ff;
+  --color-accent: #0a84ff;
 }
 :root {
-  --k-color-primary: #48fa78 !important;
+  --k-color-primary: #0a84ff !important;
   color-scheme: dark;
 }
 
@@ -20,6 +20,10 @@ body,
   height: 100%;
 }
 body {
+  /* The document never scrolls; each page scrolls inside itself, so screens that fit don't move. */
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
   margin: 0;
   color: #fff;
   background: #000 !important;
@@ -48,14 +52,9 @@ select {
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 64px);
+  padding-bottom: calc(var(--tabbar-bottom) + var(--tabbar-height) + 12px);
 }
 
-/* Keep content sharp at the top and bottom edges: no blur strips behind the bars. */
-.k-navbar > [class*='backdrop-blur-[2px]'],
-.k-toolbar > [class*='backdrop-blur-[2px]'] {
-  display: none !important;
-}
 
 /* Inset Settings section labels align with cell text. Keep control-bearing
  * headers on the same rhythm as text-only headers. */
@@ -118,22 +117,15 @@ select {
   padding: 0;
 }
 
-/* Production minification can drop translate:none. Zero the Tailwind values
- * to retain flex centering without Konsta's inherited -50% title shift. */
-.zoro-navbar-title {
-  --tw-translate-x: 0px !important;
-  --tw-translate-y: 0px !important;
-  transform: none !important;
-}
 
 /* Apple's grouped cell color, for custom tiles. */
 .surface {
   background: #1c1c1e;
 }
 
-/* Filled buttons (alerts, sheets): dark text on the bright mint, like Apple's light-tint buttons. */
+/* Filled buttons: white on system blue, like iOS. */
 .k-button.bg-primary {
-  color: #000 !important;
+  color: #fff !important;
 }
 
 /* iOS 26 alerts: the secondary button is a neutral gray capsule, only the default action is tinted. */
@@ -184,19 +176,6 @@ select {
   color: #fff !important;
 }
 
-/*
- * The app starts below an opaque black status bar (status-bar-style "black"), so nothing is
- * drawn under iOS's status-bar blur. Older installs that still draw under it get the safe
- * area plus a little room.
- */
-.k-navbar {
-  padding-top: max(16px, var(--k-safe-area-top, 0px)) !important;
-  background: #000;
-}
-.k-navbar .k-navbar-back-link,
-.k-navbar .k-link {
-  -webkit-font-smoothing: antialiased;
-}
 
 /*
  * Alerts: centered without a half-pixel translate (which jitters and blurs text in Safari),
@@ -257,33 +236,7 @@ select {
   touch-action: pan-y;
 }
 
-/*
- * Tab bar selection. Konsta draws two layers: a flat gray pill at rest and a Liquid Glass
- * lens only while a tab is pressed, so every tap visibly swaps styles. Keep the glass lens
- * as the resting selection too; pressing then just grows it, like iOS 26.
- */
-.k-toolbar-pane > span > span:first-child {
-  opacity: 0 !important;
-}
-.k-toolbar-pane > span > span:last-child {
-  opacity: 1 !important;
-}
 
-/*
- * Konsta grows the lens on every touch-down. Hold the grow back until a touch lasts as long
- * as an iOS long press (0.45s) so taps, even slow ones, just slide the selection; holding or dragging still magnifies it, like iOS 26.
- * Letting go shrinks it right away.
- */
-.k-toolbar-pane > span > span:last-child {
-  transition:
-    scale 0.25s ease-out,
-    opacity 0.2s ease-out !important;
-}
-.k-toolbar-pane > span > span:last-child.scale-140 {
-  transition:
-    scale 0.3s ease-out 0.45s,
-    opacity 0.2s ease-out !important;
-}
 
 /* Center the workout action across both title and subtitle. */
 .zoro-workout-preview {
@@ -295,4 +248,15 @@ select {
   inset-inline-end: 16px;
   top: 0;
   bottom: 0;
+}
+
+/* Size the app to the visible area: Konsta's min-h-screen (100vh) is taller than the
+ * viewport under an opaque status bar, which made screens that fit scroll anyway. */
+.k-app {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+/* A page that fits shouldn't rubber-band either. */
+.k-page {
+  overscroll-behavior: contain;
 }

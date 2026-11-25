@@ -4,22 +4,18 @@ import {
   Button,
   Dialog,
   DialogButton,
-  Link,
   List,
   ListButton,
   ListItem,
-  Navbar,
-  NavbarBackLink,
   Page,
   Popup,
   Progressbar,
-  Segmented,
-  SegmentedButton,
   Sheet,
   Toast,
 } from 'konsta/react';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
+import { NavBar, NavButton, NavTextButton, SegmentedControl } from './bars';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
@@ -55,43 +51,26 @@ export function timeAgo(t: number | undefined): string {
 
 // ---------- Navigation bar ----------
 
-/** iOS navigation bar (Konsta Navbar) on a solid background, with optional back button and a row underneath. */
+/** iOS navigation bar (our own, see bars.tsx): centered title, round glass buttons, optional row below. */
 export function Header(props: { title: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
-  return (
-    <Navbar
-      title={props.title}
-      left={props.onBack ? <NavbarBackLink onClick={() => props.onBack?.()} /> : props.left}
-      right={props.right}
-      subnavbar={props.children}
-      bgClassName="!bg-none !bg-black !h-full"
-      // Center the title with flexbox instead of a GPU half-pixel shift, which Safari draws fuzzy.
-      titleClassName="zoro-navbar-title !inset-0 flex flex-col items-center justify-center pointer-events-none"
-      subnavbarClassName="!h-auto pb-2 pt-1"
-    />
-  );
+  return <NavBar {...props} />;
 }
 
-/** Icon button for the navigation bar (sits in the bar's glass capsule). */
+/** Round glass icon button for the navigation bar. */
 export function IconBtn(props: { label: string; onClick?: () => void; children: ReactNode; className?: string; disabled?: boolean }) {
   return (
-    <Link
-      iconOnly
-      aria-label={props.label}
-      aria-disabled={props.disabled}
-      onClick={props.disabled ? undefined : props.onClick}
-      className={`${props.disabled ? 'pointer-events-none opacity-30' : ''} ${props.className ?? ''}`}
-    >
+    <NavButton label={props.label} onClick={props.onClick} disabled={props.disabled}>
       {props.children}
-    </Link>
+    </NavButton>
   );
 }
 
-/** Text button for the navigation bar. */
+/** Text button for the navigation bar (Done, Cancel, Finish). */
 export function NavText(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
   return (
-    <Link onClick={props.onClick} className={`px-2 ${props.strong ? 'font-semibold' : ''}`}>
+    <NavTextButton onClick={props.onClick} strong={props.strong}>
       {props.children}
-    </Link>
+    </NavTextButton>
   );
 }
 
@@ -217,6 +196,8 @@ export function Btn(props: {
   const size = props.size ?? 'md';
   const sizes = { sm: '!h-9 !px-3.5 !text-[15px]', md: '!h-11 !px-4 !text-[17px]', lg: '' };
   const danger = { tonalTextIos: 'text-[#ff453a]', tonalBgIos: 'bg-[#ff453a]/15 active:bg-[#ff453a]/25' };
+  // iOS gray button: tertiary fill with blue text.
+  const gray = { tonalTextIos: 'text-[#0a84ff]', tonalBgIos: 'bg-[rgba(118,118,128,0.24)] active:bg-[rgba(118,118,128,0.4)]' };
   return (
     <Button
       rounded
@@ -224,7 +205,7 @@ export function Btn(props: {
       large={size === 'lg'}
       tonal={kind === 'glass' || kind === 'danger'}
       clear={kind === 'plain'}
-      colors={kind === 'danger' ? danger : undefined}
+      colors={kind === 'danger' ? danger : kind === 'glass' ? gray : undefined}
       disabled={props.disabled}
       onClick={props.onClick}
       className={`shrink-0 gap-1.5 font-semibold ${sizes[size]} ${props.className ?? ''}`}
@@ -234,17 +215,9 @@ export function Btn(props: {
   );
 }
 
-/** iOS segmented control (Konsta Segmented, with the sliding thumb). */
+/** iOS segmented control (see bars.tsx): gray track, sliding selected capsule. */
 export function Seg<T extends string | number>(props: { value: T; options: [T, string][]; onChange: (v: T) => void; className?: string }) {
-  return (
-    <Segmented strong rounded className={props.className}>
-      {props.options.map(([v, label]) => (
-        <SegmentedButton key={String(v)} active={props.value === v} onClick={() => props.onChange(v)} {...({ 'aria-pressed': props.value === v } as object)}>
-          {label}
-        </SegmentedButton>
-      ))}
-    </Segmented>
-  );
+  return <SegmentedControl {...props} />;
 }
 
 /** Thin progress bar. */
@@ -265,7 +238,7 @@ export function MacroSummary({ totals, settings }: { totals: Macros; settings: S
   const left = settings.kcalTarget - totals.kcal;
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const rows: [string, number, number, string][] = [
-    ['Protein', totals.protein, settings.proteinTarget, '#48fa78'],
+    ['Protein', totals.protein, settings.proteinTarget, '#30d158'],
     ['Carbs', totals.carbs, carbs, '#0a84ff'],
     ['Fat', totals.fat, settings.fatTarget, '#bf5af2'],
   ];

@@ -59,7 +59,7 @@ export function WaterScreen() {
               <span className={`text-[13px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
             </div>
           </div>
-          <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-accent'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
+          <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-[#30d158]'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
           <div className="mt-4 grid w-full grid-cols-4 gap-2">
             {QUICK.map((oz) => (
               <Btn key={oz} className="!w-full !px-0" onClick={() => void add(oz)}>

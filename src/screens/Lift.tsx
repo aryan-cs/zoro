@@ -62,7 +62,7 @@ export function LiftScreen() {
           return (
             <div key={d} className="flex flex-col items-center gap-1 text-[13px]" aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}: ${t ? TEMPLATES[t].name : 'rest'}${doneDates.has(d) ? ', done' : ''}`}>
               <span className={isToday ? 'font-semibold text-accent' : dim}>{DAY[wd]}</span>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold ${isToday ? 'bg-accent text-black' : ''}`}>{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold ${isToday ? 'bg-accent text-white' : ''}`}>{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
             </div>
           );
         })}
@@ -128,7 +128,7 @@ export function LiftScreen() {
             <span className="truncate">Best estimated max</span>
             <span className={`tabular shrink-0 ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
           </div>
-          <Bar value={benchBest || blockMax} target={225} color="#48fa78" className="mt-2" />
+          <Bar value={benchBest || blockMax} target={225} color="#0a84ff" className="mt-2" />
         </Cell>
       </Section>
     </Page>

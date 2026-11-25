@@ -1,0 +1,245 @@
+/*
+ * iOS bars, drawn to match iOS 26 dark mode directly (see bars.tsx).
+ * Colors are Apple's dark-mode system colors, as in the Settings app.
+ */
+:root {
+  --ios-blue: #0a84ff;
+  --ios-red: #ff453a;
+  --ios-green: #30d158;
+  --ios-orange: #ff9f0a;
+  --ios-purple: #bf5af2;
+  --ios-cyan: #64d2ff;
+  --ios-indigo: #5e5ce6;
+  --ios-bg: #000000; /* systemGroupedBackground */
+  --ios-cell: #1c1c1e; /* secondarySystemGroupedBackground */
+  --ios-cell-2: #2c2c2e; /* tertiarySystemGroupedBackground */
+  --ios-fill: rgba(120, 120, 128, 0.36); /* systemFill */
+  --ios-fill-3: rgba(118, 118, 128, 0.24); /* tertiarySystemFill */
+  --ios-separator: rgba(84, 84, 88, 0.6);
+  --ios-label: #ffffff;
+  --ios-label-2: rgba(235, 235, 245, 0.6);
+  --ios-label-3: rgba(235, 235, 245, 0.3);
+  --tabbar-height: 56px;
+}
+
+/* Liquid Glass surface for bars and their buttons. No press highlight: iOS doesn't flash the bar. */
+.ios-glass {
+  background: rgba(36, 36, 38, 0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.1),
+    0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Tab bar ---------- */
+.ios-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--tabbar-bottom);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+  pointer-events: none;
+}
+.ios-tabbar-capsule {
+  pointer-events: auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+  width: 100%;
+  max-width: 440px;
+  height: var(--tabbar-height);
+  padding: 4px;
+  border-radius: 999px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.ios-tabbar-pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--count));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  transform: translateX(calc(var(--index) * 100%));
+  transition:
+    transform 0.42s cubic-bezier(0.25, 1.1, 0.35, 1),
+    scale 0.3s ease-out;
+}
+.ios-tabbar-pill.is-holding {
+  scale: 1.12;
+}
+.ios-tabbar-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+}
+.ios-tabbar-item svg {
+  width: 24px;
+  height: 24px;
+}
+.ios-tabbar-item.is-active {
+  color: var(--ios-blue);
+}
+
+/* ---------- Navigation bar ---------- */
+.ios-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--ios-bg);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.ios-navbar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 16px;
+}
+.ios-navbar-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ios-navbar-side.is-right {
+  justify-content: flex-end;
+}
+.ios-navbar-title {
+  margin: 0;
+  max-width: 62vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--ios-label);
+}
+.ios-navbar-sub {
+  padding: 0 16px 10px;
+}
+.ios-navbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 999px;
+  color: var(--ios-label);
+  font-size: 17px;
+  transition: transform 0.15s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.ios-navbtn:active {
+  transform: scale(0.94);
+}
+.ios-navbtn:disabled {
+  opacity: 0.3;
+}
+.ios-navbtn.is-text {
+  padding: 0 16px;
+}
+.ios-navbtn.is-prominent {
+  background: var(--ios-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- Search field ---------- */
+.ios-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ios-search-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--ios-fill-3);
+}
+.ios-search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ios-label);
+  font-size: 17px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.ios-search-field input::placeholder {
+  color: var(--ios-label-2);
+}
+.ios-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+.ios-search-clear {
+  display: flex;
+  color: var(--ios-label-3);
+}
+.ios-search-cancel {
+  color: var(--ios-blue);
+  font-size: 17px;
+}
+
+/* ---------- Segmented control ---------- */
+.ios-segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+  height: 32px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--ios-fill-3);
+}
+.ios-segmented-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--count));
+  border-radius: 999px;
+  background: #636366;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    0 3px 1px rgba(0, 0, 0, 0.04);
+  transform: translateX(calc(var(--index) * 100%));
+}
+.ios-segmented.is-ready .ios-segmented-thumb {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.35, 1);
+}
+.ios-segmented-item {
+  position: relative;
+  z-index: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+}
+.ios-segmented-item.is-active {
+  font-weight: 600;
+}
