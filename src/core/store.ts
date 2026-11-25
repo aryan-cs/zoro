@@ -278,3 +278,33 @@ export async function importAll(backup: unknown, db: ZoroDB = getDB()): Promise<
     }
   });
 }
+
+/** A week of believable meals ending today, for testing; every entry is marked as sample. */
+export async function addSampleWeek(db: ZoroDB = getDB()): Promise<number> {
+  const meals: [Meal, string, number, number, number, number][][] = [
+    [['breakfast', 'Greek Yogurt (Fage)', 150, 20, 8, 4], ['breakfast', 'Banana', 105, 1.3, 27, 0.4], ['lunch', 'Chicken Rice Bowl', 640, 48, 72, 14], ['dinner', 'Salmon, Rice and Broccoli', 720, 46, 68, 26], ['snack', 'Protein Bar', 210, 20, 22, 8]],
+    [['breakfast', 'Eggs and Toast', 420, 26, 32, 20], ['lunch', 'Turkey Sandwich', 520, 38, 48, 16], ['dinner', 'Steak and Potatoes', 860, 62, 58, 38], ['snack', 'Whey Shake', 160, 30, 6, 2]],
+    [['breakfast', 'Oatmeal with Berries', 380, 14, 64, 8], ['lunch', 'Chipotle Burrito Bowl', 780, 52, 82, 24], ['snack', 'Apple and Peanut Butter', 290, 8, 30, 16], ['dinner', 'Chicken Pasta', 820, 58, 92, 20]],
+    [['breakfast', 'Greek Yogurt (Fage)', 150, 20, 8, 4], ['lunch', 'Tuna Salad Wrap', 560, 42, 46, 22], ['dinner', 'Paneer Tikka with Rice', 780, 40, 84, 30], ['snack', 'Protein Bar', 210, 20, 22, 8]],
+    [['breakfast', 'Bagel with Cream Cheese', 450, 14, 66, 14], ['lunch', 'Chicken Caesar Salad', 540, 44, 20, 32], ['dinner', 'Beef Tacos', 820, 46, 70, 38], ['snack', 'Whey Shake', 160, 30, 6, 2]],
+    [['breakfast', 'Eggs and Toast', 420, 26, 32, 20], ['lunch', 'Chicken Rice Bowl', 640, 48, 72, 14], ['snack', 'Trail Mix', 300, 8, 28, 18], ['dinner', 'Salmon, Rice and Broccoli', 720, 46, 68, 26]],
+    [['breakfast', 'Oatmeal with Berries', 380, 14, 64, 8], ['lunch', 'Turkey Sandwich', 520, 38, 48, 16], ['dinner', 'Chicken Stir Fry', 690, 52, 70, 20]],
+  ];
+  const t = today();
+  let n = 0;
+  for (let d = 0; d < 7; d++) {
+    const date = addDays(t, -d);
+    for (const [i, [meal, name, kcal, protein, carbs, fat]] of meals[d].entries()) {
+      await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros: { kcal, protein, carbs, fat }, loggedAt: Date.now() - d * 86_400_000 + i, sample: true });
+      n++;
+    }
+  }
+  return n;
+}
+
+/** Deletes everything "Add Sample Week" made. */
+export async function removeSampleData(db: ZoroDB = getDB()): Promise<number> {
+  const ids = (await db.entries.filter((e) => !!e.sample).primaryKeys()) as number[];
+  await db.entries.bulkDelete(ids);
+  return ids.length;
+}

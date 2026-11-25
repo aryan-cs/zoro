@@ -1387,3 +1387,76 @@ button.meal-row:not(:disabled):active {
   background: color-mix(in srgb, var(--ios-green) 22%, #1c1c1e);
   color: var(--ios-green);
 }
+
+/* ---------- Sleep dial (Health / Clock sleep schedule) ---------- */
+.sleep-card {
+  padding: 20px 16px 22px;
+  border-radius: 26px;
+  background: var(--ios-cell);
+  text-align: center;
+}
+.sleep-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sleep-time-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #8d8d93;
+}
+.sleep-time-label svg {
+  color: #7d7aff;
+}
+.sleep-time-value {
+  margin-top: 2px;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 32px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sleep-time-day {
+  font-size: 15px;
+  font-weight: 600;
+  color: #8d8d93;
+}
+.sleep-dial {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 18px auto 0;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sleep-dial-label {
+  font-size: 13px;
+  font-weight: 500;
+  fill: #8d8d93;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-dial-label.is-major {
+  font-size: 14px;
+  font-weight: 700;
+  fill: #fff;
+}
+.sleep-dial-unit {
+  font-size: 10px;
+}
+.sleep-total {
+  margin-top: 16px;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 34px;
+}
+.sleep-goal {
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+}

@@ -3,7 +3,15 @@ import { useEffect, useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
-import { db, Field, Header, Row, Section, useToast } from '../ui/kit';
+import { Btn, db, Header, Row, Section, useSettings, useToast } from '../ui/kit';
+import { SleepDial, SleepTime } from '../ui/SleepDial';
+
+/** "8 hr 15 min", as Health writes durations. */
+const hrMin = (min: number) => `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`;
+const toMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
 import { useNav } from '../ui/nav';
 
 const SHORTCUT_URL = `${import.meta.env.BASE_URL}ZoroSleep.shortcut`;
@@ -93,6 +101,8 @@ export function LogSleepScreen() {
   const toast = useToast();
   const [bed, setBed] = useState('23:30');
   const [wake, setWake] = useState('07:00');
+  const settings = useSettings();
+  const span = ((toMin(wake) - toMin(bed) + 1440) % 1440) || 1440;
   const [installing, setInstalling] = useState(false);
   const [installed, setInstalled] = useState(shortcutInstalled());
   const [manualPaste, setManualPaste] = useState(false);
@@ -163,10 +173,27 @@ export function LogSleepScreen() {
         )}
       </Section>
 
-      <Section title="Manual">
-        <Field label="Fell Asleep" type="time" value={bed} onChange={setBed} />
-        <Field label="Woke Up" type="time" value={wake} onChange={setWake} />
-        <Row accent title="Save" onClick={() => void saveManual()} />
+      {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
+      <Section title="Manual" plain>
+        <div className="sleep-card">
+          <div className="sleep-times">
+            <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
+            <SleepTime icon="alarm.fill" label="WAKE UP" time={wake} day="Today" />
+          </div>
+          <SleepDial
+            bed={bed}
+            wake={wake}
+            onChange={(b, w) => {
+              setBed(b);
+              setWake(w);
+            }}
+          />
+          <div className="sleep-total">{hrMin(span)}</div>
+          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'This meets your sleep goal.' : `${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
+        </div>
+        <Btn kind="tint" size="lg" className="mt-3" onClick={() => void saveManual()}>
+          Save
+        </Btn>
       </Section>
 
       <InstallShortcutDialog

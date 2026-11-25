@@ -2,7 +2,7 @@ import { Dialog, DialogButton, Page } from 'konsta/react';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
-import { exportAll, importAll, today } from '../core/store';
+import { addSampleWeek, exportAll, importAll, removeSampleData, today } from '../core/store';
 import type { Phase, Settings } from '../core/types';
 import { Btn, Field, fmt, Header, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
@@ -222,6 +222,25 @@ export function SettingsScreen() {
       <Section title="Sleep">
         <Row title="Apple Health Shortcut" chevron onClick={() => setInstalling(true)} />
         <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
+      </Section>
+
+      <Section title="Testing">
+        <Row
+          accent
+          title="Add Sample Week"
+          onClick={async () => {
+            const n = await addSampleWeek();
+            toast(`Added ${n} sample foods`);
+          }}
+        />
+        <Row
+          danger
+          title="Remove Sample Data"
+          onClick={async () => {
+            const n = await removeSampleData();
+            toast(n ? `Removed ${n} sample foods` : 'No sample data');
+          }}
+        />
       </Section>
 
       <Section title="This Phone">

@@ -333,8 +333,11 @@ select {
 }
 .k-toolbar-pane > span > span:last-child {
   opacity: 1 !important;
-  /* The glass lens as the resting selection: a light tint with an even rim, kept inside
-   * the bar (inset 4pt all round). */
+  /* The glass lens as the resting selection: a light tint with an even rim. 4pt in from the
+   * top and bottom but only 1pt from the sides of its tab, so it's wider; at the end tabs its
+   * round end still sits inside the bar's. */
+  left: 1px !important;
+  right: 1px !important;
   background: rgba(255, 255, 255, 0.1) !important;
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.35),

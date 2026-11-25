@@ -140,6 +140,8 @@ export interface FoodEntry {
   macros: Macros;
   loggedAt: number;
   liquid?: boolean;
+  /** Made by "Add Sample Week" for testing; "Remove Sample Data" deletes these. */
+  sample?: boolean;
 }
 
 export interface WaterEntry {
