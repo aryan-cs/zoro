@@ -30,7 +30,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Icons | Apple SF Symbols (medium; chevrons semibold) from `src/ui/sf.ts` via `<Sym name size>`; export more with `scripts/sf-symbols.swift` |
 | Summary cards (Fitness) | `FitCard`: #1C1C1E, 26pt corners, 16pt padding, 12pt apart, 17pt semibold title, gray 22pt chevron circle when the card opens something; `FitStat`: 15pt label over a 28pt SF Rounded value in a Fitness color (`FITNESS` in kit.tsx), units in small caps |
 | Bar icons | Regular weight, ~16.5pt (Fitness's toolbar icons: 1.67pt stroke); back chevron semibold 17.5pt; grouped buttons 48pt each in one capsule with 4pt ends |
-| Segmented control (Health, iOS 27) | 30pt capsule track of tertiary fill (#1C1C1F on black), #5A5A5F thumb inset 2.5pt with a hairline rim, 13pt medium labels, same weight when selected |
+| Segmented control | Sized like Health's (iOS 27): 30pt capsule, thumb inset 2.5pt, 13pt medium labels, same weight when selected; drawn as Liquid Glass (translucent track, glass-lens thumb with a bright rim) |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components
