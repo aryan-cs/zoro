@@ -38,7 +38,8 @@ export function InstallShortcutDialog({ opened, onClose }: { opened: boolean; on
                 // Fine: we'll just offer to add it again next time.
               }
               onClose();
-              window.location.href = SHORTCUT_URL;
+              // A new tab (Safari's sheet in a Home Screen app) can hand the file to Shortcuts.
+              window.open(SHORTCUT_URL, '_blank');
             }}
           >
             Add
@@ -89,8 +90,15 @@ export function LogSleepScreen() {
       <Header title="Log Sleep" onBack={nav.pop} />
 
       <Section title="From Apple Health">
-        {!installed && <Row accent title="Add the Zoro Sleep shortcut" onClick={() => setInstalling(true)} />}
-        <Row accent title="1. Copy last night's sleep" onClick={() => (window.location.href = RUN_URL)} />
+        <Row
+          accent
+          title="1. Copy last night's sleep"
+          onClick={() => {
+            // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
+            if (!shortcutInstalled()) setInstalling(true);
+            else window.location.href = RUN_URL;
+          }}
+        />
         <Row accent title="2. Paste it here" onClick={() => void pasteFromClipboard()} />
         {manualPaste && (
           <Cell className="space-y-2 py-2.5">
@@ -126,7 +134,7 @@ export function LogSleepScreen() {
             .
           </>
         ) : (
-          'Web apps can’t read Apple Health directly, so a shortcut copies it for you. Add it once.'
+          'Web apps can’t read Apple Health directly, so a small shortcut copies it for you. The first tap adds it.'
         )}
       </Note>
 

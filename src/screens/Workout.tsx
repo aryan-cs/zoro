@@ -217,7 +217,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
                   target={t}
                   ex={ex}
                   logged={byKey.get(`${ex.exerciseId}:${i}`)}
-                  fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight : undefined}
+                  fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight || undefined : undefined}
                   onLog={(weight, reps) => {
                     void logSet(
                       { sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps },

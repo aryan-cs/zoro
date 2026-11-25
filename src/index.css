@@ -43,7 +43,8 @@ select {
 
 /* Bottom of the tab bar: just above the home indicator. */
 :root {
-  --tabbar-bottom: max(8px, calc(var(--k-safe-area-bottom, 0px) - 12px));
+  /* env() directly: Konsta's safe-area variables only exist inside .k-app, not on :root. */
+  --tabbar-bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) - 12px));
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
@@ -70,4 +71,10 @@ select {
 /* Filled buttons (alerts, sheets): dark text on the bright mint, like Apple's light-tint buttons. */
 .k-button.bg-primary {
   color: #000 !important;
+}
+
+/* iOS 26 alerts: the secondary button is a neutral gray capsule, only the default action is tinted. */
+.k-dialog .k-button:not(.bg-primary) {
+  background-color: rgba(120, 120, 128, 0.32) !important;
+  color: #fff !important;
 }

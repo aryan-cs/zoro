@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   BlockTitle,
-  Glass,
+  Button,
   Link,
   List,
   ListButton,
@@ -186,8 +186,8 @@ export function Field(props: {
 // ---------- Controls ----------
 
 /**
- * Liquid-glass button (Konsta's Glass, with the iOS press highlight).
- * `tint` is the prominent accent button, `glass` the regular one.
+ * iOS button (Konsta Button): `tint` is the filled accent button, `glass` the tinted
+ * secondary one (like iOS's gray/tinted buttons), `plain` is text only.
  */
 export function Btn(props: {
   children: ReactNode;
@@ -196,29 +196,25 @@ export function Btn(props: {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   disabled?: boolean;
-  type?: 'button' | 'submit';
 }) {
   const kind = props.kind ?? 'glass';
   const size = props.size ?? 'md';
-  const sizes = { sm: 'h-8 px-3.5 text-[15px]', md: 'h-10 px-4 text-[16px]', lg: 'h-12 w-full px-5 text-[17px]' };
-  const base = `inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold select-none disabled:opacity-40 disabled:pointer-events-none ${sizes[size]} ${props.className ?? ''}`;
-  if (kind === 'plain') {
-    return (
-      <button type={props.type ?? 'button'} disabled={props.disabled} onClick={props.onClick} className={`${base} text-accent active:opacity-50`}>
-        {props.children}
-      </button>
-    );
-  }
-  const colors = { tint: '!bg-accent text-black', glass: 'text-accent', danger: 'text-[#ff453a]' };
+  const sizes = { sm: '!h-8 !px-3.5 !text-[15px]', md: '!h-9 !px-4 !text-[16px]', lg: '' };
+  const danger = { tonalTextIos: 'text-[#ff453a]', tonalBgIos: 'bg-[#ff453a]/15 active:bg-[#ff453a]/25' };
   return (
-    <Glass
-      component="button"
-      {...({ type: props.type ?? 'button', disabled: props.disabled } as Record<string, unknown>)}
+    <Button
+      rounded
+      inline={size !== 'lg'}
+      large={size === 'lg'}
+      tonal={kind === 'glass' || kind === 'danger'}
+      clear={kind === 'plain'}
+      colors={kind === 'danger' ? danger : undefined}
+      disabled={props.disabled}
       onClick={props.onClick}
-      className={`${base} !touch-manipulation ${colors[kind]}`}
+      className={`shrink-0 gap-1.5 font-semibold ${sizes[size]} ${props.className ?? ''}`}
     >
       {props.children}
-    </Glass>
+    </Button>
   );
 }
 
