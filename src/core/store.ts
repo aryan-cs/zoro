@@ -385,6 +385,15 @@ async function addSampleWorkouts(db: ZoroDB) {
   }
 }
 
+/**
+ * Local previews (dev server, Simulator) always have something to look at: a sample week is
+ * added on first open and refreshed on each new day. The deployed app never calls this.
+ */
+export async function ensureSampleData(db: ZoroDB = getDB()): Promise<void> {
+  const current = await db.entries.where('date').equals(today()).filter((e) => !!e.sample).count();
+  if (!current) await addSampleWeek(db);
+}
+
 /** Deletes everything "Add Sample Week" made (foods, water, sleep, body metrics, workouts). Returns how many foods. */
 export async function removeSampleData(db: ZoroDB = getDB()): Promise<number> {
   const ids = (await db.entries.filter((e) => !!e.sample).primaryKeys()) as number[];

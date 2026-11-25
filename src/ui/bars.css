@@ -1655,6 +1655,7 @@ button.meal-row:not(:disabled):active {
   font-weight: 700;
   line-height: 41px;
   letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 /* Three goal rings side by side, each with its name and value under it. */
 .fit-card.today-rings {

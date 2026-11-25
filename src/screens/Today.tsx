@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, e1rm, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
 import { TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
@@ -131,6 +131,17 @@ export function TodayScreen() {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const first = settings.name?.trim().split(/\s+/)[0];
 
+  // The greeting stays on one line, like a large title: it steps down from 34pt if a long name
+  // would wrap.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.fontSize = '';
+    let size = 34;
+    while (el.scrollWidth > el.clientWidth && size > 24) el.style.fontSize = `${(size -= 1)}px`;
+  }, [first]);
+
   return (
     <Page className="tab-safe">
       {/* No navigation bar: the greeting is the title, with Settings beside it (as Fitness puts
@@ -138,9 +149,11 @@ export function TodayScreen() {
           thin fade so content doesn't run under the clock. */}
       <div className="status-edge" aria-hidden />
       <header className="hello">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="hello-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-          <h1 className="hello-title">{first ? `Hello, ${first}` : 'Hello'}</h1>
+          <h1 ref={titleRef} className="hello-title">
+            {first ? `Welcome Back, ${first}` : 'Welcome Back'}
+          </h1>
         </div>
         <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
           <Sym name="gearshape" size={16.5} />
