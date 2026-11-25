@@ -23,7 +23,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # npm ci can trip on platform-only optional packages in a lock made on macOS.
+      - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
