@@ -108,7 +108,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  height: 52px;
+  height: 44px; /* Settings: 44pt row right under the status bar */
   padding: 0 16px;
 }
 .ios-navbar-side {
@@ -139,8 +139,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
-  min-width: 40px;
+  height: 44px; /* Settings: 44pt round back button, 16pt from the edge */
+  min-width: 44px;
   border-radius: 999px;
   color: var(--ios-label);
   font-size: 17px;

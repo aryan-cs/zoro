@@ -1,10 +1,38 @@
 # Zoro iOS UI rules
 
-Use Konsta iOS components through `src/ui/kit.tsx`. Black page background, mint
-`#48fa78`, system font, and sentence-case labels; retain the date as Today’s title.
-Apple’s typography guidance: https://developer.apple.com/design/human-interface-guidelines/typography
-These are Zoro’s concrete layout targets, not a claim that every Apple app uses
-identical metrics. Physical iPhone comparison remains necessary.
+The target is Apple's own Settings app on iOS 27 in dark mode. The numbers below were
+measured from simulator screenshots of Settings (iPhone 17, 3x) on 2026-11-25, and our
+screens were re-measured the same way in iOS Safari. When in doubt, measure again:
+`xcrun simctl io <device> screenshot`, then compare pixel rows/columns.
+
+## Measured from Settings (iOS 27, dark)
+
+| Element | Value |
+|---|---|
+| Page background | `#000000` |
+| Cell background | `#1C1C1E` |
+| Card side margin / corner radius | 16pt / 26pt |
+| Row height | 52pt minimum, 17pt text vertically centered |
+| Row text inset | 16pt from the card edge (32pt from the screen) |
+| Separator | 1pt `#38383B`, from the row text to 16pt short of the card's right edge; none after the last row |
+| Trailing value | 17pt, `#98989F` (secondary label on a cell), ends 16pt from the card edge when there's no chevron |
+| Chevron | 6.5x11.5pt, `#98989F`, 11pt after the value, 19pt from the card edge |
+| Section header | 17pt semibold, `#8D8D93`, sentence case, at x=32pt; cap top 32pt below the card above, baseline 10pt above its card |
+| Cards with no header between | 35pt apart |
+| Footnote | 15pt, `#8D8D93`, at x=32pt, ~10pt below its card |
+| Navigation bar | 44pt row directly under the status bar; 17pt semibold centered title; 44pt round glass back button 16pt from the edge |
+| First section under the nav bar | header 19pt below (card 20pt if untitled) |
+| Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
+
+## Components
+
+- Tab bar: Konsta Tabbar + ToolbarPane, icons only. Its press highlight is off
+  (`highlight={false}`); index.css keeps the glass lens as the resting selection with an
+  even rim, and only magnifies it after a 0.45s hold.
+- Top bar, nav buttons, search field and segmented control are our own (`src/ui/bars.tsx`,
+  `bars.css`), because Konsta's versions flash or don't match.
+
+## Notes from the first alignment pass (some values superseded by the table above)
 
 - `Header`: Konsta Navbar, 44px content row, 17px semibold centered title. Top
   padding is `max(16px, safe-area-top)`, with no extra 10px. Keep native back/link

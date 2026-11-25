@@ -80,7 +80,7 @@ export function NavText(props: { onClick?: () => void; children: ReactNode; stro
 export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean }) {
   const titled = !!(props.title || props.right);
   return (
-    <div className={`${titled ? '' : 'mt-4'} ${props.className ?? ''}`}>
+    <div className={`${titled ? '' : 'zoro-section-untitled'} ${props.className ?? ''}`}>
       {titled && (
         <BlockTitle className="zoro-section-title flex items-center justify-between gap-2">
           <span className="min-w-0">{props.title}</span>
@@ -125,7 +125,7 @@ export function Row(props: {
       after={props.right == null ? undefined : <div className="min-w-0 text-right">{props.right}</div>}
       onClick={props.onClick}
       innerClassName={props.sub ? 'zoro-row-inner min-w-0 !py-2' : 'zoro-row-inner min-w-0 !py-0'}
-      titleWrapClassName={`zoro-row-title min-w-0 ${props.sub ? '!min-h-0' : '!min-h-11'}`}
+      titleWrapClassName={`zoro-row-title min-w-0 ${props.sub ? '!min-h-0' : '!min-h-[52px]'}`}
       strongTitle={false}
     />
   );
@@ -158,7 +158,7 @@ export function Field(props: {
       label
       innerClassName="min-w-0 !py-0"
       innerChildren={
-        <div className="flex min-h-11 min-w-0 items-center gap-3">
+        <div className="flex min-h-[52px] min-w-0 items-center gap-3">
           <span className="max-w-[65%] shrink-0 text-[17px] leading-[22px]">{props.label}</span>
           <input
             type={props.secret ? 'password' : (props.type ?? 'text')}
@@ -170,7 +170,7 @@ export function Field(props: {
             value={props.value}
             onChange={(e) => props.onChange(e.target.value)}
             onBlur={props.onBlur}
-            className={`zoro-field-input tabular h-11 min-w-0 flex-1 truncate bg-transparent text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
+            className={`zoro-field-input tabular h-[52px] min-w-0 flex-1 truncate bg-transparent text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white`}
           />
         </div>
       }
@@ -296,7 +296,8 @@ export function NumField(props: {
 
 /** Gray footnote under a list. */
 export function Note({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={`mx-8 mt-1.5 text-[13px] leading-snug ${dim} ${className ?? ''}`}>{children}</p>;
+  // Footnote, as in Settings: 15pt secondary label, aligned with row text, 10pt under the card.
+  return <p className={`mx-8 mt-1.5 text-[15px] leading-[20px] text-[#8d8d93] ${className ?? ''}`}>{children}</p>;
 }
 
 /** iOS bottom sheet (Konsta Sheet) with a grabber. */
