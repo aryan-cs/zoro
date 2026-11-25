@@ -343,7 +343,15 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
         <>
           {lap(0, end, 'a')}
           <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
-          <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+          {/* A closed ring's tip overlaps its start: like Fitness, it casts a shadow there so it reads
+              as the ring's end, not a separate disc. */}
+          <circle
+            cx={ex}
+            cy={ey}
+            r={w / 2}
+            fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)}
+            style={p >= 1 && over === 0 ? { filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` } : undefined}
+          />
         </>
       )}
       {over > 0 && (
