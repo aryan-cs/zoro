@@ -1,11 +1,31 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Page, Popup, Sheet, Toast } from 'konsta/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  BlockTitle,
+  Glass,
+  Link,
+  List,
+  ListButton,
+  ListItem,
+  Navbar,
+  NavbarBackLink,
+  Page,
+  Popup,
+  Segmented,
+  SegmentedButton,
+  Sheet,
+  Toast,
+} from 'konsta/react';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { carbTarget } from '../core/calc';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
+
+/**
+ * Shared building blocks. Wherever iOS has a native control, these wrap Konsta's iOS
+ * component for it (Navbar, List, ListItem, Segmented, Sheet, Dialog, Toast, Glass)
+ * rather than drawing our own.
+ */
 
 export const db = getDB();
 
@@ -18,7 +38,8 @@ export const fmt = (n: number, digits = 0) =>
 
 export const fmtLb = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `${fmt(n, n % 1 ? 1 : 0)}`);
 
-export const dim = 'text-black/50 dark:text-white/55';
+/** Apple's secondary label color in dark mode. */
+export const dim = 'text-[rgba(235,235,245,0.6)]';
 
 export function timeAgo(t: number | undefined): string {
   if (!t) return 'never';
@@ -29,63 +50,66 @@ export function timeAgo(t: number | undefined): string {
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-// ---------- Layout ----------
+// ---------- Navigation bar ----------
 
-/** Glass top bar: crisp title, optional back button, and an optional row underneath (search, segments). */
+/** iOS navigation bar (Konsta Navbar) on a solid background, with optional back button and a row underneath. */
 export function Header(props: { title: ReactNode; sub?: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
   return (
-    <header className="glass-bar sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
-      <div className="relative flex h-11 items-center px-3">
-        <div className="z-10 flex flex-1 items-center justify-start">
-          {props.onBack ? (
-            <IconBtn label="Back" onClick={props.onBack}>
-              <ChevronLeft className="h-5 w-5" />
-            </IconBtn>
-          ) : (
-            props.left
-          )}
-        </div>
-        <div className="pointer-events-none absolute inset-x-20 flex flex-col items-center">
-          <div className="max-w-full truncate text-[17px] font-semibold leading-tight">{props.title}</div>
-          {props.sub && <div className={`max-w-full truncate text-[11px] leading-tight ${dim}`}>{props.sub}</div>}
-        </div>
-        <div className="z-10 flex flex-1 items-center justify-end gap-2">{props.right}</div>
-      </div>
-      {props.children && <div className="px-4 pb-2.5">{props.children}</div>}
-    </header>
+    <Navbar
+      title={props.title}
+      subtitle={props.sub}
+      left={props.onBack ? <NavbarBackLink onClick={props.onBack} /> : props.left}
+      right={props.right}
+      subnavbar={props.children}
+      bgClassName="!bg-none !bg-black !h-full"
+      subnavbarClassName="!h-auto pb-2 pt-1"
+    />
   );
 }
 
-/** Round glass button for icons in the top bar. */
+/** Icon button for the navigation bar (sits in the bar's glass capsule). */
 export function IconBtn(props: { label: string; onClick?: () => void; children: ReactNode; className?: string }) {
   return (
-    <button
-      type="button"
-      aria-label={props.label}
-      onClick={props.onClick}
-      className={`glass-control flex h-8 w-8 items-center justify-center rounded-full text-black active:scale-95 dark:text-white ${props.className ?? ''}`}
-    >
+    <Link iconOnly aria-label={props.label} onClick={props.onClick} className={props.className}>
       {props.children}
-    </button>
+    </Link>
   );
 }
 
-/** A titled glass card. Pass `plain` to skip the card (for grids of tiles). */
-export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean; cardClass?: string }) {
+/** Text button for the navigation bar. */
+export function NavText(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
   return (
-    <section className={`mx-4 mt-4 ${props.className ?? ''}`}>
-      {(props.title || props.right) && (
-        <div className="mb-1.5 flex min-h-5 items-center justify-between px-1">
-          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-black/45 dark:text-white/50">{props.title}</h2>
-          {props.right}
-        </div>
-      )}
-      {props.plain ? props.children : <div className={`glass overflow-hidden rounded-[22px] ${props.cardClass ?? ''}`}>{props.children}</div>}
-    </section>
+    <Link onClick={props.onClick} className={`px-2 ${props.strong ? 'font-semibold' : ''}`}>
+      {props.children}
+    </Link>
   );
 }
 
-/** One line in a card. Becomes a button when it has onClick. */
+// ---------- Grouped lists ----------
+
+/** A titled inset grouped list (Konsta List). Children are Rows, Cells or Fields. */
+export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean }) {
+  const titled = !!(props.title || props.right);
+  return (
+    <div className={`${titled ? '' : 'mt-4'} ${props.className ?? ''}`}>
+      {titled && (
+        <BlockTitle className="flex items-center justify-between gap-2">
+          <span>{props.title}</span>
+          {props.right && <span className="text-[15px] font-normal">{props.right}</span>}
+        </BlockTitle>
+      )}
+      {props.plain ? (
+        <div className="mx-4">{props.children}</div>
+      ) : (
+        <List strong inset dividers className="!my-0">
+          {props.children}
+        </List>
+      )}
+    </div>
+  );
+}
+
+/** A standard list row (Konsta ListItem). Accent and danger rows are list buttons. */
 export function Row(props: {
   title: ReactNode;
   sub?: ReactNode;
@@ -94,123 +118,35 @@ export function Row(props: {
   chevron?: boolean;
   danger?: boolean;
   accent?: boolean;
-  className?: string;
 }) {
-  const cls = `row flex w-full items-center gap-3 px-4 py-2.5 text-left ${props.onClick ? 'active:bg-black/5 dark:active:bg-white/8' : ''} ${props.className ?? ''}`;
-  const body = (
-    <>
-      <div className="min-w-0 flex-1">
-        <div className={`truncate text-[15px] ${props.danger ? 'text-[#ff453a]' : props.accent ? 'font-medium text-accent' : ''}`}>{props.title}</div>
-        {props.sub && <div className={`truncate text-[12px] ${dim}`}>{props.sub}</div>}
-      </div>
-      {props.right !== undefined && <div className={`tabular shrink-0 text-[14px] ${dim}`}>{props.right}</div>}
-      {props.chevron && <ChevronRight className="h-4 w-4 shrink-0 text-black/25 dark:text-white/30" />}
-    </>
-  );
-  return props.onClick ? (
-    <button type="button" onClick={props.onClick} className={cls}>
-      {body}
-    </button>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
-
-/** Glass button. `tint` is the blue prominent one. */
-export function Btn(props: {
-  children: ReactNode;
-  onClick?: () => void;
-  kind?: 'tint' | 'glass' | 'danger' | 'plain';
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-  disabled?: boolean;
-  type?: 'button' | 'submit';
-}) {
-  const kind = props.kind ?? 'glass';
-  const size = props.size ?? 'md';
-  const sizes = { sm: 'h-8 px-3.5 text-[14px]', md: 'h-10 px-4 text-[15px]', lg: 'h-11 w-full px-5 text-[16px]' };
-  const kinds = {
-    tint: 'glass-tint text-black',
-    glass: 'glass-control text-accent',
-    danger: 'glass-control text-[#ff453a]',
-    plain: 'text-accent',
-  };
+  if ((props.accent || props.danger) && props.onClick) {
+    return (
+      <ListButton onClick={props.onClick} className={`!h-11 ${props.danger ? '!text-[#ff453a]' : ''}`}>
+        {props.title}
+      </ListButton>
+    );
+  }
   return (
-    <button
-      type={props.type ?? 'button'}
-      disabled={props.disabled}
+    <ListItem
+      link={!!props.onClick}
+      chevron={!!props.chevron}
+      title={props.title}
+      subtitle={props.sub}
+      after={props.right}
       onClick={props.onClick}
-      className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.97] disabled:opacity-40 ${sizes[size]} ${kinds[kind]} ${props.className ?? ''}`}
-    >
-      {props.children}
-    </button>
+      innerClassName="!py-2"
+      titleWrapClassName="min-w-0"
+      strongTitle={false}
+    />
   );
 }
 
-/** Glass segmented control. */
-export function Seg<T extends string | number>(props: { value: T; options: [T, string][]; onChange: (v: T) => void; className?: string }) {
+/** A list row with custom content, divided like the others. */
+export function Cell(props: { children: ReactNode; className?: string }) {
   return (
-    <div className={`glass-control flex rounded-full p-0.5 ${props.className ?? ''}`}>
-      {props.options.map(([v, label]) => (
-        <button
-          key={String(v)}
-          type="button"
-          onClick={() => props.onChange(v)}
-          className={`h-7 flex-1 rounded-full px-2.5 text-[13px] font-medium transition ${
-            props.value === v ? 'bg-white text-black shadow-sm dark:bg-white/25 dark:text-white' : 'text-black/70 dark:text-white/70'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Thin progress bar. */
-export function Bar(props: { value: number; target: number; color: string; className?: string }) {
-  const pct = props.target > 0 ? Math.min(1, props.value / props.target) : 0;
-  return (
-    <div className={`h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/15 ${props.className ?? ''}`}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct * 100}%`, background: props.color }} />
-    </div>
-  );
-}
-
-/** Calories left plus protein, carbs and fat, in one compact block. */
-export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
-  const left = settings.kcalTarget - totals.kcal;
-  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const rows: [string, number, number, string][] = [
-    ['Protein', totals.protein, settings.proteinTarget, '#48fa78'],
-    ['Carbs', totals.carbs, carbs, '#0a84ff'],
-    ['Fat', totals.fat, settings.fatTarget, '#bf5af2'],
-  ];
-  return (
-    <div className="px-4 py-3">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <span className={`tabular text-[24px] font-bold leading-none ${left < 0 ? 'text-[#ff453a]' : ''}`}>{fmt(Math.abs(left))}</span>
-          <span className={`ml-1.5 text-[13px] ${dim}`}>{left >= 0 ? 'kcal left' : 'kcal over'}</span>
-        </div>
-        <span className={`tabular text-[13px] ${dim}`}>
-          {fmt(totals.kcal)} / {fmt(settings.kcalTarget)}
-        </span>
-      </div>
-      <Bar value={totals.kcal} target={settings.kcalTarget} color="#ff9f0a" className="mt-2" />
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        {rows.map(([label, v, t, color]) => (
-          <div key={label}>
-            <div className={`text-[11px] ${dim}`}>{label}</div>
-            <div className="tabular text-[13px] font-medium">
-              {fmt(v)}
-              <span className={`font-normal ${dim}`}> / {fmt(t)} g</span>
-            </div>
-            <Bar value={v} target={t} color={color} className="mt-1" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <li className="relative">
+      <div className={`hairline-b relative ms-4 pe-4 ${props.className ?? 'py-2.5'}`}>{props.children}</div>
+    </li>
   );
 }
 
@@ -227,21 +163,122 @@ export function Field(props: {
   secret?: boolean;
 }) {
   return (
-    <label className="row flex items-center gap-3 px-4 py-2">
-      <span className="flex-1 text-[15px]">{props.label}</span>
-      <input
-        type={props.secret ? 'password' : (props.type ?? 'text')}
-        inputMode={props.inputMode}
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck={false}
-        placeholder={props.placeholder}
-        value={props.value}
-        onChange={(e) => props.onChange(e.target.value)}
-        onBlur={props.onBlur}
-        className={`tabular min-w-0 rounded-lg bg-transparent py-1 text-right outline-none placeholder:text-black/30 dark:placeholder:text-white/30 ${props.wide ? 'w-48' : 'w-28'}`}
-      />
-    </label>
+    <li className="relative">
+      <label className="hairline-b relative ms-4 flex min-h-11 items-center gap-3 pe-4">
+        <span className="flex-1 text-[17px]">{props.label}</span>
+        <input
+          type={props.secret ? 'password' : (props.type ?? 'text')}
+          inputMode={props.inputMode}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={props.placeholder}
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+          onBlur={props.onBlur}
+          className={`tabular min-w-0 bg-transparent py-2 text-right text-[17px] outline-none placeholder:text-[rgba(235,235,245,0.3)] ${dim} focus:text-white ${props.wide ? 'w-48' : 'w-28'}`}
+        />
+      </label>
+    </li>
+  );
+}
+
+// ---------- Controls ----------
+
+/**
+ * Liquid-glass button (Konsta's Glass, with the iOS press highlight).
+ * `tint` is the prominent accent button, `glass` the regular one.
+ */
+export function Btn(props: {
+  children: ReactNode;
+  onClick?: () => void;
+  kind?: 'tint' | 'glass' | 'danger' | 'plain';
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  disabled?: boolean;
+  type?: 'button' | 'submit';
+}) {
+  const kind = props.kind ?? 'glass';
+  const size = props.size ?? 'md';
+  const sizes = { sm: 'h-8 px-3.5 text-[15px]', md: 'h-10 px-4 text-[16px]', lg: 'h-12 w-full px-5 text-[17px]' };
+  const base = `inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold select-none disabled:opacity-40 disabled:pointer-events-none ${sizes[size]} ${props.className ?? ''}`;
+  if (kind === 'plain') {
+    return (
+      <button type={props.type ?? 'button'} disabled={props.disabled} onClick={props.onClick} className={`${base} text-accent active:opacity-50`}>
+        {props.children}
+      </button>
+    );
+  }
+  const colors = { tint: '!bg-accent text-black', glass: 'text-accent', danger: 'text-[#ff453a]' };
+  return (
+    <Glass
+      component="button"
+      {...({ type: props.type ?? 'button', disabled: props.disabled } as Record<string, unknown>)}
+      onClick={props.onClick}
+      className={`${base} !touch-manipulation ${colors[kind]}`}
+    >
+      {props.children}
+    </Glass>
+  );
+}
+
+/** iOS segmented control (Konsta Segmented, with the sliding thumb). */
+export function Seg<T extends string | number>(props: { value: T; options: [T, string][]; onChange: (v: T) => void; className?: string }) {
+  return (
+    <Segmented strong rounded className={props.className}>
+      {props.options.map(([v, label]) => (
+        <SegmentedButton key={String(v)} active={props.value === v} onClick={() => props.onChange(v)}>
+          {label}
+        </SegmentedButton>
+      ))}
+    </Segmented>
+  );
+}
+
+/** Thin progress bar. */
+export function Bar(props: { value: number; target: number; color: string; className?: string }) {
+  const pct = props.target > 0 ? Math.min(1, props.value / props.target) : 0;
+  return (
+    <div className={`h-1.5 overflow-hidden rounded-full bg-white/12 ${props.className ?? ''}`}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct * 100}%`, background: props.color }} />
+    </div>
+  );
+}
+
+/** Calories left plus protein, carbs and fat, in one compact block. */
+export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
+  const left = settings.kcalTarget - totals.kcal;
+  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
+  const rows: [string, number, number, string][] = [
+    ['Protein', totals.protein, settings.proteinTarget, '#48fa78'],
+    ['Carbs', totals.carbs, carbs, '#0a84ff'],
+    ['Fat', totals.fat, settings.fatTarget, '#bf5af2'],
+  ];
+  return (
+    <div className="py-1">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <span className={`tabular text-[26px] font-bold leading-none ${left < 0 ? 'text-[#ff453a]' : ''}`}>{fmt(Math.abs(left))}</span>
+          <span className={`ml-1.5 text-[15px] ${dim}`}>{left >= 0 ? 'kcal left' : 'kcal over'}</span>
+        </div>
+        <span className={`tabular text-[15px] ${dim}`}>
+          {fmt(totals.kcal)} / {fmt(settings.kcalTarget)}
+        </span>
+      </div>
+      <Bar value={totals.kcal} target={settings.kcalTarget} color="#ff9f0a" className="mt-2" />
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        {rows.map(([label, v, t, color]) => (
+          <div key={label}>
+            <div className={`text-[13px] ${dim}`}>{label}</div>
+            <div className="tabular text-[15px] font-medium">
+              {fmt(v)}
+              <span className={`font-normal ${dim}`}> / {fmt(t)} g</span>
+            </div>
+            <Bar value={v} target={t} color={color} className="mt-1" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -264,39 +301,32 @@ export function NumField(props: {
       placeholder={props.placeholder}
       onChange={(e) => props.onChange(e.target.value.replace(/[^\d.]/g, ''))}
       onFocus={(e) => e.target.select()}
-      className={`tabular rounded-lg bg-black/5 px-2 py-1 text-center outline-none focus:bg-accent/15 disabled:opacity-60 dark:bg-white/10 ${props.width ?? 'w-16'}`}
+      className={`tabular rounded-lg bg-[rgba(118,118,128,0.24)] px-2 py-1 text-center outline-none placeholder:text-[rgba(235,235,245,0.3)] focus:bg-accent/15 disabled:opacity-60 ${props.width ?? 'w-16'}`}
     />
   );
 }
 
-/** Gray helper text under a card. */
+/** Gray footnote under a list. */
 export function Note({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={`mx-5 mt-1.5 text-[12px] leading-snug ${dim} ${className ?? ''}`}>{children}</p>;
+  return <p className={`mx-8 mt-1.5 text-[13px] leading-snug ${dim} ${className ?? ''}`}>{children}</p>;
 }
 
-/** Bottom sheet with a glass background. */
+/** iOS bottom sheet (Konsta Sheet) with a grabber. */
 export function GlassSheet({ opened, onClose, children }: { opened: boolean; onClose: () => void; children: ReactNode }) {
   return (
-    <Sheet opened={opened} onBackdropClick={onClose} className="glass-sheet pb-[calc(env(safe-area-inset-bottom)+12px)]">
-      <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-black/20 dark:bg-white/25" />
+    <Sheet opened={opened} onBackdropClick={onClose} className="pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/25" />
       {children}
     </Sheet>
   );
 }
 
-/** Full-height glass sheet with a top bar and a close button. */
+/** Full-height modal sheet (Konsta Popup) with a navigation bar and a close button. */
 export function SheetPage({ opened, onClose, title, children, closeLabel = 'Cancel' }: { opened: boolean; onClose: () => void; title: string; children: ReactNode; closeLabel?: string }) {
   return (
-    <Popup opened={opened} onBackdropClick={onClose} className="glass-sheet">
+    <Popup opened={opened} onBackdropClick={onClose}>
       <Page className="pb-[calc(env(safe-area-inset-bottom)+16px)]">
-        <Header
-          title={title}
-          right={
-            <Btn size="sm" kind="plain" onClick={onClose}>
-              {closeLabel}
-            </Btn>
-          }
-        />
+        <Header title={title} right={<NavText onClick={onClose}>{closeLabel}</NavText>} />
         {children}
       </Page>
     </Popup>
@@ -318,9 +348,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <Toast position="center" opened={!!msg} className="!bottom-[calc(env(safe-area-inset-bottom)*0.5+84px)]">
-        <span className="shrink">{msg}</span>
-      </Toast>
+      {/* Mounted only while showing, so a hidden toast never sits over the page. */}
+      {msg && (
+        <Toast position="center" opened className="!bottom-[calc(var(--k-safe-area-bottom)+76px)]">
+          <span className="shrink">{msg}</span>
+        </Toast>
+      )}
     </ToastContext.Provider>
   );
 }

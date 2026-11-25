@@ -3,7 +3,7 @@ import { Page } from 'konsta/react';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
-import { Btn, db, dim, fmt, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, db, dim, fmt, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 
 const QUICK = [8, 16, 24, 32];
 
@@ -13,7 +13,7 @@ function Ring({ value, target }: { value: number; target: number }) {
   const c = 2 * Math.PI * r;
   return (
     <svg viewBox="0 0 120 120" className="h-36 w-36 -rotate-90">
-      <circle cx="60" cy="60" r={r} fill="none" strokeWidth="11" className="stroke-black/10 dark:stroke-white/12" />
+      <circle cx="60" cy="60" r={r} fill="none" strokeWidth="11" className="stroke-white/12" />
       <circle
         cx="60"
         cy="60"
@@ -48,15 +48,16 @@ export function WaterScreen() {
     <Page className="tab-safe">
       <Header title="Water" />
 
-      <Section cardClass="flex flex-col items-center px-4 pb-4 pt-5">
+      <Section>
+        <Cell className="flex flex-col items-center pb-4 pt-5">
         <div className="relative">
           <Ring value={total} target={settings.waterTargetOz} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="tabular text-[30px] font-bold leading-none">{fmt(total)}</span>
-            <span className={`text-[12px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
+            <span className={`text-[13px] ${dim}`}>of {fmt(settings.waterTargetOz)} oz</span>
           </div>
         </div>
-        <div className={`mt-2 text-[13px] ${left ? dim : 'font-semibold text-accent'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
+        <div className={`mt-2 text-[15px] ${left ? dim : 'font-semibold text-accent'}`}>{left ? `${fmt(left)} oz to go` : 'Goal reached'}</div>
         <div className="mt-4 grid w-full grid-cols-4 gap-2">
           {QUICK.map((oz) => (
             <Btn key={oz} className="!px-0" onClick={() => void add(oz)}>
@@ -78,23 +79,24 @@ export function WaterScreen() {
             Add oz
           </Btn>
         </div>
+        </Cell>
       </Section>
 
       <Section title="Today">
         {entries.length === 0 && <Row title="Tap a button above each time you drink." />}
         {[...entries].reverse().map((e) => (
-          <div key={e.id} className="row flex items-center gap-3 px-4 py-2">
-            <span className="flex-1 text-[15px]">{fmt(e.oz, e.oz % 1 ? 1 : 0)} oz</span>
-            <span className={`tabular text-[13px] ${dim}`}>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+          <Cell key={e.id} className="flex items-center gap-3 py-1.5">
+            <span className="flex-1 text-[17px]">{fmt(e.oz, e.oz % 1 ? 1 : 0)} oz</span>
+            <span className={`tabular text-[15px] ${dim}`}>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
             <button
               type="button"
               aria-label="Remove"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-black/40 active:bg-black/5 dark:text-white/45"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 active:bg-white/10"
               onClick={() => e.id !== undefined && void db.water.delete(e.id)}
             >
               <X className="h-4 w-4" />
             </button>
-          </div>
+          </Cell>
         ))}
       </Section>
     </Page>

@@ -5,7 +5,7 @@ import { BENCH_STEPS, DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekd
 import { benchProgress } from '../core/progression';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { Bar, Btn, db, dim, fmtLb, Header, Row, Section, useSettings } from '../ui/kit';
+import { Bar, Btn, Cell, db, dim, fmtLb, Header, Row, Section, useSettings } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
 import { longDate } from './Today';
@@ -57,9 +57,9 @@ export function LiftScreen() {
           const t = templateForWeekday(wd, settings.daysPerWeek);
           const isToday = d === date;
           return (
-            <div key={d} className={`flex flex-col items-center rounded-2xl py-1.5 text-[11px] ${isToday ? 'glass-tint text-black' : 'glass'}`}>
+            <div key={d} className={`flex flex-col items-center rounded-xl py-1.5 text-[11px] ${isToday ? 'bg-accent text-black' : 'surface'}`}>
               <span className={isToday ? 'text-black/60' : dim}>{DAY[wd]}</span>
-              <span className="text-[12px] font-semibold">{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
+              <span className="text-[13px] font-semibold">{doneDates.has(d) ? '✓' : t ? abbrev(t) : '–'}</span>
             </div>
           );
         })}
@@ -76,7 +76,7 @@ export function LiftScreen() {
           title={`Today · ${TEMPLATES[todayId].name}`}
           right={
             !todayDone && open?.templateId !== todayId ? (
-              <Btn size="sm" kind="tint" className="!h-7" onClick={() => void start(todayId)}>
+              <Btn size="sm" kind="tint" onClick={() => void start(todayId)}>
                 Start
               </Btn>
             ) : undefined
@@ -121,14 +121,14 @@ export function LiftScreen() {
           title={`Next heavy day · step ${bench.step + 1}/12`}
           right={step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)}`).join(', ')}
         />
-        <div className="row px-4 py-2.5">
-          <div className="flex justify-between text-[15px]">
+        <Cell>
+          <div className="flex justify-between text-[17px]">
             <span>Best estimated max</span>
-            <span className={`tabular text-[14px] ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
+            <span className={`tabular ${dim}`}>{benchBest ? `${fmtLb(roundTo(benchBest, 1))} lb` : '—'}</span>
           </div>
           <Bar value={benchBest || blockMax} target={225} color="#48fa78" className="mt-2" />
-          <div className={`mt-1 text-[11px] ${dim}`}>Goal: 225 lb by the end of May</div>
-        </div>
+          <div className={`mt-1 text-[13px] ${dim}`}>Goal: 225 lb by the end of May</div>
+        </Cell>
       </Section>
     </Page>
   );

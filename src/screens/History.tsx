@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Btn, db, dim, fmt, fmtLb, Header, Note, NumField, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, db, dim, fmt, fmtLb, Header, Note, NumField, Row, Section, Seg, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -17,15 +17,17 @@ const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 /** Three numbers side by side in one card. */
 function Stats({ items }: { items: [string, string, string?][] }) {
   return (
-    <div className="grid grid-cols-3">
-      {items.map(([label, value, sub], i) => (
-        <div key={label} className={`px-3 py-2.5 ${i ? 'border-l border-black/[0.08] dark:border-white/10' : ''}`}>
-          <div className={`text-[11px] ${dim}`}>{label}</div>
-          <div className="tabular text-[18px] font-semibold leading-tight">{value}</div>
-          {sub && <div className={`text-[11px] ${dim}`}>{sub}</div>}
-        </div>
-      ))}
-    </div>
+    <li className="relative">
+      <div className="hairline-b relative grid grid-cols-3">
+        {items.map(([label, value, sub], i) => (
+          <div key={label} className={`px-4 py-2.5 ${i ? 'border-l border-white/10' : ''}`}>
+            <div className={`text-[13px] ${dim}`}>{label}</div>
+            <div className="tabular text-[20px] font-semibold leading-tight">{value}</div>
+            {sub && <div className={`text-[12px] ${dim}`}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+    </li>
   );
 }
 
@@ -61,9 +63,9 @@ function Lifts() {
     <>
       <Section title="Bench estimated max">
         {bench.length > 1 ? (
-          <div className="px-3 py-3">
+          <Cell className="py-3">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
-          </div>
+          </Cell>
         ) : (
           <Row title="Log two bench sessions to see your trend." />
         )}
@@ -113,10 +115,10 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
   const base = list[0]?.value ?? start;
   const change = latest && base !== undefined ? latest.value - base : null;
   return (
-    <div className="row flex items-center gap-2 px-4 py-2">
+    <Cell className="flex items-center gap-2 py-2">
       <div className="min-w-0 flex-1">
-        <div className="text-[15px]">{label}</div>
-        <div className={`truncate text-[12px] ${dim}`}>
+        <div className="text-[17px]">{label}</div>
+        <div className={`truncate text-[13px] ${dim}`}>
           {latest
             ? `${fmt(latest.value, 2)}" on ${short(latest.date)}${change ? ` · ${change > 0 ? '+' : ''}${fmt(change, 2)}"` : ''}`
             : start
@@ -137,7 +139,7 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
       >
         Save
       </Btn>
-    </div>
+    </Cell>
   );
 }
 
@@ -173,9 +175,9 @@ function Body() {
           ]}
         />
         {recent.length > 1 && (
-          <div className="row px-3 py-3">
+          <Cell className="py-3">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
-          </div>
+          </Cell>
         )}
       </Section>
 
@@ -249,9 +251,9 @@ function Food() {
           ]}
         />
         {chartDays.length > 1 && (
-          <div className="row px-3 py-3">
+          <Cell className="py-3">
             <LineChart labels={chartDays.map((d) => short(d.date))} series={series} unit=" kcal" height={140} />
-          </div>
+          </Cell>
         )}
       </Section>
       <Section title="By day">
@@ -286,9 +288,9 @@ function Sleep() {
           ]}
         />
         {recent.length > 1 && (
-          <div className="row px-3 py-3">
+          <Cell className="py-3">
             <LineChart labels={labels} series={series} unit=" h" height={140} />
-          </div>
+          </Cell>
         )}
       </Section>
       <Section title="Nights">

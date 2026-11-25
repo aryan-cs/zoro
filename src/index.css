@@ -1,54 +1,34 @@
 @import 'tailwindcss';
 @import 'konsta/react/theme.css';
 
-/* ---------- Theme: Apple dark, mint accent, liquid glass ---------- */
+/* ---------- Theme: Apple dark with a mint accent ---------- */
 @theme {
   --color-brand-primary: #48fa78;
   --color-accent: #48fa78;
 }
-:root,
-.dark {
+:root {
   --k-color-primary: #48fa78 !important;
   color-scheme: dark;
-  --page: #000;
-  /* Apple's grouped dark surfaces, made translucent so the glass shows. */
-  --glass-card: rgba(28, 28, 30, 0.62);
-  --glass-edge: rgba(255, 255, 255, 0.16);
-  --glass-line: rgba(84, 84, 88, 0.55);
-  --glass-bar: rgba(0, 0, 0, 0.6);
-  --glass-sheet: rgba(28, 28, 30, 0.86);
-  --glow-a: rgba(72, 250, 120, 0.16);
-  --glow-b: rgba(100, 210, 255, 0.1);
-  --glow-c: rgba(72, 250, 120, 0.07);
-  --glow-d: rgba(94, 92, 230, 0.1);
 }
 
 html {
-  background: var(--page) !important;
+  background: #000 !important;
+}
+html,
+body,
+#root {
+  height: 100%;
 }
 body {
   margin: 0;
   color: #fff;
-  background: transparent !important;
+  background: #000 !important;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
-/* Soft color behind everything so the glass has something to refract. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(70% 45% at 0% 0%, var(--glow-a), transparent 70%),
-    radial-gradient(55% 40% at 100% 30%, var(--glow-b), transparent 70%),
-    radial-gradient(65% 40% at 10% 85%, var(--glow-c), transparent 70%),
-    radial-gradient(50% 35% at 100% 100%, var(--glow-d), transparent 70%);
-}
 .k-page {
-  background: transparent !important;
+  background: #000 !important;
 }
 
 /* iOS zooms into inputs smaller than 16px. */
@@ -60,73 +40,34 @@ select {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
-/* Room for the floating tab bar and the home indicator. */
+
+/* Bottom of the tab bar: just above the home indicator. */
+:root {
+  --tabbar-bottom: max(8px, calc(var(--k-safe-area-bottom, 0px) - 12px));
+}
+/* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(env(safe-area-inset-bottom) * 0.5 + 92px);
+  padding-bottom: calc(var(--tabbar-bottom) + 72px);
 }
 
-/* ---------- Liquid glass ---------- */
-.glass {
-  background: var(--glass-card);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  box-shadow:
-    inset 0 1px 0 0 var(--glass-edge),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.07),
-    0 6px 20px rgba(0, 0, 0, 0.35);
+/* Keep content sharp at the top and bottom edges: no blur strips behind the bars. */
+.k-navbar > [class*='backdrop-blur-[2px]'],
+.k-toolbar > [class*='backdrop-blur-[2px]'] {
+  display: none !important;
 }
 
-
-/* Controls: buttons, the tab bar, segmented controls. Same rim-light recipe as the iOS 26 glass in Konsta. */
-.glass-control {
-  background: rgba(58, 58, 62, 0.5);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
-  box-shadow:
-    inset -2px -2px 0.5px -2.5px rgba(255, 255, 255, 0.4),
-    inset 3px 3px 0.5px -3.5px rgba(255, 255, 255, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-    inset 0 0 10px 0 rgba(255, 255, 255, 0.05),
-    0 4px 16px rgba(0, 0, 0, 0.4);
+/* Section titles sit just above their list. */
+.k-block-title {
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
 }
 
-/* Prominent tinted glass (main actions): the mint accent with a glass rim and glow. */
-.glass-tint {
-  background: rgba(72, 250, 120, 0.92);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
-  box-shadow:
-    inset 1px 1px 0 -0.5px rgba(255, 255, 255, 0.75),
-    inset -1px -1px 0 -0.5px rgba(255, 255, 255, 0.4),
-    inset 0 0 10px 0 rgba(255, 255, 255, 0.25),
-    0 4px 18px rgba(72, 250, 120, 0.28);
+/* Apple's grouped cell color, for custom tiles. */
+.surface {
+  background: #1c1c1e;
 }
 
-/* Top bar: clear text over a frosted strip. */
-.glass-bar {
-  background: var(--glass-bar);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: inset 0 -0.5px 0 var(--glass-line);
-}
-
-/* Sheets and popups. */
-.glass-sheet {
-  background: var(--glass-sheet) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-}
-
-/* Hairlines between rows in a card. */
-.row {
-  position: relative;
-}
-.row + .row::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 16px;
-  right: 0;
-  height: 0.5px;
-  background: var(--glass-line);
+/* Filled buttons (alerts, sheets): dark text on the bright mint, like Apple's light-tint buttons. */
+.k-button.bg-primary {
+  color: #000 !important;
 }

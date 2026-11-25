@@ -1,5 +1,5 @@
 import { Page } from 'konsta/react';
-import { Header, Note, Section } from '../ui/kit';
+import { Cell, Header, Note, Section } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 const STEPS: [string, string][] = [
@@ -24,8 +24,8 @@ export function SleepSetupScreen() {
         Web apps can't read Apple Health directly. This one-time Shortcut copies last night's sleep so you can paste it into Zoro. It takes about 5 minutes.
       </Note>
       {STEPS.map(([title, body], i) => (
-        <Section key={title} title={`${i + 1}. ${title}`} cardClass="px-4 py-2.5 text-[14px] whitespace-pre-line">
-          {body}
+        <Section key={title} title={`${i + 1}. ${title}`}>
+          <Cell className="whitespace-pre-line py-2.5 text-[15px]">{body}</Cell>
         </Section>
       ))}
       <Note className="mt-3">

@@ -4,8 +4,9 @@ import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { exportAll, importAll, today } from '../core/store';
 import type { Phase, Settings } from '../core/types';
-import { Btn, Field, fmt, Header, Note, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, Field, fmt, Header, Note, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
+import { InstallShortcutDialog } from './LogSleep';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
 
 type NumKey = 'benchMax' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
@@ -144,6 +145,7 @@ export function SettingsScreen() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [pendingImport, setPendingImport] = useState<unknown>(null);
+  const [installing, setInstalling] = useState(false);
   const [usda, setUsda] = useState(settings.usdaApiKey ?? '');
   useEffect(() => setUsda(settings.usdaApiKey ?? ''), [settings.usdaApiKey]);
   useEffect(() => {
@@ -189,20 +191,20 @@ export function SettingsScreen() {
 
       <Section title="Plan">
         <Field label="Program start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
-        <div className="row flex items-center justify-between px-4 py-2">
-          <span className="text-[15px]">Days per week</span>
-          <Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />
-        </div>
+        <Cell className="flex items-center justify-between py-1.5">
+          <span className="text-[17px]">Days per week</span>
+          <Seg className="!w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />
+        </Cell>
         <NumSetting label="Bench max this block (lb)" k="benchMax" settings={settings} />
         <Field label="Bench block started" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
         <NumSetting label="Heaviest dumbbells (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
       <Section title="Food targets">
-        <div className="row flex items-center justify-between gap-3 px-4 py-2">
-          <span className="text-[15px]">Phase</span>
+        <Cell className="flex items-center justify-between gap-3 py-1.5">
+          <span className="text-[17px]">Phase</span>
           <Seg<Phase>
-            className="w-52"
+            className="!w-52"
             value={settings.phase}
             onChange={(p) => void saveSettings({ phase: p, targetRate: p === 'cut' ? -0.875 : p === 'bulk' ? 0.375 : 0 })}
             options={[
@@ -211,7 +213,7 @@ export function SettingsScreen() {
               ['bulk', 'Bulk'],
             ]}
           />
-        </div>
+        </Cell>
         <NumSetting label="Weekly change (lb)" k="targetRate" settings={settings} />
         <NumSetting label="Calories" k="kcalTarget" settings={settings} />
         <NumSetting label="Protein (g)" k="proteinTarget" settings={settings} />
@@ -221,20 +223,15 @@ export function SettingsScreen() {
       </Section>
 
       <Section title="Food data">
-        <Field label="USDA key" placeholder="Paste your key" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+        <Field label="Your own USDA key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
       </Section>
-      <Note>
-        Free, and makes barcode scans and search much better (USDA has the US labels). Get one in a minute at{' '}
-        <a className="text-accent" href="https://fdc.nal.usda.gov/api-key-signup" target="_blank" rel="noreferrer">
-          fdc.nal.usda.gov
-        </a>
-        . Without it Zoro uses a shared key that runs out after a few lookups an hour.
-      </Note>
+      <Note>Zoro comes with a USDA key for barcode scans and search. Only add your own if lookups start failing.</Note>
 
       <CloudBackup />
 
       <Section title="Sleep">
-        <Row title="Set up the Apple Health shortcut" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
+        <Row title="Add the Apple Health shortcut" chevron onClick={() => setInstalling(true)} />
+        <Row title="Build it by hand instead" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
       </Section>
 
       <Section title="This phone">
@@ -245,6 +242,7 @@ export function SettingsScreen() {
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
       <Note className="mb-2 mt-6 text-center">Zoro · food data from USDA FoodData Central and Open Food Facts (ODbL)</Note>
 
+      <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} />
       <Dialog
         opened={pendingImport !== null}
         onBackdropClick={() => setPendingImport(null)}

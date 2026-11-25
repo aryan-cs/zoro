@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { addDays, sumEntries } from '../core/calc';
 import { entriesFor, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { db, dim, fmt, Header, IconBtn, MacroSummary, Note, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Cell, db, dim, fmt, Header, IconBtn, MacroSummary, Note, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 export const MEALS: { id: Meal; label: string }[] = [
@@ -64,7 +64,9 @@ export function FoodScreen() {
       />
 
       <Section>
-        <MacroSummary totals={totals} settings={settings} />
+        <Cell>
+          <MacroSummary totals={totals} settings={settings} />
+        </Cell>
       </Section>
 
       {MEALS.map((m) => {
@@ -74,18 +76,12 @@ export function FoodScreen() {
           <Section
             key={m.id}
             title={m.label}
-            right={items.length > 0 ? <span className={`tabular text-[12px] ${dim}`}>{fmt(t.kcal)} kcal · {fmt(t.protein)} g protein</span> : undefined}
+            right={items.length > 0 ? <span className={`tabular text-[13px] ${dim}`}>{fmt(t.kcal)} kcal · {fmt(t.protein)} g protein</span> : undefined}
           >
             {items.map((e) => (
               <Row key={e.id} title={e.name} sub={`${amountText(e)} · ${fmt(e.macros.protein)} g protein`} right={fmt(e.macros.kcal)} onClick={() => setSelected(e)} />
             ))}
-            <button
-              type="button"
-              className="row flex w-full items-center gap-2 px-4 py-2.5 text-[15px] font-medium text-accent active:bg-black/5 dark:active:bg-white/5"
-              onClick={() => nav.push({ name: 'addFood', meal: m.id, date })}
-            >
-              <Plus className="h-4 w-4" /> Add food
-            </button>
+            <Row accent title="Add food" onClick={() => nav.push({ name: 'addFood', meal: m.id, date })} />
           </Section>
         );
       })}

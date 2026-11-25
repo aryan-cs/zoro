@@ -6,7 +6,7 @@ import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/cal
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { buildPlan, dayTotals, metricsOf, saveMetric, today } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { Btn, db, dim, fmt, Header, IconBtn, MacroSummary, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, Cell, db, dim, fmt, Header, IconBtn, MacroSummary, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
 
@@ -22,7 +22,7 @@ export function mealNow(): Meal {
 
 function DoneMark() {
   return (
-    <span className="inline-flex items-center gap-1 text-[12px] font-semibold normal-case tracking-normal text-accent">
+    <span className="inline-flex items-center gap-1 text-[15px] font-semibold text-accent">
       <Check className="h-3.5 w-3.5" strokeWidth={3} /> Done
     </span>
   );
@@ -75,7 +75,7 @@ export function TodayScreen() {
   const bodyDone = !!weighedToday && !!sleep;
 
   const workout: ReactNode = (
-    <Section title="Workout" right={workoutDone && templateId ? <DoneMark /> : <span className={`text-[12px] ${dim}`}>{weekText}</span>}>
+    <Section title="Workout" right={workoutDone && templateId ? <DoneMark /> : <span className={dim}>{weekText}</span>}>
       {open && open.templateId !== templateId && (
         <Row
           accent
@@ -95,17 +95,17 @@ export function TodayScreen() {
           onClick={() => doneMain.id !== undefined && nav.go('lift', { name: 'workout', sessionId: doneMain.id })}
         />
       ) : (
-        <div className="row flex items-center gap-3 px-4 py-3">
+        <Cell className="flex items-center gap-3 py-2.5">
           <div className="min-w-0 flex-1">
             <div className="truncate text-[17px] font-semibold">{TEMPLATES[templateId].name}</div>
-            <div className={`truncate text-[12px] ${dim}`}>
+            <div className={`truncate text-[15px] ${dim}`}>
               {TEMPLATES[templateId].short} · {plan?.exercises.length ?? '…'} exercises
             </div>
           </div>
           <Btn kind="tint" onClick={() => void start(templateId)}>
             {open?.templateId === templateId ? 'Resume' : 'Start'}
           </Btn>
-        </div>
+        </Cell>
       )}
       {second && !week.deload && (
         <Row title={`Optional: ${TEMPLATES[second].name}`} right={TEMPLATES[second].short} chevron onClick={() => void start(second)} />
@@ -120,23 +120,25 @@ export function TodayScreen() {
         foodDone ? (
           <DoneMark />
         ) : (
-          <Btn size="sm" kind="plain" className="!h-5 !px-0" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
+          <button type="button" className="flex items-center gap-1 text-accent active:opacity-50" onClick={() => nav.go('food', { name: 'addFood', meal: mealNow(), date })}>
             <Plus className="h-4 w-4" /> Log food
-          </Btn>
+          </button>
         )
       }
     >
-      <button type="button" className="block w-full text-left active:bg-black/5 dark:active:bg-white/5" onClick={() => nav.go('food')}>
-        <MacroSummary totals={totals} settings={settings} />
-      </button>
+      <li>
+        <button type="button" className="block w-full px-4 py-2.5 text-left active:bg-white/5" onClick={() => nav.go('food')}>
+          <MacroSummary totals={totals} settings={settings} />
+        </button>
+      </li>
     </Section>
   );
 
   const body: ReactNode = (
     <Section title="Body" right={bodyDone ? <DoneMark /> : undefined}>
-      <div className="grid grid-cols-2">
+      <li className="grid grid-cols-2">
         <div className="px-4 py-3">
-          <div className={`text-[12px] ${dim}`}>Weight</div>
+          <div className={`text-[13px] ${dim}`}>Weight</div>
           {weighedToday ? (
             <button type="button" className="text-left" onClick={() => nav.go('history')}>
               <div className="tabular text-[20px] font-semibold leading-tight">
@@ -155,8 +157,8 @@ export function TodayScreen() {
             </div>
           )}
         </div>
-        <button type="button" className="border-l border-black/[0.08] px-4 py-3 text-left active:bg-black/5 dark:border-white/10 dark:active:bg-white/5" onClick={() => nav.push({ name: 'logSleep' })}>
-          <div className={`text-[12px] ${dim}`}>Sleep</div>
+        <button type="button" className="border-l border-white/10 px-4 py-3 text-left active:bg-white/5" onClick={() => nav.push({ name: 'logSleep' })}>
+          <div className={`text-[13px] ${dim}`}>Sleep</div>
           {sleep ? (
             <>
               <div className="tabular text-[20px] font-semibold leading-tight">{formatMinutes(sleep.minutes)}</div>
@@ -171,7 +173,7 @@ export function TodayScreen() {
             </>
           )}
         </button>
-      </div>
+      </li>
     </Section>
   );
 
@@ -190,7 +192,7 @@ export function TodayScreen() {
         title={title}
         right={
           <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
-            <SettingsIcon className="h-[18px] w-[18px]" />
+            <SettingsIcon className="h-5 w-5" />
           </IconBtn>
         }
       />

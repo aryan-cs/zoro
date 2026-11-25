@@ -1,4 +1,4 @@
-import { App as KonstaApp, Toast } from 'konsta/react';
+import { Dialog, DialogButton, App as KonstaApp, Tabbar, TabbarLink, ToolbarPane } from 'konsta/react';
 import { CalendarDays, Droplet, Dumbbell, History, Salad } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AddFoodScreen } from './screens/AddFood';
@@ -11,7 +11,7 @@ import { SleepSetupScreen } from './screens/SleepSetup';
 import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
-import { Btn, ToastProvider } from './ui/kit';
+import { ToastProvider } from './ui/kit';
 import { NavProvider, useNav, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
@@ -52,31 +52,29 @@ function TabRoot({ tab }: { tab: Tab }) {
   }
 }
 
-/** Slim floating glass tab bar. */
+/** iOS 26 tab bar (Konsta Tabbar with the sliding glass thumb), a bit slimmer than the default. */
 function TabBar() {
   const { tab, setTab } = useNav();
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)*0.5+8px)]">
-      <div className="glass-control pointer-events-auto mx-auto flex h-[54px] max-w-md items-center rounded-full px-1">
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              aria-current={active ? 'page' : undefined}
-              onClick={() => setTab(t.id)}
-              className={`flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition ${
-                active ? 'bg-white/12 text-accent' : 'text-black/75 active:bg-black/5 dark:text-white/80'
-              }`}
-            >
-              <t.icon className="h-[21px] w-[21px]" strokeWidth={active ? 2.2 : 1.8} />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-    </nav>
+    <Tabbar
+      labels
+      icons
+      className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]"
+      innerClassName="!h-14"
+      bgClassName="!hidden"
+    >
+      <ToolbarPane>
+        {TABS.map((t) => (
+          <TabbarLink
+            key={t.id}
+            active={tab === t.id}
+            onClick={() => setTab(t.id)}
+            icon={<t.icon className="h-6 w-6" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
+            label={<span className="text-[10px]">{t.label}</span>}
+          />
+        ))}
+      </ToolbarPane>
+    </Tabbar>
   );
 }
 
@@ -91,7 +89,8 @@ function Shell() {
   );
 }
 
-function UpdateToast() {
+/** Native alert when a new version has been downloaded. */
+function UpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -105,20 +104,20 @@ function UpdateToast() {
     },
   });
   return (
-    <Toast
-      position="center"
+    <Dialog
       opened={needRefresh}
-      className="top-[calc(env(safe-area-inset-top)+8px)] bottom-auto"
-      button={
-        <Btn size="sm" kind="plain" onClick={() => void updateServiceWorker(true)}>
-          Update
-        </Btn>
+      onBackdropClick={() => setNeedRefresh(false)}
+      title="Update Available"
+      content="A new version of Zoro is ready. Update now? Your data stays on your phone."
+      buttons={
+        <>
+          <DialogButton onClick={() => setNeedRefresh(false)}>Later</DialogButton>
+          <DialogButton strong onClick={() => void updateServiceWorker(true)}>
+            Update
+          </DialogButton>
+        </>
       }
-    >
-      <button type="button" className="shrink" onClick={() => setNeedRefresh(false)}>
-        A new version of Zoro is ready.
-      </button>
-    </Toast>
+    />
   );
 }
 
@@ -128,7 +127,7 @@ export function App() {
       <NavProvider>
         <ToastProvider>
           <Shell />
-          <UpdateToast />
+          <UpdatePrompt />
         </ToastProvider>
       </NavProvider>
     </KonstaApp>

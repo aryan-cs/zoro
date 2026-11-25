@@ -30,6 +30,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,wasm}'],
         navigateFallback: '/zoro/index.html',
+        // Let the sleep shortcut file download instead of opening the app.
+        navigateFallbackDenylist: [/\.shortcut$/],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),

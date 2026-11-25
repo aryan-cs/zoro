@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Dialog, DialogButton, Page } from 'konsta/react';
+import { Dialog, DialogButton, Glass, List, Page } from 'konsta/react';
 import { Check, Timer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { platesPerSide } from '../core/calc';
@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Btn, db, dim, fmtLb, Header, NumField, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, fmtLb, Header, NavText, NumField, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -43,13 +43,13 @@ function RestTimer({ endsAt, onAdd, onSkip }: { endsAt: number; onAdd: () => voi
   const left = Math.max(0, Math.round((endsAt - now) / 1000));
   const done = left === 0;
   return (
-    <div className="glass-control fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5" style={{ bottom: 'calc(env(safe-area-inset-bottom) * 0.5 + 70px)' }}>
+    <Glass className="fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5 !touch-auto" style={{ bottom: 'calc(var(--tabbar-bottom) + 64px)' }}>
       <div className="flex items-center gap-2">
         <Timer className={`h-5 w-5 ${done ? 'text-accent' : 'text-accent'}`} />
         <span className="tabular text-[20px] font-semibold">
           {done ? 'Go' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`}
         </span>
-        <span className="text-[13px] text-black/50 dark:text-white/55">rest</span>
+        <span className={`text-[13px] ${dim}`}>rest</span>
       </div>
       <div className="flex gap-2">
         <Btn size="sm" onClick={onAdd}>
@@ -59,7 +59,7 @@ function RestTimer({ endsAt, onAdd, onSkip }: { endsAt: number; onAdd: () => voi
           {done ? 'Close' : 'Skip'}
         </Btn>
       </div>
-    </div>
+    </Glass>
   );
 }
 
@@ -101,7 +101,8 @@ function SetRow(props: {
   };
 
   return (
-    <div className={`row flex items-center gap-2 px-4 py-1.5 ${done ? 'bg-accent/10' : ''}`}>
+    <li className={`relative ${done ? 'bg-accent/10' : ''}`}>
+      <div className="hairline-b relative ms-4 flex items-center gap-2 py-1.5 pe-4">
       <div className="w-[76px] shrink-0">
         <div className="text-[15px] font-medium">{props.target.label ?? `Set ${props.index + 1}`}</div>
         <div className="tabular text-[12px] text-black/45 dark:text-white/50">{targetText}</div>
@@ -128,7 +129,8 @@ function SetRow(props: {
       >
         <Check className="h-4 w-4" strokeWidth={3} />
       </button>
-    </div>
+      </div>
+    </li>
   );
 }
 
@@ -181,15 +183,15 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         onBack={nav.pop}
         right={
           !finished && (
-            <Btn size="sm" kind="tint" className="!h-8" onClick={() => void finish()}>
+            <NavText strong onClick={() => void finish()}>
               Finish
-            </Btn>
+            </NavText>
           )
         }
       />
 
       {plan.newBenchMax && (
-        <div className="glass mx-4 mt-3 rounded-[22px] px-4 py-2.5 text-[14px]">
+        <div className="surface mx-4 mt-3 rounded-3xl px-4 py-2.5 text-[15px]">
           New bench block from your tested max of <b>{plan.newBenchMax} lb</b>. Every bench weight went up.
         </div>
       )}
@@ -207,7 +209,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
               </span>
               <span className={`text-[11px] ${dim}`}>rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
             </div>
-            <div className="glass overflow-hidden rounded-[22px]">
+            <List strong inset dividers className="!mx-0 !my-0">
               {ex.sets.map((t, i) => (
                 <SetRow
                   key={i}
@@ -226,7 +228,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
                   onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
                 />
               ))}
-            </div>
+            </List>
             <div className={`mt-1.5 space-y-0.5 px-1 text-[12px] leading-snug ${dim}`}>
               {plates && plates.plates.length > 0 && (
                 <div>

@@ -77,6 +77,28 @@ describe('sleep import', () => {
     expect(new Date(s.wakeTime!).toISOString()).toBe('2026-11-25T13:00:00.000Z');
   });
 
+  it('reads the installable shortcut format (three lists)', () => {
+    const text = [
+      'ZORO-SLEEP2',
+      '2026-11-24T23:30:00-06:00',
+      '2026-11-25T03:00:00-06:00',
+      '2026-11-25T03:20:00-06:00',
+      '2026-11-24T23:00:00-06:00',
+      '---',
+      '2026-11-25T03:00:00-06:00',
+      '2026-11-25T03:20:00-06:00',
+      '2026-11-25T07:00:00-06:00',
+      '2026-11-25T07:15:00-06:00',
+      '---',
+      'Asleep Core',
+      'Awake',
+      'Asleep REM',
+      'In Bed',
+    ].join('\n');
+    const s = parseSleepImport(text)!;
+    expect(s.minutes).toBe(430);
+  });
+
   it('rejects junk', () => {
     expect(parseSleepImport('hello')).toBeNull();
     expect(parseSleepImport('start=2026-11-25T07:00 end=2026-11-24T23:00')).toBeNull();

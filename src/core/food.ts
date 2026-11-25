@@ -9,7 +9,8 @@ import type { FoodItem, Macros } from './types';
 
 const OFF = 'https://world.openfoodfacts.org';
 const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit';
-export const USDA_DEMO_KEY = 'DEMO_KEY';
+/** Zoro's own key, added at build time from a GitHub secret; DEMO_KEY (a few lookups an hour) otherwise. */
+export const USDA_DEMO_KEY: string = (import.meta.env?.VITE_USDA_KEY as string | undefined) || 'DEMO_KEY';
 const APP_TAG = 'app_name=Zoro&app_version=0.1';
 
 type Num = number | string | undefined;

@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Page, Preloader } from 'konsta/react';
-import { Minus, PenLine, Plus, ScanBarcode, Search, Zap } from 'lucide-react';
+import { ListItem, Page, Preloader, Searchbar } from 'konsta/react';
+import { Minus, PenLine, Plus, ScanBarcode, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, dim, Field, fmt, GlassSheet, Header, IconBtn, Note, Row, Section, Seg, SheetPage, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, Field, fmt, GlassSheet, Header, Note, Row, Section, Seg, SheetPage, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -17,20 +17,26 @@ const num = (s: string) => {
 function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => void }) {
   const basis = food.serving ? food.serving.macros : food.per100g;
   return (
-    <button type="button" onClick={() => onPick(food)} className="row flex w-full items-center gap-3 px-4 py-2 text-left active:bg-black/5 dark:active:bg-white/5">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px]">{food.name}</div>
-        <div className={`truncate text-[12px] ${dim}`}>{[food.brand, food.serving ? food.serving.label : `100 ${food.liquid ? 'ml' : 'g'}`].filter(Boolean).join(' · ')}</div>
-      </div>
-      {basis && (
-        <div className="shrink-0 text-right">
-          <div className="tabular text-[14px]">{fmt(basis.kcal)} kcal</div>
-          <div className={`tabular text-[11px] ${dim}`}>
-            P {fmt(basis.protein)} · C {fmt(basis.carbs)} · F {fmt(basis.fat)}
+    <ListItem
+      link
+      chevron={false}
+      title={food.name}
+      subtitle={[food.brand, food.serving ? food.serving.label : `100 ${food.liquid ? 'ml' : 'g'}`].filter(Boolean).join(' · ')}
+      after={
+        basis && (
+          <div className="text-right">
+            <div className="tabular">{fmt(basis.kcal)} kcal</div>
+            <div className="tabular text-[12px]">
+              P {fmt(basis.protein)} · C {fmt(basis.carbs)} · F {fmt(basis.fat)}
+            </div>
           </div>
-        </div>
-      )}
-    </button>
+        )
+      }
+      onClick={() => onPick(food)}
+      innerClassName="!py-2"
+      titleWrapClassName="min-w-0"
+      strongTitle={false}
+    />
   );
 }
 
@@ -79,25 +85,25 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
               ]}
             />
           )}
-          <div className="glass mt-3 flex items-center gap-2 rounded-2xl px-3 py-2">
+          <div className="surface mt-3 flex items-center gap-2 rounded-2xl px-3 py-2">
             <div className="min-w-0 flex-1">
               <div className={`text-[12px] ${dim}`}>{unit === 'g' ? (g === 'ml' ? 'Milliliters' : 'Grams') : 'Servings'}</div>
               <div className="truncate text-[12px]">{unit === 'serving' ? (food.serving?.label ?? `100 ${g}`) : `per 100 ${g}: ${fmt(food.per100g?.kcal ?? 0)} kcal`}</div>
             </div>
-            <IconBtn label="Less" onClick={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}>
+            <Btn size="sm" className="!w-8 !px-0" onClick={() => setQty(String(Math.max(0, Math.round((num(qty) - step) * 10) / 10)))}>
               <Minus className="h-4 w-4" />
-            </IconBtn>
+            </Btn>
             <input
               aria-label="Amount"
               inputMode="decimal"
               value={qty}
               onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))}
               onFocus={(e) => e.target.select()}
-              className="tabular w-16 rounded-lg bg-black/5 py-1 text-center font-semibold outline-none dark:bg-white/10"
+              className="tabular w-16 rounded-lg bg-[rgba(118,118,128,0.24)] py-1 text-center font-semibold outline-none"
             />
-            <IconBtn label="More" onClick={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}>
+            <Btn size="sm" className="!w-8 !px-0" onClick={() => setQty(String(Math.round((num(qty) + step) * 10) / 10))}>
               <Plus className="h-4 w-4" />
-            </IconBtn>
+            </Btn>
           </div>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center">
             {(
@@ -108,7 +114,7 @@ function AmountSheet({ food, meal, date, onClose, onLogged }: { food: FoodItem |
                 ['Fat', macros.fat, 'g'],
               ] as const
             ).map(([label, v, u]) => (
-              <div key={label} className="glass rounded-2xl py-2">
+              <div key={label} className="surface rounded-2xl py-2">
                 <div className="tabular text-[17px] font-semibold">
                   {fmt(v, v > 0 && v < 10 && u ? 1 : 0)}
                   <span className="text-[11px] font-normal">{u}</span>
@@ -265,24 +271,25 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
     <Page className="tab-safe">
       <Header title={`Add to ${mealLabel.toLowerCase()}`} onBack={nav.pop}>
         <form
-          className="glass-control flex h-9 items-center gap-2 rounded-full px-3"
+          className="w-full"
           onSubmit={(e) => {
             e.preventDefault();
             (document.activeElement as HTMLElement | null)?.blur();
             void search();
           }}
         >
-          <Search className="h-4 w-4 shrink-0 text-black/40 dark:text-white/45" />
-          <input
-            type="search"
-            enterKeyHint="search"
+          <Searchbar
             placeholder="Search foods"
             value={q}
-            onChange={(e) => {
+            onInput={(e: React.ChangeEvent<HTMLInputElement>) => {
               setQ(e.target.value);
               setOnline(null);
             }}
-            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-black/35 dark:placeholder:text-white/40"
+            onClear={() => {
+              setQ('');
+              setOnline(null);
+            }}
+            disableButton={false}
           />
         </form>
       </Header>
@@ -295,10 +302,10 @@ export function AddFoodScreen({ meal, date }: { meal: Meal; date: ISODate }) {
             ['New food', PenLine, () => setCustom({})],
           ] as const
         ).map(([label, Icon, onClick]) => (
-          <button key={label} type="button" onClick={onClick} className="glass flex h-11 items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold text-accent active:scale-[0.97]">
+          <Btn key={label} className="!px-2 !text-[15px]" onClick={onClick}>
             <Icon className="h-[18px] w-[18px]" />
             {label}
-          </button>
+          </Btn>
         ))}
       </div>
 

@@ -55,6 +55,16 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
 }
 
 export function parseSleepImport(text: string): SleepEntry | null {
+  // The installable shortcut copies three lists: start dates, end dates, values.
+  const two = text.trim().match(/^ZORO-SLEEP2\s*\n([\s\S]*)$/i);
+  if (two) {
+    const [starts = '', ends = '', values = ''] = two[1].split(/\n\s*---\s*\n?/);
+    const lines = (block: string) => block.split('\n').map((l) => l.trim()).filter(Boolean);
+    const st = lines(starts);
+    const en = lines(ends);
+    const va = lines(values);
+    return nightFromSamples(st.map((start, i) => ({ start, end: en[i], value: va[i] })));
+  }
   let raw = text.trim().replace(/^(ZORO-SLEEP|FITSLEEP1):?\s*/i, '');
   if (!raw) return null;
   // A list of Health samples from the Shortcut.

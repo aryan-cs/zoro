@@ -27,6 +27,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run build
+        env:
+          # Zoro's USDA FoodData Central key. It ends up in the public site's code.
+          VITE_USDA_KEY: ${{ secrets.VITE_USDA_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
