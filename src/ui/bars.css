@@ -1642,9 +1642,24 @@ button.meal-row:not(:disabled):active {
 }
 
 /* ---------- Today: welcome ---------- */
-/* Date in small gray caps over a large greeting, like Fitness's Summary title. */
+/* Date in small gray caps over a large greeting, like Fitness's Summary title, with Settings
+ * level with the greeting on the right. */
 .hello {
-  padding: 2px 20px 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0 20px;
+}
+/* Behind the status bar only: content scrolling up fades out under the clock. */
+.status-edge {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: env(safe-area-inset-top, 0px);
+  margin-bottom: calc(-1 * env(safe-area-inset-top, 0px));
+  background: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0));
+  pointer-events: none;
 }
 .hello-date {
   font-size: 13px;

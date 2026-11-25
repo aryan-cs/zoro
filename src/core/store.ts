@@ -1,7 +1,7 @@
 import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
-import { templateFor, templateForWeekday } from './program';
+import { BENCH_STEPS, EXERCISES, templateFor, templateForWeekday } from './program';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
 import type {
   BodyMetric,
@@ -291,47 +291,109 @@ export async function addSampleWeek(db: ZoroDB = getDB()): Promise<number> {
     [['breakfast', 'Oatmeal with Berries', 380, 14, 64, 8], ['lunch', 'Turkey Sandwich', 520, 38, 48, 16], ['dinner', 'Chicken Stir Fry', 690, 52, 70, 20]],
   ];
   // Last night first. Bedtime the evening before, wake-up that morning.
-  const nights: [string, string][] = [['23:40', '07:00'], ['00:15', '06:50'], ['23:05', '07:10'], ['23:30', '07:20'], ['00:40', '07:05'], ['23:20', '06:55'], ['22:55', '07:05']];
+  const nights: [string, string][] = [['23:40', '07:00'], ['00:15', '06:50'], ['23:05', '07:10'], ['23:30', '07:20'], ['00:40', '07:05'], ['23:20', '06:55'], ['22:55', '07:05'], ['23:50', '07:15'], ['00:05', '06:40']];
   const waterDays = [64, 112, 96, 128, 104, 88, 120];
   const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
+  const DAY = 86_400_000;
 
-  // Start fresh so tapping it twice doesn't double everything.
-  await removeSampleData(db);
-  const t = today();
-  let n = 0;
-  for (let d = 0; d < 7; d++) {
-    const date = addDays(t, -d);
-    for (const [i, [meal, name, kcal, protein, carbs, fat]] of meals[d].entries()) {
-      await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros: { kcal, protein, carbs, fat }, loggedAt: Date.now() - d * 86_400_000 + i, sample: true });
-      n++;
+  // One transaction: a thousand-odd writes land together (and quickly) instead of one by one.
+  return db.transaction('rw', [db.entries, db.water, db.sleep, db.metrics, db.sessions, db.sets, db.settings], async () => {
+    // Start fresh so tapping it twice doesn't double everything.
+    await removeSampleData(db);
+    const t = today();
+    let n = 0;
+    // Two weeks of meals and water.
+    for (let d = 0; d < 14; d++) {
+      const date = addDays(t, -d);
+      for (const [i, [meal, name, kcal, protein, carbs, fat]] of meals[d % 7].entries()) {
+        await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros: { kcal, protein, carbs, fat }, loggedAt: Date.now() - d * DAY + i, sample: true });
+        n++;
+      }
+      const oz = waterDays[d % 7];
+      for (const [i, part] of [0.3, 0.45, 0.25].entries()) await db.water.add({ date, oz: Math.round(oz * part), at: Date.now() - d * DAY - (3 - i) * 3_600_000, sample: true });
     }
-    // Water in a few drinks through the day.
-    const oz = waterDays[d];
-    for (const [i, part] of [0.3, 0.45, 0.25].entries()) await db.water.add({ date, oz: Math.round(oz * part), at: Date.now() - d * 86_400_000 - (3 - i) * 3_600_000, sample: true });
-    // Sleep, unless that night is already logged.
-    if (!(await db.sleep.where('date').equals(date).count())) {
-      const [bed, wake] = nights[d];
-      const minutes = (toMin(wake) - toMin(bed) + 1440) % 1440;
-      await db.sleep.add({ date, bedtime: bed, wakeTime: wake, minutes, source: 'manual', sample: true });
+    // A month of sleep, unless that night is already logged.
+    const slept = new Set((await db.sleep.toArray()).map((e) => e.date));
+    for (let d = 0; d < 30; d++) {
+      const date = addDays(t, -d);
+      if (slept.has(date)) continue;
+      const [bed, wake] = nights[d % nights.length];
+      await db.sleep.add({ date, bedtime: bed, wakeTime: wake, minutes: (toMin(wake) - toMin(bed) + 1440) % 1440, source: 'manual', sample: true });
     }
-  }
-  // Two weeks of morning weights drifting down about a pound a week, skipping days already weighed.
-  const weighed = new Set((await db.metrics.where('type').equals('weight').toArray()).map((m) => m.date));
-  const noise = [0.4, -0.2, 0.6, -0.4, 0.1, 0.5, -0.3, 0.2, -0.5, 0.3, 0, 0.4, -0.1, 0.6];
-  for (let d = 13; d >= 0; d--) {
-    const date = addDays(t, -d);
-    if (weighed.has(date)) continue;
-    await db.metrics.add({ date, type: 'weight', value: Math.round((185.2 + d * 0.15 + noise[d]) * 10) / 10, sample: true });
-  }
-  return n;
+    // Eight weeks of morning weights drifting down about half a pound a week, and a waist, arm
+    // and forearm measurement every other week; days already weighed or measured are left alone.
+    const measured = new Set((await db.metrics.toArray()).map((m) => `${m.type}:${m.date}`));
+    const noise = [0.4, -0.2, 0.6, -0.4, 0.1, 0.5, -0.3, 0.2, -0.5, 0.3, 0, 0.4, -0.1, 0.6];
+    for (let d = 55; d >= 0; d--) {
+      const date = addDays(t, -d);
+      if (!measured.has(`weight:${date}`)) await db.metrics.add({ date, type: 'weight', value: Math.round((185.2 + d * 0.07 + noise[d % noise.length]) * 10) / 10, sample: true });
+      if (d % 14 === 0) {
+        const w = d / 14;
+        const sizes: [MetricType, number][] = [['waist', 34.5 + w * 0.25], ['arm', 16.5 - w * 0.0625], ['forearm', 11.75 - w * 0.0625]];
+        for (const [type, value] of sizes) if (!measured.has(`${type}:${date}`)) await db.metrics.add({ date, type, value, sample: true });
+      }
+    }
+    await addSampleWorkouts(db);
+    return n;
+  });
 }
 
-/** Deletes everything "Add Sample Week" made (foods, water, sleep, weights). Returns how many foods. */
+/** Starting working weights (lb) for sample workouts; they climb about 1% a week. */
+const SAMPLE_WEIGHT: Record<string, number> = {
+  pausedBench: 145, closeGripBench: 145, inclineBarbell: 125, cableFly: 30, dbShoulderPress: 45, cableRow: 110, barbellRow: 135,
+  kneelingPulldown: 50, facePull: 40, rearDeltFly: 15, cableLateral: 15, lateralRaise: 20, ohTricepsExt: 45, leaningOhExt: 20, pushdown: 50,
+  skullCrusher: 65, inclineCurl: 25, preacherCurl: 35, bayesianCurl: 20, hammerCurl: 30, ezCurl: 60, reverseCurl: 45, wristCurl: 55,
+  reverseWristCurl: 25, squat: 205, rdl: 185, walkingLunge: 35, calfRaise: 35, bulgarian: 35, hipThrust: 225, cableLegExt: 30,
+  woodchopper: 30, cableCrunch: 70,
+};
+
+/**
+ * Eight weeks of finished workouts up to yesterday, following the program's weekdays (one day
+ * skipped now and then). Monday bench walks the 12-step table from a 195 lb max, so the bench
+ * chart climbs; other lifts add about 1% a week.
+ */
+async function addSampleWorkouts(db: ZoroDB) {
+  const settings = await getSettings(db);
+  const t = today();
+  let mondays = 0;
+  for (let d = 55; d >= 1; d--) {
+    const date = addDays(t, -d);
+    const weekday = new Date(`${date}T12:00`).getDay();
+    const id = templateForWeekday(weekday, settings.daysPerWeek);
+    if (!id) continue;
+    const week = Math.floor((55 - d) / 7);
+    const step = id === 'upperA' ? mondays++ % BENCH_STEPS.length : undefined;
+    if (d % 11 === 7) continue; // a missed day here and there
+    const startedAt = new Date(`${date}T18:00`).getTime();
+    const sessionId = (await db.sessions.add({ date, templateId: id, startedAt, finishedAt: startedAt + 70 * 60_000, benchStep: step, sample: true })) as number;
+    let minute = 0;
+    for (const ex of templateFor(id, settings.daysPerWeek).exercises) {
+      const def = EXERCISES[ex.exerciseId];
+      const sets: { weight: number; reps: number; target?: number }[] = [];
+      if (ex.scheme === 'bench-heavy' && step !== undefined) {
+        for (const g of BENCH_STEPS[step].groups) for (let i = 0; i < g.sets; i++) sets.push({ weight: Math.round((195 * g.pct) / 5) * 5, reps: g.reps, target: g.reps });
+      } else {
+        const base = SAMPLE_WEIGHT[ex.exerciseId] ?? 0;
+        const inc = def?.increment || 5;
+        const weight = base ? Math.round((base * (1 + 0.01 * week)) / inc) * inc : 0;
+        for (let i = 0; i < ex.sets; i++) sets.push({ weight, reps: Math.max(ex.repMin, Math.min(ex.repMax, ex.repMin + week - i)) });
+      }
+      await db.sets.bulkAdd(
+        sets.map((s, i) => ({ sessionId, date, exerciseId: ex.exerciseId, setIndex: i, weight: s.weight, reps: s.reps, targetReps: s.target, completedAt: startedAt + (minute += 3) * 60_000 })),
+      );
+    }
+  }
+}
+
+/** Deletes everything "Add Sample Week" made (foods, water, sleep, body metrics, workouts). Returns how many foods. */
 export async function removeSampleData(db: ZoroDB = getDB()): Promise<number> {
   const ids = (await db.entries.filter((e) => !!e.sample).primaryKeys()) as number[];
   await db.entries.bulkDelete(ids);
   await db.water.bulkDelete((await db.water.filter((e) => !!e.sample).primaryKeys()) as number[]);
   await db.sleep.bulkDelete((await db.sleep.filter((e) => !!e.sample).primaryKeys()) as number[]);
   await db.metrics.bulkDelete((await db.metrics.filter((e) => !!e.sample).primaryKeys()) as number[]);
+  const sessions = (await db.sessions.filter((e) => !!e.sample).primaryKeys()) as number[];
+  if (sessions.length) await db.sets.bulkDelete((await db.sets.where('sessionId').anyOf(sessions).primaryKeys()) as number[]);
+  await db.sessions.bulkDelete(sessions);
   return ids.length;
 }

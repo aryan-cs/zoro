@@ -7,7 +7,7 @@ import { benchProgress } from '../core/progression';
 import { dayTotals, loadHistory, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, db, FITNESS, FitCard, fmt, Header, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
 import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -134,18 +134,19 @@ export function TodayScreen() {
 
   return (
     <Page className="tab-safe">
-      <Header
-        title=""
-        right={
-          <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
-            <Sym name="gearshape" size={16.5} />
-          </IconBtn>
-        }
-      />
-      <div className="hello">
-        <div className="hello-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-        <h1 className="hello-title">{first ? `Hello, ${first}` : 'Hello'}</h1>
-      </div>
+      {/* No navigation bar: the greeting is the title, with Settings beside it (as Fitness puts
+          its profile button beside "Summary"), and both scroll away. Only the status bar keeps a
+          thin fade so content doesn't run under the clock. */}
+      <div className="status-edge" aria-hidden />
+      <header className="hello">
+        <div className="min-w-0">
+          <div className="hello-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+          <h1 className="hello-title">{first ? `Hello, ${first}` : 'Hello'}</h1>
+        </div>
+        <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
+          <Sym name="gearshape" size={16.5} />
+        </IconBtn>
+      </header>
 
       <div className="fit-stack">
         {/* Sleep, water and the week's workouts, each a ring: halfway is half a ring. */}

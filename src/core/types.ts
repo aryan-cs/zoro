@@ -84,6 +84,8 @@ export interface WorkoutSession {
   /** For heavy bench sessions, which step of the 12-step table this was. */
   benchStep?: number;
   notes?: string;
+  /** Made by Settings › Add Sample Week. */
+  sample?: boolean;
 }
 
 export interface SetLog {
