@@ -1054,3 +1054,21 @@ button.meal-row:not(:disabled):active {
   padding: 0 16px;
   font-size: 17px;
 }
+
+/* Three stats across a card (History). */
+.fit-grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.fit-stat.is-small .fit-stat-value {
+  font-size: 22px;
+  line-height: 28px;
+}
+.fit-stat.is-small .fit-stat-value small {
+  font-size: 15px;
+}
+/* A chart under a card's stats. */
+.fit-chart {
+  margin-top: 16px;
+}

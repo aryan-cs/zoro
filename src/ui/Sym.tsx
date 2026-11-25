@@ -16,6 +16,7 @@ export function Sym({ name, size = 17, className, label }: { name: SFName; size?
       height={s.h * k}
       viewBox={`0 0 ${s.w} ${s.h}`}
       fill="currentColor"
+      overflow="visible" /* curves sit exactly on the box edge; don't shave their antialiasing */
       className={`shrink-0 ${className ?? ''}`}
       role={label ? 'img' : undefined}
       aria-label={label}

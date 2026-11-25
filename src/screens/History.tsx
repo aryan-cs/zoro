@@ -7,27 +7,22 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Cell, db, dim, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
 type Tab = 'lifts' | 'body' | 'food' | 'sleep';
 const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+const shortDay = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-/** Three numbers side by side in one card. */
-function Stats({ items }: { items: [string, string, string?][] }) {
+/** Stats side by side in a Fitness card: label over a colored SF Rounded value. Empty values are a dash. */
+function StatGrid({ items, color }: { items: [string, string | null, string?][]; color: string }) {
   return (
-    <Cell className="!px-0 !py-0">
-      <div className="-mx-4 grid grid-cols-3">
-        {items.map(([label, value, sub], i) => (
-          <div key={label} className={`px-4 py-2.5 ${i ? 'border-l border-white/10' : ''}`}>
-            <div className={`text-[13px] ${dim}`}>{label}</div>
-            <div className="tabular text-[20px] font-semibold leading-tight">{value}</div>
-            {sub && <div className={`text-[13px] ${dim}`}>{sub}</div>}
-          </div>
-        ))}
-      </div>
-    </Cell>
+    <div className="fit-grid3">
+      {items.map(([label, value, unit]) => (
+        <FitStat key={label} label={label} value={value} unit={unit} color={color} small />
+      ))}
+    </div>
   );
 }
 
@@ -52,24 +47,33 @@ function Lifts() {
   const labels = useMemo(() => bench.map((b) => short(b.date)), [bench]);
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: '#0a84ff' },
+      { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
       { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
     ],
     [bench],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
 
+  const latest = bench[bench.length - 1];
   return (
     <>
-      <Section title="Bench Estimated Max">
-        {bench.length > 1 ? (
-          <Cell className="py-3">
-            <LineChart labels={labels} series={series} unit=" lb" height={150} />
-          </Cell>
-        ) : (
-          <EmptyRow>Needs 2 Sessions</EmptyRow>
-        )}
-      </Section>
+      <div className="fit-stack">
+        <FitCard title="Bench Estimated Max">
+          <StatGrid
+            color={FITNESS.exercise}
+            items={[
+              ['Latest', latest ? fmt(latest.e1rm) : null, latest ? 'LB' : undefined],
+              ['Best', bench.length ? fmt(Math.max(...bench.map((b) => b.e1rm))) : null, bench.length ? 'LB' : undefined],
+              ['Goal', '225', 'LB'],
+            ]}
+          />
+          {bench.length > 1 && (
+            <div className="fit-chart">
+              <LineChart labels={labels} series={series} unit=" lb" height={150} />
+            </div>
+          )}
+        </FitCard>
+      </div>
 
       <Section title="Workouts">
         {history.length === 0 && <EmptyRow>No Workouts</EmptyRow>}
@@ -77,8 +81,7 @@ function Lifts() {
           <Row
             key={h.sessionId}
             title={TEMPLATES[h.templateId].name}
-            sub={longDate(h.date)}
-            right={`${h.sets.length} ${h.sets.length === 1 ? 'set' : 'sets'}`}
+            right={shortDay(h.date)}
             chevron
             onClick={() => nav.push({ name: 'workout', sessionId: h.sessionId })}
           />
@@ -88,12 +91,8 @@ function Lifts() {
       {logged.length > 0 && (
         <Section title="Best Sets">
           {logged.map((id) => {
-            const list = best[id];
-            const latest = list[list.length - 1];
-            const top = list.reduce((a, b) => (b.e1rm > a.e1rm ? b : a));
-            return (
-              <Row key={id} title={EXERCISES[id].name} sub={`Last: ${fmtLb(latest.weight)} × ${latest.reps} on ${short(latest.date)}`} right={`${fmt(top.e1rm)} max`} />
-            );
+            const top = best[id].reduce((a, b) => (b.e1rm > a.e1rm ? b : a));
+            return <Row key={id} title={EXERCISES[id].name} right={`${fmtLb(top.weight)} × ${top.reps}`} />;
           })}
         </Section>
       )}
@@ -103,7 +102,7 @@ function Lifts() {
 
 const SIZES: { type: MetricType; label: string; start?: number }[] = [
   { type: 'waist', label: 'Waist', start: 35.25 },
-  { type: 'arm', label: 'Flexed arm', start: 16.25 },
+  { type: 'arm', label: 'Flexed Arm', start: 16.25 },
   { type: 'forearm', label: 'Forearm', start: 11.625 },
 ];
 
@@ -118,14 +117,13 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
     <>
       <Row
         title={label}
-        sub={latest ? `${short(latest.date)}${change ? ` · ${change > 0 ? '+' : ''}${fmt(change, 2)}" since start` : ''}` : start ? `Start ${fmt(start, 2)}"` : 'Not measured'}
-        right={latest ? `${fmt(latest.value, 2)}"` : 'Add'}
+        right={latest ? `${fmt(latest.value, 2)}"${change ? ` (${change > 0 ? '+' : ''}${fmt(change, 2)})` : ''}` : '—'}
         chevron
         onClick={() => setEditing(true)}
       />
       <NumberPrompt
         opened={editing}
-        title={label === 'Flexed arm' ? 'Flexed Arm' : label}
+        title={label}
         unit="in"
         initial={latest ? fmt(latest.value, 2) : start ? fmt(start, 2) : undefined}
         max={80}
@@ -155,50 +153,54 @@ function Body() {
   const labels = useMemo(() => recent.map((t) => short(t.date)), [recent]);
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(10,132,255,0.45)', dots: true },
-      { label: 'Trend', data: recent.map((t) => roundTo(t.trend, 0.1)), color: '#0a84ff' },
+      { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(255,159,10,0.45)', dots: true },
+      { label: 'Trend', data: recent.map((t) => roundTo(t.trend, 0.1)), color: FITNESS.body },
     ],
     [recent],
   );
 
   return (
     <>
-      <Section title="Weight">
-        <Stats
-          items={[
-            ['Trend', last ? fmt(last.trend, 1) : '—'],
-            ['7-day avg', avg7 ? fmt(avg7, 1) : '—'],
-            ['Per week', rate === null ? '—' : `${rate > 0 ? '+' : ''}${fmt(rate, 2)}`, `goal ${settings.targetRate > 0 ? '+' : ''}${settings.targetRate}`],
-          ]}
-        />
-        {recent.length > 1 && (
-          <Cell className="py-3">
-            <LineChart labels={labels} series={series} unit=" lb" height={150} />
-          </Cell>
-        )}
-      </Section>
+      <div className="fit-stack">
+        <FitCard title="Weight">
+          <StatGrid
+            color={FITNESS.body}
+            items={[
+              ['Trend', last ? fmt(last.trend, 1) : null, last ? 'LB' : undefined],
+              ['7-Day Avg', avg7 ? fmt(avg7, 1) : null, avg7 ? 'LB' : undefined],
+              ['Per Week', rate === null ? null : `${rate > 0 ? '+' : ''}${fmt(rate, 2)}`, rate === null ? undefined : 'LB'],
+            ]}
+          />
+          {recent.length > 1 && (
+            <div className="fit-chart">
+              <LineChart labels={labels} series={series} unit=" lb" height={150} />
+            </div>
+          )}
+        </FitCard>
 
-      <Section title="Daily Calories">
-        {energy ? (
-          <>
-            <Row title="Burn per Day" right={`${fmt(energy.tdee)} kcal`} />
-            <Row title="Average Intake" right={`${fmt(energy.avgIntake)} kcal`} />
-            <Row title={`For ${settings.targetRate} lb/week`} right={<span className="font-semibold text-accent">{fmt(energy.recommended)} kcal</span>} />
-            {Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
-              <Row
-                accent
-                title={`Set Target to ${fmt(energy.recommended)}`}
-                onClick={async () => {
-                  await saveSettings({ kcalTarget: energy.recommended });
-                  toast(`Target set to ${fmt(energy.recommended)} kcal`);
-                }}
-              />
-            )}
-          </>
-        ) : (
-          <EmptyRow>Needs 2 Weeks of Logs</EmptyRow>
-        )}
-      </Section>
+        <FitCard title="Daily Calories">
+          <StatGrid
+            color={FITNESS.move}
+            items={[
+              ['Burn', energy ? fmt(energy.tdee) : null, energy ? 'KCAL' : undefined],
+              ['Intake', energy ? fmt(energy.avgIntake) : null, energy ? 'KCAL' : undefined],
+              ['Target', energy ? fmt(energy.recommended) : null, energy ? 'KCAL' : undefined],
+            ]}
+          />
+          {energy && Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
+            <Btn
+              size="md"
+              className="mt-4 w-full"
+              onClick={async () => {
+                await saveSettings({ kcalTarget: energy.recommended });
+                toast(`Target set to ${fmt(energy.recommended)} kcal`);
+              }}
+            >
+              Use {fmt(energy.recommended)} kcal
+            </Btn>
+          )}
+        </FitCard>
+      </div>
 
       <Section title="Measurements">
         {SIZES.map((s) => (
@@ -230,7 +232,7 @@ function Food() {
   const chartDays = [...logged].reverse();
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Calories', data: chartDays.map((d) => Math.round(d.kcal)), color: '#ff9f0a' },
+      { label: 'Calories', data: chartDays.map((d) => Math.round(d.kcal)), color: FITNESS.move },
       { label: 'Target', data: chartDays.map(() => settings.kcalTarget), color: 'rgba(255,255,255,0.3)' },
     ],
     [chartDays, settings.kcalTarget],
@@ -238,25 +240,25 @@ function Food() {
 
   return (
     <>
-      <Section title="7-Day Averages">
-        <Stats
-          items={[
-            ['Calories', week.length ? fmt(avg('kcal')) : '—', `goal ${fmt(settings.kcalTarget)}`],
-            ['Protein', week.length ? `${fmt(avg('protein'))} g` : '—', `goal ${settings.proteinTarget} g`],
-            ['Water', pastWater.length ? `${fmt(avg('oz', pastWater))} oz` : '—', `goal ${settings.waterTargetOz} oz`],
-          ]}
-        />
-        {chartDays.length > 1 && (
-          <Cell className="py-3">
-            <LineChart labels={chartDays.map((d) => short(d.date))} series={series} unit=" kcal" height={140} />
-          </Cell>
-        )}
-      </Section>
+      <div className="fit-stack">
+        <FitCard title="7-Day Averages">
+          <div className="fit-grid3">
+            <FitStat label="Calories" value={week.length ? fmt(avg('kcal')) : null} unit={week.length ? 'KCAL' : undefined} color={FITNESS.move} small />
+            <FitStat label="Protein" value={week.length ? fmt(avg('protein')) : null} unit={week.length ? 'G' : undefined} color={FITNESS.exercise} small />
+            <FitStat label="Water" value={pastWater.length ? fmt(avg('oz', pastWater)) : null} unit={pastWater.length ? 'OZ' : undefined} color={FITNESS.distance} small />
+          </div>
+          {chartDays.length > 1 && (
+            <div className="fit-chart">
+              <LineChart labels={chartDays.map((d) => short(d.date))} series={series} unit=" kcal" height={140} />
+            </div>
+          )}
+        </FitCard>
+      </div>
       <Section title="By Day">
         {days
           .filter((d) => d.kcal > 0 || d.oz > 0)
           .map((d) => (
-            <Row key={d.date} title={longDate(d.date)} sub={`${fmt(d.protein)} g protein · ${fmt(d.oz)} oz water`} right={`${fmt(d.kcal)} kcal`} />
+            <Row key={d.date} title={longDate(d.date)} right={`${fmt(d.kcal)} kcal`} />
           ))}
         {!logged.length && !water.length && <EmptyRow>No Food Logs</EmptyRow>}
       </Section>
@@ -271,35 +273,33 @@ function Sleep() {
   const avg = averageSleep(entries, today());
   const recent = entries.filter((e) => e.date >= addDays(today(), -30));
   const labels = useMemo(() => recent.map((e) => short(e.date)), [recent]);
-  const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: recent.map((e) => roundTo(e.minutes / 60, 0.1)), color: '#bf5af2' }], [recent]);
+  const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: recent.map((e) => roundTo(e.minutes / 60, 0.1)), color: FITNESS.sleep }], [recent]);
 
   return (
     <>
-      <Section title="Sleep">
-        <Stats
-          items={[
-            ['Last night', lastNight ? formatMinutes(lastNight.minutes) : '—'],
-            ['7-night avg', avg ? formatMinutes(avg) : '—'],
-            ['Goal', formatMinutes(settings.sleepTargetMin)],
-          ]}
-        />
-        {recent.length > 1 && (
-          <Cell className="py-3">
-            <LineChart labels={labels} series={series} unit=" h" height={140} />
-          </Cell>
-        )}
-      </Section>
+      <div className="fit-stack">
+        <FitCard title="Sleep">
+          <StatGrid
+            color={FITNESS.sleep}
+            items={[
+              ['Last Night', lastNight ? formatMinutes(lastNight.minutes) : null],
+              ['7-Night Avg', avg ? formatMinutes(avg) : null],
+              ['Goal', formatMinutes(settings.sleepTargetMin)],
+            ]}
+          />
+          {recent.length > 1 && (
+            <div className="fit-chart">
+              <LineChart labels={labels} series={series} unit=" h" height={140} />
+            </div>
+          )}
+        </FitCard>
+      </div>
       <Section title="Nights">
         {[...entries]
           .reverse()
           .slice(0, 14)
           .map((e) => (
-            <Row
-              key={e.date}
-              title={longDate(e.date)}
-              sub={e.bedtime && e.wakeTime ? `${new Date(e.bedtime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${new Date(e.wakeTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : undefined}
-              right={formatMinutes(e.minutes)}
-            />
+            <Row key={e.date} title={longDate(e.date)} right={formatMinutes(e.minutes)} />
           ))}
         {!entries.length && <EmptyRow>No Sleep Logs</EmptyRow>}
       </Section>

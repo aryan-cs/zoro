@@ -53,7 +53,7 @@ select {
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 82px);
+  padding-bottom: calc(var(--tabbar-bottom) + 74px);
 }
 
 
@@ -401,16 +401,16 @@ select {
   opacity: 0.4;
 }
 
-/* ---------- Tab bar layout, measured from Fitness (iOS 27) ----------
- * Capsule 62pt tall with 21pt side margins; selected pill inset 4pt (54pt tall); symbol box
- * 24pt centered 24pt from the top; label 10pt semibold, 4pt under the symbol box.
+/* ---------- Tab bar layout, from Fitness (iOS 27), icons only ----------
+ * Capsule 54pt tall with 21pt side margins; selected pill inset 4pt; symbols centered.
  */
 .zoro-tabbar {
   padding-left: 21px !important;
   padding-right: 21px !important;
 }
-.zoro-tabbar .h-16 {
-  height: 62px !important;
+.zoro-tabbar .h-16,
+.zoro-tabbar .h-12 {
+  height: 54px !important; /* icons only */
 }
 .zoro-tabbar .k-link {
   z-index: 1; /* above the selection pill, so the pill never tints the symbol or label */

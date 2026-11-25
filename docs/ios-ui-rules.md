@@ -26,7 +26,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Buttons (Fitness setup's Continue) | Liquid Glass capsule, white 17pt semibold label: lg 52pt full width, md 44pt, sm 34pt / 15pt inside rows; red label for destructive, blue text only in headers |
 | Activity ring (Fitness) | 110pt across, 22pt stroke, track = ring color at ~18%, round caps from 12 o'clock, black arrow at the start, second lap past the goal with a shadow at its tip |
 | Ring values (Fitness) | label 15pt white, value below in the ring color, SF Rounded semibold (20pt; 28pt for a single ring) with a smaller uppercase unit ("41/170CAL") |
-| Tab bar (Fitness, iOS 27) | Glass capsule 62pt tall, 21pt side margins, #212121 over black with an even rim (slightly brighter along the bottom); selected tab is a dark #0A0A0A well inset 4pt top and bottom, ~3pt wider than its cell, no rim; SF Symbols ~19pt (medium) centered ~23pt from the top; 10pt semibold label ~41pt down; selected = tint |
+| Tab bar (Fitness, iOS 27) | Icons only (Aryan's choice): glass capsule 54pt tall; otherwise as Fitness: was 62pt with labels, 21pt side margins, #212121 over black with an even rim (slightly brighter along the bottom); selected tab is a dark #0A0A0A well inset 4pt top and bottom, ~3pt wider than its cell, no rim; SF Symbols ~19pt (medium) centered ~23pt from the top; 10pt semibold label ~41pt down; selected = tint |
 | Icons | Apple SF Symbols (medium; chevrons semibold) from `src/ui/sf.ts` via `<Sym name size>`; export more with `scripts/sf-symbols.swift` |
 | Summary cards (Fitness) | `FitCard`: #1C1C1E, 26pt corners, 16pt padding, 12pt apart, 17pt semibold title, gray 22pt chevron circle when the card opens something; `FitStat`: 15pt label over a 28pt SF Rounded value in a Fitness color (`FITNESS` in kit.tsx), units in small caps |
 | Bar icons | Regular weight, ~16.5pt (Fitness's toolbar icons: 1.67pt stroke); back chevron semibold 17.5pt; grouped buttons 48pt each in one capsule with 4pt ends |
@@ -38,7 +38,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Week strip (Calendar) | Swipe or drag a week at a time; picked day in a filled circle (blue if today, white otherwise), today's number blue; "Today" in the bar jumps back |
 | Alert buttons (iOS 27, measured) | Never a flat fill. Others: gray glass (#4D4D4F on the #39393A alert), white 17pt medium; preferred: blue-tinted glass, lighter than system blue (#1CAEFF) brightening to #30C1FF on the right; destructive: red label on gray glass |
 | Text case | Title Case for titles, headers, rows, buttons, labels and workout/exercise names (small words like "to", "per", "or" lowercase mid-title); sentence case only for footnotes and messages |
-| Empty values | Gray "No Data" in the value's place (Health), never "--" |
+| Empty values | A gray em dash (—) in the value's place, everywhere; list placeholders ("No Items") are separate |
 | Cards | No decorative info tiles that look like buttons; a tile must do something |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 

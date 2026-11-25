@@ -242,6 +242,8 @@ export const FITNESS = {
   /** Not in Fitness: Health's sleep indigo and body orange, at Fitness's brightness. */
   sleep: '#7d7aff',
   body: '#ff9f0a',
+  /** Carbs: a vivid orange, as bright as the other rings. */
+  carbs: '#ff9500',
 };
 
 /** Ring gradients sampled from Apple's Activity rings: start color at 12 o'clock to end color a full lap later. */
@@ -249,6 +251,7 @@ export const RING_GRADIENT = {
   move: ['#e2001a', '#ff3d97'],
   exercise: ['#3edd00', '#b8ff00'],
   stand: ['#00b8e6', '#00f5d4'],
+  carbs: ['#ff6a00', '#ffb800'],
   steps: ['#7d5bf0', '#c3a8ff'],
   distance: ['#0091ff', '#00d9ff'],
 } as const;
@@ -442,14 +445,14 @@ export function WorkoutCard(props: {
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
-export function FitStat(props: { label: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode }) {
-  // No value yet: Health shows a gray "No Data" in the value's place.
+export function FitStat(props: { label: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
+  // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
   return (
-    <div className="fit-stat">
+    <div className={`fit-stat ${props.small ? 'is-small' : ''}`}>
       <div className="fit-stat-label">{props.label}</div>
       <div className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
-        {empty ? 'No Data' : props.value}
+        {empty ? '—' : props.value}
         {!empty && props.unit && <small>{props.unit}</small>}
       </div>
       {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
@@ -463,7 +466,7 @@ export function MacroSummary({ totals, settings }: { totals: Macros; settings: S
   const rows: [string, number, number, string, string, readonly [string, string], RingGlyph][] = [
     ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL', RING_GRADIENT.move, 'arrow'],
     ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G', RING_GRADIENT.exercise, 'double'],
-    ['Carbs', totals.carbs, carbs, FITNESS.stand, 'G', RING_GRADIENT.stand, 'up'],
+    ['Carbs', totals.carbs, carbs, FITNESS.carbs, 'G', RING_GRADIENT.carbs, 'up'],
     ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'chevron'],
   ];
   // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings keep

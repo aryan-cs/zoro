@@ -63,7 +63,7 @@ function Tabs() {
   const { tab } = useNavState();
   const { setTab } = useNav();
   return (
-    <Tabbar icons labels className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
+    <Tabbar icons className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
       <ToolbarPane {...({ highlight: false } as object)}>
         {TABS.map((t) => (
           <TabbarLink
@@ -72,7 +72,6 @@ function Tabs() {
             onClick={() => setTab(t.id)}
             aria-label={t.label}
             icon={<Sym name={t.icon} size={19} />}
-            label={t.label}
           />
         ))}
       </ToolbarPane>

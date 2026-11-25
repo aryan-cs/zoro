@@ -129,7 +129,7 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
               [
                 ['Calories', macros.kcal, 'KCAL', FITNESS.move],
                 ['Protein', macros.protein, 'G', FITNESS.exercise],
-                ['Carbs', macros.carbs, 'G', FITNESS.stand],
+                ['Carbs', macros.carbs, 'G', FITNESS.carbs],
                 ['Fat', macros.fat, 'G', FITNESS.steps],
               ] as const
             ).map(([label, v, u, color]) => (
