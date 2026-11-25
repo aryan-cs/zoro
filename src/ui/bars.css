@@ -1640,3 +1640,99 @@ button.meal-row:not(:disabled):active {
 .wt-change.is-down {
   color: #ff453a;
 }
+
+/* ---------- Today: welcome ---------- */
+/* Date in small gray caps over a large greeting, like Fitness's Summary title. */
+.hello {
+  padding: 2px 20px 0;
+}
+.hello-date {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #8d8d93;
+}
+.hello-title {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.01em;
+}
+/* Three goal rings side by side, each with its name and value under it. */
+.fit-card.today-rings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 18px 8px 16px;
+}
+.ring-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.ring-tile:active {
+  opacity: 0.6;
+}
+.ring-tile svg {
+  width: 84px;
+  height: 84px;
+}
+.ring-tile-label {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #8d8d93;
+}
+.ring-tile-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* A macro per row: name and amount over a bar in its color. */
+.nut-row + .nut-row {
+  margin-top: 14px;
+}
+.nut-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  font-size: 15px;
+  line-height: 20px;
+}
+.nut-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.nut-value small {
+  margin-left: 1px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8d8d93;
+}
+/* Weight and bench: label and value on the left, a note on the right, the chart below. */
+.chart-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chart-note {
+  padding-bottom: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #8d8d93;
+  white-space: nowrap;
+}
+.chart-head .wt-change {
+  padding-bottom: 6px;
+}

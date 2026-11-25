@@ -1,17 +1,19 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { addDays, carbTarget, e1rm, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
+import { TEMPLATES } from '../core/program';
+import { benchProgress } from '../core/progression';
+import { dayTotals, loadHistory, metricsOf, saveMetric, today, waterFor } from '../core/store';
+import type { Meal } from '../core/types';
+import { LineChart, type Series } from '../ui/LineChart';
+import { Bar, db, FITNESS, FitCard, fmt, Header, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
+import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
-import { useState, type CSSProperties, type ReactNode } from 'react';
-import { formatMinutes, programWeek } from '../core/calc';
-import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
-import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
-import type { Meal, TemplateId } from '../core/types';
-import { BigRing, db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
-
 
 export const longDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 
 /** The meal you're most likely logging right now. */
 export function mealNow(): Meal {
@@ -19,155 +21,234 @@ export function mealNow(): Meal {
   return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
 }
 
+/** One goal as a ring with its name and value under it (Sleep, Water, Workouts). */
+function RingTile(props: { label: string; value: string; progress: number; goal: number; colors: readonly [string, string]; glyph: SFName; color: string; onOpen: () => void }) {
+  return (
+    <button type="button" className="ring-tile" onClick={props.onOpen}>
+      <SingleRing value={props.progress} target={props.goal} colors={props.colors} glyph={props.glyph} />
+      <span className="ring-tile-label">{props.label}</span>
+      <span className="ring-tile-value" style={{ color: props.color }}>
+        {props.value}
+      </span>
+    </button>
+  );
+}
+
+/** "Protein   120/185 g" over a bar in the macro's color. */
+function NutritionRow(props: { label: string; value: number; target: number; unit: string; color: string }) {
+  return (
+    <div className="nut-row">
+      <div className="nut-head">
+        <span>{props.label}</span>
+        <span className="nut-value" style={{ color: props.color }}>
+          {fmt(props.value)}
+          <small>
+            /{fmt(props.target)} {props.unit}
+          </small>
+        </span>
+      </div>
+      <Bar value={props.value} target={props.target} color={props.color} />
+    </div>
+  );
+}
+
+/** A card's label, its big value and an optional note on the right. */
+function ChartHead(props: { label: string; value: ReactNode; color: string; right?: ReactNode }) {
+  return (
+    <div className="chart-head">
+      <div>
+        <div className="fit-stat-label">{props.label}</div>
+        <div className="fit-stat-value" style={{ color: props.color }}>
+          {props.value}
+        </div>
+      </div>
+      {props.right}
+    </div>
+  );
+}
+
+/**
+ * Today: a welcome page. A greeting, rings for sleep, water and the week's workouts, a bar for
+ * each macro, then weight and bench strength with their trends. Every block opens its screen.
+ */
 export function TodayScreen() {
   const nav = useNav();
   const toast = useToast();
   const settings = useSettings();
   const date = today();
-  const weekday = new Date().getDay();
-  const week = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS);
-  const templateId = templateForWeekday(weekday, settings.daysPerWeek);
-  const second = SECOND_BY_WEEKDAY[weekday];
 
-  const sessions = useLiveQuery(() => db.sessions.where('date').equals(date).toArray(), [date]) ?? [];
-  const open = useLiveQuery(() => activeSession(), []);
   const totals = useLiveQuery(() => dayTotals(date, db), [date]) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
-  const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
+  const monday = nextMonday(addDays(date, -6));
+  const weekSessions = useLiveQuery(() => db.sessions.where('date').between(monday, addDays(monday, 6), true, true).toArray(), [monday]) ?? [];
+  const weekDone = new Set(weekSessions.filter((x) => x.finishedAt && !TEMPLATES[x.templateId].secondary).map((x) => x.date)).size;
+  const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
+  const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
   const [weighing, setWeighing] = useState(false);
 
-  const doneMain = sessions.find((s) => s.templateId === templateId && s.finishedAt);
-  const weighedToday = weights.find((w) => w.date === date);
-  // Change since the weigh-in before today, shown like a stock: green up, red down.
-  const before = [...weights].filter((w) => w.date < date).sort((x, y) => x.date.localeCompare(y.date)).at(-1);
-  const change = weighedToday && before ? Math.round((weighedToday.value - before.value) * 10) / 10 : null;
-
-  const start = async (id: TemplateId) => {
-    const sessionId = await startWorkout(id);
-    nav.push({ name: 'workout', sessionId });
-  };
-  const saveWeight = async (v: number) => {
-    await saveMetric('weight', v, date, db);
-    setWeighing(false);
-    toast('Weight saved');
-  };
-
-
-
-
-  // Today's sessions: one in progress (if it isn't today's), today's, and the optional one.
-  type Session = { id: TemplateId; color: string; done?: boolean; play: () => void };
-  const sessionsToday: Session[] = [];
-  if (open && open.templateId !== templateId)
-    sessionsToday.push({ id: open.templateId, color: FITNESS.exercise, play: () => open.id !== undefined && nav.push({ name: 'workout', sessionId: open.id }) });
-  if (templateId) sessionsToday.push({ id: templateId, color: FITNESS.exercise, done: !!doneMain, play: () => void start(templateId) });
-  if (second && !week.deload) sessionsToday.push({ id: second, color: FITNESS.steps, play: () => void start(second) });
-
-  // One session: a colored card with its figure. Several: a gray card with a round button each.
-  const workout: ReactNode =
-    sessionsToday.length === 0 ? (
-      <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.push({ name: 'screen', tab: 'lift' })} />
-    ) : sessionsToday.length === 1 ? (
-      <WorkoutCard
-        title={TEMPLATES[sessionsToday[0].id].name}
-        glyph={TEMPLATE_GLYPH[sessionsToday[0].id]}
-        color={sessionsToday[0].color}
-        done={sessionsToday[0].done}
-        onPlay={sessionsToday[0].play}
-        onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
-      />
-    ) : (
-      <FitCard bare title="Workouts" className="is-rect" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
-        <div className="wk-circles is-row">
-          {sessionsToday.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              aria-label={`${w.done ? 'Done: ' : 'Start '}${TEMPLATES[w.id].name}`}
-              className={`wk-circle ${w.done ? 'is-done' : ''}`}
-              style={{ '--tint': w.color } as CSSProperties}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!w.done) w.play();
-              }}
-            >
-              <Sym name={w.done ? 'checkmark.bold' : TEMPLATE_GLYPH[w.id]} size={w.done ? 16 : 20} />
-            </button>
-          ))}
-        </div>
-      </FitCard>
-    );
-
-  const food: ReactNode = (
-    <FitCard
-      bare
-      title="Food"
-      onOpen={() => nav.push({ name: 'screen', tab: 'food' })}
-    >
-      <MacroSummary totals={totals} settings={settings} />
-    </FitCard>
+  // Weight: the latest weigh-in, its change since the one before, and a month of trend.
+  const latest = weights.at(-1);
+  const prior = weights.at(-2);
+  const change = latest && prior ? roundTo(latest.value - prior.value, 0.1) : null;
+  const weighedToday = latest?.date === date;
+  const month = useMemo(() => weightTrend(weights).filter((t) => t.date >= addDays(date, -30)), [weights, date]);
+  const weightLabels = useMemo(() => (month.length ? month.map((t) => short(t.date)) : Array.from({ length: 30 }, (_, i) => short(addDays(date, i - 29)))), [month, date]);
+  const weightSeries = useMemo<Series[]>(
+    () =>
+      month.length
+        ? [
+            { label: 'Weigh-in', data: month.map((t) => t.weight), color: 'rgba(255,159,10,0.45)', dots: true },
+            { label: 'Trend', data: month.map((t) => roundTo(t.trend, 0.1)), color: FITNESS.body },
+          ]
+        : [],
+    [month],
   );
+
+  // Strength: the bench training max, the best estimated max so far, and its history against 225.
+  const bench = useMemo(() => {
+    const out: { date: string; e1rm: number }[] = [];
+    for (const h of [...history].reverse()) {
+      const sets = h.sets.filter((s) => (s.exerciseId === 'bench' || s.exerciseId === 'pausedBench') && s.weight > 0);
+      if (sets.length) out.push({ date: h.date, e1rm: Math.max(...sets.map((s) => e1rm(s.weight, s.reps))) });
+    }
+    return out;
+  }, [history]);
+  const trainingMax = benchProgress(settings, history).newMax ?? settings.benchMax;
+  const best = bench.length ? Math.max(...bench.map((b) => b.e1rm)) : null;
+  const benchLabels = useMemo(() => (bench.length ? bench.map((b) => short(b.date)) : Array.from({ length: 30 }, (_, i) => short(addDays(date, i - 29)))), [bench, date]);
+  const benchSeries = useMemo<Series[]>(
+    () =>
+      bench.length
+        ? [
+            { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
+            { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
+          ]
+        : [],
+    [bench],
+  );
+
+  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
+  const first = settings.name?.trim().split(/\s+/)[0];
 
   return (
     <Page className="tab-safe">
       <Header
-        title={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+        title=""
         right={
           <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
             <Sym name="gearshape" size={16.5} />
           </IconBtn>
         }
       />
-      {/* Food, Workouts and Sleep as full-width cards; Water and Weight as two squares below. */}
+      <div className="hello">
+        <div className="hello-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+        <h1 className="hello-title">{first ? `Hello, ${first}` : 'Hello'}</h1>
+      </div>
+
       <div className="fit-stack">
-        {food}
-        {workout}
-        <FitCard bare title="Sleep" className="is-rect" onOpen={() => nav.push({ name: 'logSleep' })}>
-          {/* Last night against the sleep goal: the ring on the left, the hours on the right. */}
-          <div className="rect-row">
-            <SingleRing className="rect-ring" value={sleep?.minutes ?? 0} target={settings.sleepTargetMin} colors={RING_GRADIENT.sleep} glyph="moon.fill" />
-            <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
+        {/* Sleep, water and the week's workouts, each a ring: halfway is half a ring. */}
+        <section className="fit-card is-bare today-rings">
+          <RingTile
+            label="Sleep"
+            value={sleep ? formatMinutes(sleep.minutes) : '—'}
+            progress={sleep?.minutes ?? 0}
+            goal={settings.sleepTargetMin}
+            colors={RING_GRADIENT.sleep}
+            glyph="moon.fill"
+            color={FITNESS.sleep}
+            onOpen={() => nav.push({ name: 'logSleep' })}
+          />
+          <RingTile
+            label="Water"
+            value={`${fmt(waterOz)} oz`}
+            progress={waterOz}
+            goal={settings.waterTargetOz}
+            colors={RING_GRADIENT.distance}
+            glyph="drop.fill"
+            color={FITNESS.distance}
+            onOpen={() => nav.push({ name: 'screen', tab: 'water' })}
+          />
+          <RingTile
+            label="Workouts"
+            value={`${weekDone}/${settings.daysPerWeek}`}
+            progress={weekDone}
+            goal={settings.daysPerWeek}
+            colors={RING_GRADIENT.exercise}
+            glyph="figure.run"
+            color={FITNESS.exercise}
+            onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
+          />
+        </section>
+
+        <FitCard bare title="Nutrition" onOpen={() => nav.push({ name: 'screen', tab: 'food' })}>
+          <NutritionRow label="Calories" value={totals.kcal} target={settings.kcalTarget} unit="kcal" color={FITNESS.move} />
+          <NutritionRow label="Protein" value={totals.protein} target={settings.proteinTarget} unit="g" color={FITNESS.exercise} />
+          <NutritionRow label="Carbs" value={totals.carbs} target={carbs} unit="g" color={FITNESS.carbs} />
+          <NutritionRow label="Fat" value={totals.fat} target={settings.fatTarget} unit="g" color={FITNESS.steps} />
+        </FitCard>
+
+        <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
+          <ChartHead
+            label={weighedToday || !latest ? 'Weight' : `Weight · ${longDate(latest.date)}`}
+            color={FITNESS.body}
+            value={
+              latest ? (
+                <>
+                  {fmt(latest.value, 1)}
+                  <small>LB</small>
+                </>
+              ) : (
+                <span className="text-[#8d8d93]">—</span>
+              )
+            }
+            right={
+              change ? (
+                <span className={`wt-change ${change > 0 ? 'is-up' : 'is-down'}`}>
+                  <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
+                  {fmt(Math.abs(change), 1)} LB
+                </span>
+              ) : undefined
+            }
+          />
+          <div className="fit-chart">
+            <LineChart labels={weightLabels} series={weightSeries} unit=" lb" height={120} />
           </div>
         </FitCard>
-        <div className="fit-grid is-squares">
-          <FitCard bare title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
-            {/* The day's ring filling the square, the ounces inside it. */}
-            <div className="sq-ring">
-              <BigRing value={waterOz} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
-              <div className="sq-ring-value">
-                {fmt(waterOz)}
-                <small>OZ</small>
-              </div>
-            </div>
-          </FitCard>
-          <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
-            <FitStat
-              value={weighedToday ? fmt(weighedToday.value, 1) : null}
-              unit={weighedToday ? 'LB' : undefined}
-              color={FITNESS.body}
-              sub={
-                change ? (
-                  <span className={`wt-change ${change > 0 ? 'is-up' : 'is-down'}`}>
-                    <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
-                    {fmt(Math.abs(change), 1)} LB
-                  </span>
-                ) : undefined
-              }
-            />
-          </FitCard>
-        </div>
+
+        <FitCard bare title="Bench Press" onOpen={() => nav.push({ name: 'screen', tab: 'history', section: 'lifts' })}>
+          <ChartHead
+            label="Bench Training Max"
+            color={FITNESS.exercise}
+            value={
+              <>
+                {fmt(trainingMax)}
+                <small>LB</small>
+              </>
+            }
+            right={<span className="chart-note">{best ? `Best ${fmt(best)} · Goal 225` : 'Goal 225 lb'}</span>}
+          />
+          <Bar value={best ?? trainingMax} target={225} color={FITNESS.exercise} className="mt-3" />
+          <div className="fit-chart">
+            <LineChart labels={benchLabels} series={benchSeries} unit=" lb" height={120} />
+          </div>
+        </FitCard>
       </div>
+
       <NumberPrompt
         opened={weighing}
         title="Morning Weight"
         unit="lb"
-        initial={weights.length ? fmt(weights[weights.length - 1].value, 1) : undefined}
+        initial={latest ? fmt(latest.value, 1) : undefined}
         min={80}
         max={400}
         onCancel={() => setWeighing(false)}
-        onSave={(v) => void saveWeight(v)}
+        onSave={async (v) => {
+          await saveMetric('weight', v, date, db);
+          setWeighing(false);
+          toast('Weight saved');
+        }}
       />
     </Page>
   );

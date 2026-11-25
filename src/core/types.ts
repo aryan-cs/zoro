@@ -204,6 +204,8 @@ export interface Settings {
   waterTargetOz: number;
   /** The four quick-add amounts on the Water tab, in ounces (hold one to change it). */
   waterPresets?: number[];
+  /** First name for Today's greeting. */
+  name?: string;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

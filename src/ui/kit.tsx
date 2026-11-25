@@ -315,6 +315,10 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
   const [ex, ey] = onRing(cx, cy, r, end);
   const [ox, oy] = onRing(cx, cy, r, over);
   const [sx, sy] = onRing(cx, cy, r, 0);
+  // The glyph rides the ring's leading end (at 25% it sits at 3 o'clock); at the top while empty
+  // or exactly full, and on the second lap's tip past the goal.
+  const lead = p === 0 || closed ? 0 : over > 0 ? over : end;
+  const [gx, gy] = onRing(cx, cy, r, lead);
   const g = w * 0.22; // arrow half-size
   // On the cap, a deep shade of the ring's own color (pure black read as a hole); on an empty
   // track, the ring color itself so the glyph stays legible.
@@ -324,7 +328,8 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
   if (glyph === 'arrow') {
     glyphEl = (
       <path
-        d={`M${sx - g} ${sy}h${g * 2}m${-g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`}
+        d={`M${gx - g} ${gy}h${g * 2}m${-g * 0.85} ${-g * 0.85}l${g * 0.85} ${g * 0.85}l${-g * 0.85} ${g * 0.85}`}
+        transform={`rotate(${lead} ${gx} ${gy})`}
         fill="none"
         stroke={ink}
         strokeOpacity={inkOpacity}
@@ -334,7 +339,7 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
       />
     );
   } else {
-    // The symbol fits a box 60% of the ring's width, centered on the start cap.
+    // The symbol fits a box 60% of the ring's width, centered on the leading cap.
     const sym = SF[glyph];
     const k = (w * 0.6) / Math.max(sym.w, sym.h);
     glyphEl = (
@@ -343,7 +348,7 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
         fill={ink}
         fillOpacity={inkOpacity}
         fillRule={sym.e ? 'evenodd' : 'nonzero'}
-        transform={`translate(${sx - (sym.w * k) / 2} ${sy - (sym.h * k) / 2}) scale(${k})`}
+        transform={`translate(${gx - (sym.w * k) / 2} ${gy - (sym.h * k) / 2}) scale(${k})`}
       />
     );
   }
