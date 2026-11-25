@@ -231,13 +231,13 @@
 
 /* ---------- Segmented control ---------- */
 .ios-segmented {
-  /* Sized from Health's D/W/M/6M/Y control (iOS 27): 30pt track, thumb inset 2.5pt, 13pt
-   * medium labels that keep their weight when selected; drawn as Liquid Glass. */
+  /* Liquid Glass track: 36pt tall (taller than Health's 30pt D/W/M control, as asked), thumb
+   * inset 3pt, 15pt medium labels that keep their weight when selected. */
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--count), minmax(0, 1fr));
-  height: 30px;
-  padding: 2.5px;
+  height: 36px;
+  padding: 3px;
   border-radius: 999px;
   /* Liquid Glass track, matching the tab bar and buttons. */
   background: rgba(255, 255, 255, 0.08);
@@ -250,10 +250,10 @@
 }
 .ios-segmented-thumb {
   position: absolute;
-  top: 2.5px;
-  bottom: 2.5px;
-  left: 2.5px;
-  width: calc((100% - 5px) / var(--count));
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--count));
   border-radius: 999px;
   /* Glass lens for the selection: lighter, with a bright rim top and bottom. */
   background: rgba(255, 255, 255, 0.2);
@@ -272,7 +272,7 @@
   z-index: 1;
   padding: 0 10px;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ios-label);
   -webkit-tap-highlight-color: transparent;
@@ -597,15 +597,11 @@ button.meal-row:not(:disabled):active {
   color: var(--ios-blue);
   font-weight: 600;
 }
-/* The picked day: a filled circle, blue when it's today, white otherwise (as in Calendar). */
+/* The picked day: a white circle with black numerals, today included. */
 .lift-day.is-sel .lift-day-num {
   background: #fff;
   color: #000;
   font-weight: 600;
-}
-.lift-day.is-sel.is-today .lift-day-num {
-  background: var(--ios-blue);
-  color: #fff;
 }
 .lift-day-dot {
   width: 5px;
@@ -1093,8 +1089,8 @@ button.meal-row:not(:disabled):active {
   padding: 12px 16px;
 }
 .big-ring {
-  width: min(62vw, 250px);
-  height: min(62vw, 250px);
+  width: min(74vw, 290px);
+  height: min(74vw, 290px);
 }
 .water-pct {
   margin-top: 16px;
@@ -1264,6 +1260,19 @@ button.meal-row:not(:disabled):active {
     transform: scale(0.4);
   }
 }
+/* Closing: shrinks and fades back into the button it came from. */
+.ios-menu.is-closing {
+  animation: ios-menu-out 0.22s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+.ios-menu-scrim.is-closing {
+  pointer-events: none;
+}
+@keyframes ios-menu-out {
+  to {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
 .ios-menu-item {
   display: flex;
   align-items: center;
@@ -1413,6 +1422,34 @@ button.meal-row:not(:disabled):active {
   border-radius: 18px; /* Fitness summary cards measure ~17pt (lists are 26pt) */
   background: var(--ios-cell);
   text-align: center;
+}
+.sleep-card.sleep-import {
+  padding: 16px;
+  text-align: left;
+}
+.sleep-import-add {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin-bottom: 14px;
+  font-size: 17px;
+  line-height: 22px;
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+}
+.sleep-import-add:active {
+  opacity: 0.5;
+}
+.sleep-import-add svg {
+  color: rgba(235, 235, 245, 0.3);
+}
+.sleep-import-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 .sleep-times {
   display: grid;

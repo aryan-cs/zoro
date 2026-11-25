@@ -12,11 +12,17 @@ import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, NumberProm
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
-type Tab = 'lifts' | 'body' | 'food' | 'sleep';
+export type HistoryTab = 'lifts' | 'body' | 'food' | 'sleep';
+type Tab = HistoryTab;
 const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 const shortDay = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 /** Stats side by side in a Fitness card: label over a colored SF Rounded value. Empty values are a dash. */
+/** Date labels for the last `n` days, for a chart with nothing in it yet. */
+function emptyDays(n: number) {
+  return Array.from({ length: n }, (_, i) => short(addDays(today(), i - n + 1)));
+}
+
 function StatGrid({ items, color }: { items: [string, string | null, string?][]; color: string }) {
   return (
     <div className="fit-grid3">
@@ -45,12 +51,15 @@ function Lifts() {
     return out;
   }, [history]);
   const bench = [...(best.bench ?? []), ...(best.pausedBench ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const labels = useMemo(() => bench.map((b) => short(b.date)), [bench]);
+  const labels = useMemo(() => (bench.length ? bench.map((b) => short(b.date)) : emptyDays(30)), [bench]);
   const series = useMemo<Series[]>(
-    () => [
-      { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-      { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
-    ],
+    () =>
+      bench.length
+        ? [
+            { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
+            { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
+          ]
+        : [],
     [bench],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
@@ -71,11 +80,9 @@ function Lifts() {
             ]}
           />
           <Bar value={bench.length ? Math.max(...bench.map((b) => b.e1rm)) : trainingMax} target={225} color={FITNESS.exercise} className="mt-4" />
-          {bench.length > 1 && (
-            <div className="fit-chart">
-              <LineChart labels={labels} series={series} unit=" lb" height={150} />
-            </div>
-          )}
+          <div className="fit-chart">
+            <LineChart labels={labels} series={series} unit=" lb" height={150} />
+          </div>
         </FitCard>
       </div>
 
@@ -152,9 +159,21 @@ function Body() {
   const rate = weeklyRate(trend);
   const avg7 = sevenDayAverage(weights, today());
   const energy = estimateEnergy(intake, trend, settings.targetRate);
+  const calDays = useMemo(() => Array.from({ length: 30 }, (_, i) => addDays(today(), i - 29)), []);
+  const calLabels = useMemo(() => calDays.map(short), [calDays]);
+  const calSeries = useMemo<Series[]>(
+    () =>
+      intake.length
+        ? [
+            { label: 'Intake', data: calDays.map((d) => { const k = intake.find((x) => x.date === d)?.kcal; return k ? Math.round(k) : null; }), color: FITNESS.move },
+            { label: 'Target', data: calDays.map(() => settings.kcalTarget), color: 'rgba(255,255,255,0.3)' },
+          ]
+        : [],
+    [calDays, intake, settings.kcalTarget],
+  );
 
   const recent = trend.filter((t) => t.date >= addDays(today(), -90));
-  const labels = useMemo(() => recent.map((t) => short(t.date)), [recent]);
+  const labels = useMemo(() => (recent.length ? recent.map((t) => short(t.date)) : emptyDays(30)), [recent]);
   const series = useMemo<Series[]>(
     () => [
       { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(255,159,10,0.45)', dots: true },
@@ -175,11 +194,9 @@ function Body() {
               ['Per Week', rate === null ? null : `${rate > 0 ? '+' : ''}${fmt(rate, 2)}`, rate === null ? undefined : 'LB'],
             ]}
           />
-          {recent.length > 1 && (
-            <div className="fit-chart">
-              <LineChart labels={labels} series={series} unit=" lb" height={150} />
-            </div>
-          )}
+          <div className="fit-chart">
+            <LineChart labels={labels} series={series} unit=" lb" height={150} />
+          </div>
         </FitCard>
 
         <FitCard title="Daily Calories">
@@ -191,6 +208,9 @@ function Body() {
               ['Target', energy ? fmt(energy.recommended) : null, energy ? 'KCAL' : undefined],
             ]}
           />
+          <div className="fit-chart">
+            <LineChart labels={calLabels} series={calSeries} unit=" kcal" height={140} />
+          </div>
           {energy && Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
             <Btn
               size="md"
@@ -251,11 +271,9 @@ function Food() {
             <FitStat label="Protein" value={week.length ? fmt(avg('protein')) : null} unit={week.length ? 'G' : undefined} color={FITNESS.exercise} small />
             <FitStat label="Water" value={pastWater.length ? fmt(avg('oz', pastWater)) : null} unit={pastWater.length ? 'OZ' : undefined} color={FITNESS.distance} small />
           </div>
-          {chartDays.length > 1 && (
-            <div className="fit-chart">
-              <LineChart labels={chartDays.map((d) => short(d.date))} series={series} unit=" kcal" height={140} />
-            </div>
-          )}
+          <div className="fit-chart">
+            <LineChart labels={chartDays.length ? chartDays.map((d) => short(d.date)) : emptyDays(14)} series={chartDays.length ? series : []} unit=" kcal" height={140} />
+          </div>
         </FitCard>
       </div>
       <Section title="By Day">
@@ -276,7 +294,7 @@ function Sleep() {
   const lastNight = entries.find((e) => e.date === today());
   const avg = averageSleep(entries, today());
   const recent = entries.filter((e) => e.date >= addDays(today(), -30));
-  const labels = useMemo(() => recent.map((e) => short(e.date)), [recent]);
+  const labels = useMemo(() => (recent.length ? recent.map((e) => short(e.date)) : emptyDays(30)), [recent]);
   const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: recent.map((e) => roundTo(e.minutes / 60, 0.1)), color: FITNESS.sleep }], [recent]);
 
   return (
@@ -291,11 +309,9 @@ function Sleep() {
               ['Goal', formatMinutes(settings.sleepTargetMin)],
             ]}
           />
-          {recent.length > 1 && (
-            <div className="fit-chart">
-              <LineChart labels={labels} series={series} unit=" h" height={140} />
-            </div>
-          )}
+          <div className="fit-chart">
+            <LineChart labels={labels} series={series} unit=" h" height={140} />
+          </div>
         </FitCard>
       </div>
       <Section title="Nights">
@@ -311,8 +327,8 @@ function Sleep() {
   );
 }
 
-export function HistoryScreen() {
-  const [tab, setTab] = useState<Tab>('lifts');
+export function HistoryScreen({ initial }: { initial?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initial ?? 'lifts');
   return (
     <Page className="tab-safe">
       <Header title="History">

@@ -5,6 +5,7 @@ import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
 import { Btn, db, Header, Row, Section, useSettings, useToast } from '../ui/kit';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
+import { Sym } from '../ui/Sym';
 
 /** "8 hr 15 min", as Health writes durations. */
 const hrMin = (min: number) => `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`;
@@ -86,43 +87,51 @@ export function LogSleepScreen() {
     <Page className="tab-safe">
       <Header title="Log Sleep" onBack={nav.pop} />
 
-      <Section title="From Apple Health">
-        {!installed && <Row title="Add Zoro Sleep Shortcut" chevron onClick={addSleepShortcut} />}
-        <Row
-          accent
-          title="1. Copy Sleep"
-          onClick={() => {
-            // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
-            if (shortcutState() === 'none') addSleepShortcut();
-            else window.location.href = RUN_URL;
-          }}
-        />
-        <Row accent title="2. Paste Sleep" onClick={() => void pasteFromClipboard()} />
-        {manualPaste && (
-          <>
-            <ListInput
-              type="textarea"
-              label="Sleep Data"
-              value={paste}
-              onChange={(e) => setPaste(e.target.value)}
-              onPaste={(e) => {
-                const text = e.clipboardData.getData('text');
-                if (text) {
-                  e.preventDefault();
-                  void importText(text);
-                }
+      <div className="fit-stack">
+        {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
+        <div className="sleep-card sleep-import">
+          {!installed && (
+            <button type="button" className="sleep-import-add" onClick={addSleepShortcut}>
+              <span>Add Zoro Sleep Shortcut</span>
+              <Sym name="chevron.right" size={13} />
+            </button>
+          )}
+          <div className="sleep-import-btns">
+            <Btn
+              onClick={() => {
+                // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
+                if (shortcutState() === 'none') addSleepShortcut();
+                else window.location.href = RUN_URL;
               }}
-              placeholder="Touch and hold to paste"
-            />
-            {paste.trim() && (
-              <Row accent title="Import" onClick={() => void importText(paste)} />
-            )}
-          </>
-        )}
-      </Section>
+            >
+              Copy
+            </Btn>
+            <Btn onClick={() => void pasteFromClipboard()}>Paste</Btn>
+          </div>
+        </div>
+      </div>
+      {manualPaste && (
+        <Section>
+          <ListInput
+            type="textarea"
+            label="Sleep Data"
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text');
+              if (text) {
+                e.preventDefault();
+                void importText(text);
+              }
+            }}
+            placeholder="Touch and hold to paste"
+          />
+          {paste.trim() && <Row accent title="Import" onClick={() => void importText(paste)} />}
+        </Section>
+      )}
 
       {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
-      <Section title="Manual" plain>
+      <div className="fit-stack">
         <div className="sleep-card">
           <div className="sleep-times">
             <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
@@ -139,11 +148,10 @@ export function LogSleepScreen() {
           <div className="sleep-total">{hrMin(span)}</div>
           <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'This meets your sleep goal.' : `${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
         </div>
-        <Btn kind="tint" size="lg" className="mt-3" onClick={() => void saveManual()}>
+        <Btn size="lg" onClick={() => void saveManual()}>
           Save
         </Btn>
-      </Section>
-
+      </div>
     </Page>
   );
 }

@@ -2,7 +2,7 @@ import { Dialog, DialogButton, App as KonstaApp, Tabbar, TabbarLink, ToolbarPane
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AddFoodScreen } from './screens/AddFood';
 import { FoodScreen } from './screens/Food';
-import { HistoryScreen } from './screens/History';
+import { HistoryScreen, type HistoryTab } from './screens/History';
 import { LiftScreen } from './screens/Lift';
 import { LogSleepScreen } from './screens/LogSleep';
 import { SettingsScreen } from './screens/Settings';
@@ -14,7 +14,7 @@ import { ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { NavProvider, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { DIM, InStack, NavProvider, PARALLAX, PUSH_EASE, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -36,6 +36,19 @@ function RouteScreen({ route }: { route: Route }) {
       return <SleepSetupScreen />;
     case 'settings':
       return <SettingsScreen />;
+    case 'screen':
+      switch (route.tab) {
+        case 'water':
+          return <WaterScreen />;
+        case 'food':
+          return <FoodScreen />;
+        case 'today':
+          return <TodayScreen />;
+        case 'lift':
+          return <LiftScreen />;
+        case 'history':
+          return <HistoryScreen initial={route.section as HistoryTab | undefined} />;
+      }
   }
 }
 
@@ -103,31 +116,51 @@ const NO_SWIPE = 'input, textarea, select, [contenteditable], .k-stepper, .k-ran
 
 /**
  * A pushed screen: slides in from the right like a UINavigationController push and slides
- * out on Back. As in iOS 26, you can swipe right from anywhere on it (not just the edge)
- * to go back; it follows your finger and finishes or snaps back when you let go.
+ * out on Back, while the screen under it slides a third of the way left and dims (iOS's
+ * parallax). As in iOS 26, you can swipe right from anywhere on it (not just the edge) to go
+ * back; it and the screen under it follow your finger and finish or snap back when you let go.
  */
-const StackPage = memo(function StackPage({ entry }: { entry: Entry }) {
+const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; covered: boolean }) {
   const { pop } = useNav();
-  const onSwipeBack = () => pop(true);
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; t: number; active: boolean; dead: boolean } | null>(null);
+  const under = () => el.current?.previousElementSibling as HTMLElement | null;
 
-  const reset = () => {
+  /** Put this screen `dx` px in from the left and the one under it where that leaves it. */
+  const follow = (dx: number, animate: boolean) => {
     const node = el.current;
+    const u = under();
     if (!node) return;
-    node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
-    node.style.transform = 'translateX(0)';
+    const p = Math.min(1, Math.max(0, dx / node.offsetWidth)); // 0 = fully shown, 1 = gone
+    const t = animate ? `transform ${SLIDE_MS}ms ${PUSH_EASE}` : 'none';
+    node.style.transition = t;
+    node.style.transform = `translateX(${p * 100}%)`;
+    if (u) {
+      u.style.transition = t;
+      u.style.transform = `translateX(${-PARALLAX * (1 - p)}%)`;
+      u.style.setProperty('--dim', String(DIM * (1 - p)));
+      u.style.setProperty('--dim-ms', animate ? `${SLIDE_MS}ms` : '0ms');
+    }
+  };
+  /** Hand both screens back to their classes once an animation has landed. */
+  const release = () => {
+    for (const n of [el.current, under()]) {
+      if (!n) continue;
+      n.style.removeProperty('transition');
+      n.style.removeProperty('transform');
+      n.style.removeProperty('--dim');
+      n.style.removeProperty('--dim-ms');
+    }
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1 || (e.target as Element).closest?.(NO_SWIPE)) return;
+    if (covered || e.touches.length !== 1 || (e.target as Element).closest?.(NO_SWIPE)) return;
     const t = e.touches[0];
     drag.current = { x: t.clientX, y: t.clientY, t: Date.now(), active: false, dead: false };
   };
   const onTouchMove = (e: React.TouchEvent) => {
     const d = drag.current;
-    const node = el.current;
-    if (!d || d.dead || !node) return;
+    if (!d || d.dead) return;
     const t = e.touches[0];
     const dx = t.clientX - d.x;
     const dy = t.clientY - d.y;
@@ -140,8 +173,7 @@ const StackPage = memo(function StackPage({ entry }: { entry: Entry }) {
         return;
       }
     }
-    node.style.transition = 'none';
-    node.style.transform = `translateX(${Math.max(0, dx)}px)`;
+    follow(Math.max(0, dx), false);
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     const d = drag.current;
@@ -151,25 +183,35 @@ const StackPage = memo(function StackPage({ entry }: { entry: Entry }) {
     const dx = e.changedTouches[0].clientX - d.x;
     const fast = dx / Math.max(1, Date.now() - d.t) > 0.5;
     if (dx > node.offsetWidth * 0.35 || (fast && dx > 40)) {
-      node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
-      node.style.transform = 'translateX(100%)';
-      setTimeout(onSwipeBack, SLIDE_MS);
-    } else reset();
+      follow(node.offsetWidth, true);
+      setTimeout(() => {
+        release();
+        pop(true);
+      }, SLIDE_MS);
+    } else {
+      follow(0, true);
+      setTimeout(release, SLIDE_MS);
+    }
   };
 
   return (
     <div
       ref={el}
-      className={`stack-page absolute inset-0 z-30 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'}`}
+      className={`stack-layer stack-page absolute inset-0 z-30 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'} ${covered ? 'is-covered' : ''}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={() => {
-        if (drag.current?.active) reset();
+        if (drag.current?.active) {
+          follow(0, true);
+          setTimeout(release, SLIDE_MS);
+        }
         drag.current = null;
       }}
     >
-      <RouteScreen route={entry.route} />
+      <InStack.Provider value={true}>
+        <RouteScreen route={entry.route} />
+      </InStack.Provider>
     </div>
   );
 });
@@ -212,9 +254,12 @@ function Shell() {
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
       {TABS.map((t) => (
         <TabPane key={t.id} active={t.id === tab}>
-          <TabRoot tab={t.id} />
-          {stacks[t.id].map((e) => (
-            <StackPage key={e.id} entry={e} />
+          {/* Each screen knows whether a pushed screen is on top of it (then it sits back). */}
+          <div className={`stack-layer absolute inset-0 ${stacks[t.id].some((e) => !e.leaving) ? 'is-covered' : ''}`}>
+            <TabRoot tab={t.id} />
+          </div>
+          {stacks[t.id].map((e, i) => (
+            <StackPage key={e.id} entry={e} covered={stacks[t.id].slice(i + 1).some((x) => !x.leaving)} />
           ))}
         </TabPane>
       ))}

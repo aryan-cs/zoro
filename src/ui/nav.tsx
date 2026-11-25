@@ -8,7 +8,9 @@ export type Route =
   | { name: 'addFood'; meal?: Meal; date: ISODate; barcode?: string }
   | { name: 'logSleep' }
   | { name: 'sleepSetup' }
-  | { name: 'settings' };
+  | { name: 'settings' }
+  /** A tab's screen opened from a card (Today's Water, This Week…), pushed with a Back button. */
+  | { name: 'screen'; tab: Tab; section?: string };
 
 /** A pushed screen. `leaving` is set while it slides out. */
 export interface Entry {
@@ -17,15 +19,19 @@ export interface Entry {
   leaving?: boolean;
 }
 
-/** How long the iOS push/pop slide takes, in ms. */
-export const SLIDE_MS = 350;
+/** iOS push/pop: duration (ms), curve, how far the screen underneath moves left (% of its
+ * width) and how much it dims. Mirrored as --push-ms / --push-ease in index.css. */
+export const SLIDE_MS = 500;
+export const PUSH_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+export const PARALLAX = 30;
+export const DIM = 0.12;
 
 /** What screens use: stable functions, so a tab switch doesn't re-render every screen. */
 interface NavActions {
   setTab: (t: Tab) => void;
   push: (r: Route) => void;
   /** Slide the top screen away. `instant` skips the animation (after a swipe-back already moved it). */
-  pop: (instant?: boolean) => void;
+  pop: (instant?: boolean | unknown) => void;
   /** Switch tabs and open a screen there. */
   go: (t: Tab, r?: Route) => void;
 }
@@ -60,7 +66,9 @@ export function NavProvider({ children }: { children: ReactNode }) {
         const t = tabRef.current;
         setStacks((s) => ({ ...s, [t]: [...s[t], entry(r)] }));
       },
-      pop: (instant) => {
+      pop: (arg) => {
+        // Only an explicit `true` skips the slide: buttons wired straight to pop pass their click event.
+        const instant = arg === true;
         const t = tabRef.current;
         setStacks((s) => {
           const list = s[t];
@@ -99,3 +107,6 @@ export function useNavState(): NavState {
   if (!n) throw new Error('useNavState outside NavProvider');
   return n;
 }
+
+/** True inside a pushed screen: its navigation bar then shows Back even if the screen didn't ask. */
+export const InStack = createContext(false);

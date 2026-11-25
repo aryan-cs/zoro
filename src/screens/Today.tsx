@@ -56,7 +56,7 @@ export function TodayScreen() {
 
   const start = async (id: TemplateId) => {
     const sessionId = await startWorkout(id);
-    nav.go('lift', { name: 'workout', sessionId });
+    nav.push({ name: 'workout', sessionId });
   };
   const saveWeight = async (v: number) => {
     await saveMetric('weight', v, date, db);
@@ -72,14 +72,14 @@ export function TodayScreen() {
   type Session = { id: TemplateId; color: string; done?: boolean; play: () => void };
   const sessionsToday: Session[] = [];
   if (open && open.templateId !== templateId)
-    sessionsToday.push({ id: open.templateId, color: FITNESS.exercise, play: () => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id }) });
+    sessionsToday.push({ id: open.templateId, color: FITNESS.exercise, play: () => open.id !== undefined && nav.push({ name: 'workout', sessionId: open.id }) });
   if (templateId) sessionsToday.push({ id: templateId, color: FITNESS.exercise, done: !!doneMain, play: () => void start(templateId) });
   if (second && !week.deload) sessionsToday.push({ id: second, color: FITNESS.steps, play: () => void start(second) });
 
   // One session: a colored square with its figure. Several: a gray square with a button each.
   const workout: ReactNode =
     sessionsToday.length === 0 ? (
-      <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.go('lift')} />
+      <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.push({ name: 'screen', tab: 'lift' })} />
     ) : sessionsToday.length === 1 ? (
       <WorkoutCard
         title={TEMPLATES[sessionsToday[0].id].name}
@@ -87,10 +87,10 @@ export function TodayScreen() {
         color={sessionsToday[0].color}
         done={sessionsToday[0].done}
         onPlay={sessionsToday[0].play}
-        onOpen={() => nav.go('lift')}
+        onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
       />
     ) : (
-      <FitCard title="Workouts" onOpen={() => nav.go('lift')}>
+      <FitCard title="Workouts" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
         <div className={`wk-circles n${sessionsToday.length}`}>
           {sessionsToday.map((w) => (
             <button
@@ -114,7 +114,7 @@ export function TodayScreen() {
   const food: ReactNode = (
     <FitCard
       title="Food"
-      onOpen={() => nav.go('food')}
+      onOpen={() => nav.push({ name: 'screen', tab: 'food' })}
       trailing={foodDone ? <DoneMark /> : undefined}
     >
       <div className="sq-center">
@@ -137,13 +137,13 @@ export function TodayScreen() {
         <div className="fit-grid is-squares">
           {food}
           {workout}
-          <FitCard title="Water" onOpen={() => nav.go('water')}>
+          <FitCard title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
             <FitStat label="Today" value={`${fmt(waterOz)}/${fmt(settings.waterTargetOz)}`} unit="OZ" color={FITNESS.distance} />
           </FitCard>
           <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
             <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
           </FitCard>
-          <FitCard title="Weight" onOpen={() => (weighedToday ? nav.go('history') : setWeighing(true))}>
+          <FitCard title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat
               label="Today"
               value={weighedToday ? fmt(weighedToday.value, 1) : null}
@@ -152,7 +152,7 @@ export function TodayScreen() {
               sub={rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
             />
           </FitCard>
-          <FitCard title="This Week" onOpen={() => nav.go('lift')}>
+          <FitCard title="This Week" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
             <FitStat label="Workouts" value={`${weekDone}/${settings.daysPerWeek}`} color={FITNESS.exercise} />
           </FitCard>
         </div>

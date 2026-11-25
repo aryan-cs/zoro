@@ -345,10 +345,11 @@ function RingValue({ label, value, target, unit, color, big }: { label: string; 
 }
 
 /** A single large Fitness ring on its own, sized by the page (Water). */
-export function BigRing(props: { value: number; target: number; colors: readonly [string, string] }) {
+export function BigRing(props: { value: number; target: number; colors: readonly [string, string]; w?: number }) {
+  const w = props.w ?? 44;
   return (
     <svg viewBox="0 0 220 220" className="big-ring" aria-hidden>
-      <Ring c={[110, 110]} r={88} w={44} value={props.value} target={props.target} colors={props.colors} glyph="arrow" />
+      <Ring c={[110, 110]} r={110 - w / 2} w={w} value={props.value} target={props.target} colors={props.colors} glyph="arrow" />
     </svg>
   );
 }

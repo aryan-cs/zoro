@@ -1,5 +1,6 @@
 import { Sym } from './Sym';
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { InStack, useNav } from './nav';
 import './bars.css';
 
 /**
@@ -61,6 +62,10 @@ export function TabBar<T extends string>({ tabs, active, onSelect }: { tabs: Tab
 
 /** iOS navigation bar: 44pt row, centered 17pt semibold title, round glass buttons, optional row below. */
 export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: ReactNode; right?: ReactNode; children?: ReactNode }) {
+  // A tab's screen pushed from a card gets Back too (next to its own left button, if any).
+  const inStack = useContext(InStack);
+  const { pop } = useNav();
+  const onBack = props.onBack ?? (inStack ? () => pop() : undefined);
   // Show the scroll-edge fade only while content is scrolled under the bar.
   const ref = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -76,13 +81,12 @@ export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: Re
     <header ref={ref} className={`ios-navbar ${props.children ? 'has-sub' : ''} ${scrolled ? 'is-scrolled' : ''}`}>
       <div className="ios-navbar-row">
         <div className="ios-navbar-side">
-          {props.onBack ? (
-            <NavButton label="Back" onClick={props.onBack}>
+          {onBack && (
+            <NavButton label="Back" onClick={onBack}>
               <Sym name="chevron.left" size={17.5} />
             </NavButton>
-          ) : (
-            props.left
           )}
+          {props.left}
         </div>
         <h1 className="ios-navbar-title">{props.title}</h1>
         <div className="ios-navbar-side is-right">{props.right}</div>
@@ -119,27 +123,29 @@ export function NavButtonGroup({ items }: { items: { label: string; icon: ReactN
  * white 17pt items and their symbols on the right. Tapping outside closes it.
  */
 export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => void; items: { label: string; icon?: ReactNode; onClick: () => void }[] }) {
+  // Closing plays the open animation in reverse (back into the button), then tells the parent.
+  const [closing, setClosing] = useState(false);
   if (!props.anchor) return null;
   const a = props.anchor;
+  const close = (then?: () => void) => {
+    if (closing) return;
+    setClosing(true);
+    then?.();
+    window.setTimeout(() => {
+      setClosing(false);
+      props.onClose();
+    }, MENU_CLOSE_MS);
+  };
   return (
-    <div className="ios-menu-scrim" onClick={props.onClose}>
+    <div className={`ios-menu-scrim ${closing ? 'is-closing' : ''}`} onClick={() => close()}>
       <div
-        className="ios-menu"
+        className={`ios-menu ${closing ? 'is-closing' : ''}`}
         role="menu"
         style={{ top: a.bottom + 8, right: Math.max(16, window.innerWidth - a.right) }}
         onClick={(e) => e.stopPropagation()}
       >
         {props.items.map((i) => (
-          <button
-            key={i.label}
-            type="button"
-            role="menuitem"
-            className="ios-menu-item"
-            onClick={() => {
-              props.onClose();
-              i.onClick();
-            }}
-          >
+          <button key={i.label} type="button" role="menuitem" className="ios-menu-item" onClick={() => close(i.onClick)}>
             <span>{i.label}</span>
             {i.icon}
           </button>
@@ -148,6 +154,7 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
     </div>
   );
 }
+const MENU_CLOSE_MS = 220;
 
 /** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
 export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
