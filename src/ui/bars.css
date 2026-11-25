@@ -294,8 +294,7 @@ body > .meal-drag-ghost {
   box-shadow: inset 0 0 0 2px var(--ios-blue);
 }
 
-/* ---------- Meal cards: Settings-style grouped rows with icon tiles ---------- */
-/* Measured from Settings (iOS 27): 28pt tile 14pt in, 8pt radius; text and separators at 56pt. */
+/* ---------- Meal cards: Settings-style grouped rows (text and separators 16pt in) ---------- */
 .meal-card {
   margin: 0 16px;
   overflow: hidden;
@@ -309,7 +308,7 @@ body > .meal-drag-ghost {
   gap: 14px;
   width: 100%;
   min-height: 52px;
-  padding: 0 16px 0 56px;
+  padding: 0 16px;
   text-align: left;
   color: var(--ios-label);
   font-size: 17px;
@@ -320,16 +319,13 @@ body > .meal-drag-ghost {
   content: '';
   position: absolute;
   top: 0;
-  left: 56px;
+  left: 16px;
   right: 16px;
   height: 1px;
   background: #38383b;
 }
 button.meal-row:not(:disabled):active {
   background: #3a3a3c;
-}
-.meal-row.is-head {
-  padding-left: 14px;
 }
 .meal-row.is-head .meal-row-title {
   font-weight: 600;
@@ -341,16 +337,6 @@ button.meal-row:not(:disabled):active {
 .meal-row.is-item {
   padding-top: 8px;
   padding-bottom: 8px;
-}
-.meal-tile {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  color: #fff;
 }
 .meal-row-text {
   display: flex;

@@ -1,6 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
-import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { addDays, sumEntries } from '../core/calc';
@@ -11,16 +10,13 @@ import { Cell, db, fmt, Header, IconGroup, MacroSummary, Section, useSettings, u
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 
-/**
- * Meals in the order they're shown, with Settings-style icon tiles. Food added without a meal
- * goes to Other ('unsorted' in the data) until you drag it somewhere.
- */
-export const MEALS: { id: Meal; label: string; icon: SFName; color: string }[] = [
-  { id: 'breakfast', label: 'Breakfast', icon: 'sunrise.fill', color: '#ff9f0a' },
-  { id: 'lunch', label: 'Lunch', icon: 'sun.max.fill', color: '#30d158' },
-  { id: 'dinner', label: 'Dinner', icon: 'moon.fill', color: '#5e5ce6' },
-  { id: 'snack', label: 'Snacks', icon: 'popcorn.fill', color: '#ff375f' },
-  { id: 'unsorted', label: 'Other', icon: 'ellipsis', color: '#8e8e93' },
+/** Meals in the order they're shown. Food added without a meal goes to Other ('unsorted' in the data). */
+export const MEALS: { id: Meal; label: string }[] = [
+  { id: 'breakfast', label: 'Breakfast' },
+  { id: 'lunch', label: 'Lunch' },
+  { id: 'dinner', label: 'Dinner' },
+  { id: 'snack', label: 'Snacks' },
+  { id: 'unsorted', label: 'Other' },
 ];
 
 function dayLabel(date: string): string {
@@ -229,9 +225,6 @@ export function FoodScreen() {
             <div key={m.id} data-meal={m.id} className="zoro-section-untitled">
               <div className="meal-card">
                 <div className="meal-row is-head">
-                  <span className="meal-tile" style={{ background: m.color }}>
-                    <Sym name={m.icon} size={12.5} />
-                  </span>
                   <span className="meal-row-title">{m.label}</span>
                   {items.length > 0 && <span className="meal-row-value tabular">{fmt(kcal)} kcal</span>}
                 </div>
