@@ -234,35 +234,56 @@ export function Bar(props: { value: number; target: number; color: string; class
 }
 
 /** Calories left plus protein, carbs and fat, in one compact block. */
+/** One ring of the summary, like Apple Fitness: a tinted track, the progress arc, and a second lap that overlaps it past the goal. */
+function Ring({ r, value, target, color }: { r: number; value: number; target: number; color: string }) {
+  const c = 2 * Math.PI * r;
+  const p = target > 0 ? Math.max(0, value / target) : 0;
+  const arc = (frac: number, shadow?: boolean) => (
+    <circle
+      cx="52"
+      cy="52"
+      r={r}
+      fill="none"
+      stroke={color}
+      strokeWidth="10"
+      strokeLinecap="round"
+      strokeDasharray={`${Math.min(frac, 1) * c} ${c}`}
+      style={shadow ? { filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.7))' } : undefined}
+    />
+  );
+  return (
+    <g transform="rotate(-90 52 52)">
+      <circle cx="52" cy="52" r={r} fill="none" stroke={color} strokeOpacity="0.22" strokeWidth="10" />
+      {p > 0 && arc(p)}
+      {p > 1 && arc(p - 1, true)}
+    </g>
+  );
+}
+
+/** Today's calories and macros as concentric rings with the numbers beside them (Fitness's summary card). */
 export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
-  const left = settings.kcalTarget - totals.kcal;
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const rows: [string, number, number, string][] = [
-    ['Protein', totals.protein, settings.proteinTarget, '#30d158'],
-    ['Carbs', totals.carbs, carbs, '#0a84ff'],
-    ['Fat', totals.fat, settings.fatTarget, '#bf5af2'],
+  const rows: [string, number, number, string, string][] = [
+    ['Calories', totals.kcal, settings.kcalTarget, '#ff9f0a', 'KCAL'],
+    ['Protein', totals.protein, settings.proteinTarget, '#30d158', 'G'],
+    ['Carbs', totals.carbs, carbs, '#0a84ff', 'G'],
+    ['Fat', totals.fat, settings.fatTarget, '#bf5af2', 'G'],
   ];
   return (
-    <div className="py-1">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <span className={`tabular text-[26px] font-bold leading-none ${left < 0 ? 'text-[#ff453a]' : ''}`}>{fmt(Math.abs(left))}</span>
-          <span className={`ml-1.5 text-[15px] ${dim}`}>{left >= 0 ? 'kcal left' : 'kcal over'}</span>
-        </div>
-        <span className={`tabular text-[15px] ${dim}`}>
-          {fmt(totals.kcal)} / {fmt(settings.kcalTarget)}
-        </span>
-      </div>
-      <Bar value={totals.kcal} target={settings.kcalTarget} color="#ff9f0a" className="mt-2" />
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        {rows.map(([label, v, t, color]) => (
-          <div key={label}>
-            <div className={`text-[13px] ${dim}`}>{label}</div>
-            <div className="tabular text-[15px] font-medium">
-              {fmt(v)}
-              <span className={`font-normal ${dim}`}> / {fmt(t)} g</span>
-            </div>
-            <Bar value={v} target={t} color={color} className="mt-1" />
+    <div className="macro-rings">
+      <svg viewBox="0 0 104 104" className="macro-rings-art" aria-hidden>
+        {rows.map(([label, v, t, color], i) => (
+          <Ring key={label} r={47 - i * 12} value={v} target={t} color={color} />
+        ))}
+      </svg>
+      <div className="macro-rings-legend">
+        {rows.map(([label, v, t, color, unit]) => (
+          <div key={label} className="macro-rings-row">
+            <span>{label}</span>
+            <span className="macro-rings-value" style={{ color }}>
+              {fmt(v)}/{fmt(t)}
+              <small>{unit}</small>
+            </span>
           </div>
         ))}
       </div>

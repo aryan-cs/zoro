@@ -1,22 +1,22 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Actions, ActionsButton, ActionsGroup, ActionsLabel, ListItem, Page } from 'konsta/react';
-import { ChevronLeft, ChevronRight, ScanBarcode } from 'lucide-react';
+import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
+import { ChevronLeft, ChevronRight, Cookie, Inbox, Moon, Plus, Sandwich, ScanBarcode, Sunrise, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
 import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { Cell, db, dim, fmt, Header, IconBtn, MacroSummary, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Cell, db, fmt, Header, IconBtn, MacroSummary, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 
-/** Meals in the order they're shown. Scanned foods land in Unsorted until you drag them. */
-export const MEALS: { id: Meal; label: string }[] = [
-  { id: 'unsorted', label: 'Unsorted' },
-  { id: 'breakfast', label: 'Breakfast' },
-  { id: 'lunch', label: 'Lunch' },
-  { id: 'dinner', label: 'Dinner' },
-  { id: 'snack', label: 'Snacks' },
+/** Meals in the order they're shown, with Settings-style icon tiles. Scanned foods land in Unsorted until you drag them. */
+export const MEALS: { id: Meal; label: string; icon: LucideIcon; color: string }[] = [
+  { id: 'unsorted', label: 'Unsorted', icon: Inbox, color: '#8e8e93' },
+  { id: 'breakfast', label: 'Breakfast', icon: Sunrise, color: '#ff9f0a' },
+  { id: 'lunch', label: 'Lunch', icon: Sandwich, color: '#30d158' },
+  { id: 'dinner', label: 'Dinner', icon: Moon, color: '#5e5ce6' },
+  { id: 'snack', label: 'Snacks', icon: Cookie, color: '#ff375f' },
 ];
 
 function dayLabel(date: string): string {
@@ -217,31 +217,37 @@ export function FoodScreen() {
         {MEALS.map((m) => {
           const items = entries.filter((e) => e.meal === m.id);
           if (m.id === 'unsorted' && items.length === 0) return null;
-          const t = sumEntries(items);
+          const kcal = sumEntries(items).kcal;
+          const Icon = m.icon;
+          const add = m.id === 'unsorted' ? undefined : () => nav.push({ name: 'addFood', meal: m.id, date });
           return (
-            <div key={m.id} data-meal={m.id}>
-              <Section
-                title={m.label}
-                right={items.length > 0 ? <span className={`tabular text-[13px] ${dim}`}>{fmt(t.kcal)} kcal · {fmt(t.protein)} g protein</span> : undefined}
-              >
+            <div key={m.id} data-meal={m.id} className="zoro-section-untitled">
+              <div className="meal-card">
+                <button type="button" className="meal-row is-head" disabled={!add} onClick={add}>
+                  <span className="meal-tile" style={{ background: m.color }}>
+                    <Icon strokeWidth={2.2} />
+                  </span>
+                  <span className="meal-row-title">{m.label}</span>
+                  {items.length > 0 && <span className="meal-row-value tabular">{fmt(kcal)} kcal</span>}
+                  {add && (
+                    <span className="meal-add" aria-label={`Add to ${m.label}`}>
+                      <Plus strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+                {items.length === 0 && <div className="meal-row is-empty">No Items</div>}
                 {items.map((e) => (
-                  <ListItem
-                    key={e.id}
-                    data-entry-id={e.id}
-                    link
-                    chevron={false}
-                    title={e.name}
-                    subtitle={`${amountText(e)} · ${fmt(e.macros.protein)} g protein`}
-                    after={<span className="tabular">{fmt(e.macros.kcal)}</span>}
-                    onClick={() => setSelected(e)}
-                    innerClassName="zoro-row-inner min-w-0 !py-2"
-                    titleWrapClassName="zoro-row-title min-w-0 !min-h-0"
-                    strongTitle={false}
-                    className="meal-entry"
-                  />
+                  <button type="button" key={e.id} data-entry-id={e.id} className="meal-row is-item meal-entry" onClick={() => setSelected(e)}>
+                    <span className="meal-row-text">
+                      <span className="meal-row-title">{e.name}</span>
+                      <span className="meal-row-sub">
+                        {amountText(e)} · {fmt(e.macros.protein)} g protein
+                      </span>
+                    </span>
+                    <span className="meal-row-value tabular">{fmt(e.macros.kcal)}</span>
+                  </button>
                 ))}
-                {m.id !== 'unsorted' && <Row accent title="Add Food" onClick={() => nav.push({ name: 'addFood', meal: m.id, date })} />}
-              </Section>
+              </div>
             </div>
           );
         })}

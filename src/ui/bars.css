@@ -268,7 +268,7 @@
   user-select: none;
 }
 /* The lifted copy that follows your finger. */
-.meal-drag-ghost {
+body > .meal-drag-ghost {
   position: fixed;
   z-index: 60;
   list-style: none;
@@ -290,6 +290,149 @@
   opacity: 0.3;
 }
 /* The meal you'd drop into. */
-.meal-drop-target .k-list {
+.meal-drop-target .meal-card {
   box-shadow: inset 0 0 0 2px var(--ios-blue);
+}
+
+/* ---------- Meal cards: Settings-style grouped rows with icon tiles ---------- */
+/* Measured from Settings (iOS 27): 28pt tile 14pt in, 8pt radius; text and separators at 56pt. */
+.meal-card {
+  margin: 0 16px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--ios-cell);
+}
+.meal-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px 0 56px;
+  text-align: left;
+  color: var(--ios-label);
+  font-size: 17px;
+  line-height: 22px;
+  -webkit-tap-highlight-color: transparent;
+}
+.meal-row + .meal-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 56px;
+  right: 16px;
+  height: 1px;
+  background: #38383b;
+}
+button.meal-row:not(:disabled):active {
+  background: #3a3a3c;
+}
+.meal-row.is-head {
+  padding-left: 14px;
+}
+.meal-row.is-head .meal-row-title {
+  font-weight: 600;
+}
+.meal-row.is-empty {
+  min-height: 44px;
+  color: #8d8d93;
+}
+.meal-row.is-item {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.meal-tile {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #fff;
+}
+.meal-tile svg {
+  width: 18px;
+  height: 18px;
+}
+.meal-row-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+.meal-row-text .meal-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meal-row.is-head .meal-row-title {
+  flex: 1;
+}
+.meal-row-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 20px;
+  color: #98989f;
+}
+.meal-row-value {
+  flex-shrink: 0;
+  color: #98989f;
+}
+/* plus.circle.fill */
+.meal-add {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--ios-blue);
+  color: #fff;
+}
+.meal-add svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- Calories and macros as Fitness-style rings ---------- */
+.macro-rings {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 4px 0;
+}
+.macro-rings-art {
+  flex-shrink: 0;
+  width: 104px;
+  height: 104px;
+}
+.macro-rings-legend {
+  flex: 1;
+  min-width: 0;
+}
+.macro-rings-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ios-label);
+}
+.macro-rings-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.macro-rings-value small {
+  margin-left: 1px;
+  font-size: 12px;
+  font-weight: 600;
 }

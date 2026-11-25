@@ -20,6 +20,7 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Section header | 17pt semibold, `#8D8D93`, sentence case, at x=32pt; cap top 32pt below the card above, baseline 10pt above its card |
 | Cards with no header between | 35pt apart |
 | Footnote | 15pt, `#8D8D93`, at x=32pt, ~10pt below its card |
+| Row icon tile | 28pt square, 8pt radius, 14pt in from the card edge, ~18pt white glyph; row text and its separator then start 56pt in |
 | Navigation bar | 44pt row directly under the status bar; 17pt semibold centered title; 44pt round glass back button 16pt from the edge |
 | First section under the nav bar | header 19pt below (card 20pt if untitled) |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
