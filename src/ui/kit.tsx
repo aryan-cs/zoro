@@ -64,6 +64,8 @@ export function Header(props: { title: ReactNode; sub?: ReactNode; onBack?: () =
       right={props.right}
       subnavbar={props.children}
       bgClassName="!bg-none !bg-black !h-full"
+      // Center the title with flexbox instead of a GPU half-pixel shift, which Safari draws fuzzy.
+      titleClassName="!inset-0 !translate-none !transform-none flex flex-col items-center justify-center pointer-events-none"
       subnavbarClassName="!h-auto pb-2 pt-1"
     />
   );

@@ -120,3 +120,16 @@ select {
   background-color: #ff453a !important;
   color: #fff !important;
 }
+
+/*
+ * iOS softens the strip right under the status bar in Home Screen apps. Start the
+ * navigation bar a little lower so titles and buttons sit clear of it, on solid black.
+ */
+.k-navbar {
+  padding-top: calc(max(16px, var(--k-safe-area-top, 0px)) + 10px) !important;
+  background: #000;
+}
+.k-navbar .k-navbar-back-link,
+.k-navbar .k-link {
+  -webkit-font-smoothing: antialiased;
+}
