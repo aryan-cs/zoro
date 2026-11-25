@@ -52,7 +52,7 @@ select {
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 64px);
+  padding-bottom: calc(var(--tabbar-bottom) + 84px);
 }
 
 

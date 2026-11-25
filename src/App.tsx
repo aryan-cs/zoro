@@ -198,6 +198,8 @@ function Shell() {
           ))}
         </TabPane>
       ))}
+      {/* iOS 26's scroll edge effect: content softly fades out behind the floating tab bar. */}
+      <div className="ios-bottom-edge" aria-hidden />
       <Tabs />
     </>
   );
