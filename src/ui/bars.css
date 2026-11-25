@@ -133,7 +133,8 @@
   color: var(--ios-label);
 }
 .ios-navbar-sub {
-  padding: 0 16px 10px;
+  /* Clear the 44pt round bar buttons before the search field or segmented control. */
+  padding: 8px 16px 10px;
 }
 .ios-navbtn {
   display: inline-flex;
