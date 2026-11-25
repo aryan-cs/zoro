@@ -228,16 +228,16 @@ export function SettingsScreen() {
           accent
           title="Add Sample Week"
           onClick={async () => {
-            const n = await addSampleWeek();
-            toast(`Added ${n} sample foods`);
+            await addSampleWeek();
+            toast('Added a sample week');
           }}
         />
         <Row
           danger
           title="Remove Sample Data"
           onClick={async () => {
-            const n = await removeSampleData();
-            toast(n ? `Removed ${n} sample foods` : 'No sample data');
+            await removeSampleData();
+            toast('Sample data removed');
           }}
         />
       </Section>

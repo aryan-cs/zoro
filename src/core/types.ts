@@ -149,6 +149,8 @@ export interface WaterEntry {
   date: ISODate;
   oz: number;
   at: number;
+  /** Made by Settings › Add Sample Week. */
+  sample?: boolean;
 }
 
 export interface SavedMeal {
@@ -166,6 +168,8 @@ export interface SleepEntry {
   minutes: number;
   quality?: 1 | 2 | 3 | 4 | 5;
   source: 'manual' | 'shortcut';
+  /** Made by Settings › Add Sample Week. */
+  sample?: boolean;
 }
 
 export type MetricType = 'weight' | 'waist' | 'arm' | 'forearm' | 'bodyfat' | 'steps';
@@ -175,6 +179,8 @@ export interface BodyMetric {
   date: ISODate;
   type: MetricType;
   value: number;
+  /** Made by Settings › Add Sample Week. */
+  sample?: boolean;
 }
 
 export type Phase = 'cut' | 'maintain' | 'bulk';

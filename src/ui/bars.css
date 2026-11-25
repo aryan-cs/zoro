@@ -1343,10 +1343,10 @@ button.meal-row:not(:disabled):active {
 .fit-card.is-rect .fit-stat {
   text-align: right;
 }
-/* Ring on the left, the value on the right (Sleep). */
+/* Ring on the left, the value on the right along the ring's bottom (Sleep). */
 .rect-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
 }
 .rect-ring {

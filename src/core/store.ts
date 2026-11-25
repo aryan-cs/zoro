@@ -290,6 +290,13 @@ export async function addSampleWeek(db: ZoroDB = getDB()): Promise<number> {
     [['breakfast', 'Eggs and Toast', 420, 26, 32, 20], ['lunch', 'Chicken Rice Bowl', 640, 48, 72, 14], ['snack', 'Trail Mix', 300, 8, 28, 18], ['dinner', 'Salmon, Rice and Broccoli', 720, 46, 68, 26]],
     [['breakfast', 'Oatmeal with Berries', 380, 14, 64, 8], ['lunch', 'Turkey Sandwich', 520, 38, 48, 16], ['dinner', 'Chicken Stir Fry', 690, 52, 70, 20]],
   ];
+  // Last night first. Bedtime the evening before, wake-up that morning.
+  const nights: [string, string][] = [['23:40', '07:00'], ['00:15', '06:50'], ['23:05', '07:10'], ['23:30', '07:20'], ['00:40', '07:05'], ['23:20', '06:55'], ['22:55', '07:05']];
+  const waterDays = [64, 112, 96, 128, 104, 88, 120];
+  const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
+
+  // Start fresh so tapping it twice doesn't double everything.
+  await removeSampleData(db);
   const t = today();
   let n = 0;
   for (let d = 0; d < 7; d++) {
@@ -298,13 +305,33 @@ export async function addSampleWeek(db: ZoroDB = getDB()): Promise<number> {
       await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros: { kcal, protein, carbs, fat }, loggedAt: Date.now() - d * 86_400_000 + i, sample: true });
       n++;
     }
+    // Water in a few drinks through the day.
+    const oz = waterDays[d];
+    for (const [i, part] of [0.3, 0.45, 0.25].entries()) await db.water.add({ date, oz: Math.round(oz * part), at: Date.now() - d * 86_400_000 - (3 - i) * 3_600_000, sample: true });
+    // Sleep, unless that night is already logged.
+    if (!(await db.sleep.where('date').equals(date).count())) {
+      const [bed, wake] = nights[d];
+      const minutes = (toMin(wake) - toMin(bed) + 1440) % 1440;
+      await db.sleep.add({ date, bedtime: bed, wakeTime: wake, minutes, source: 'manual', sample: true });
+    }
+  }
+  // Two weeks of morning weights drifting down about a pound a week, skipping days already weighed.
+  const weighed = new Set((await db.metrics.where('type').equals('weight').toArray()).map((m) => m.date));
+  const noise = [0.4, -0.2, 0.6, -0.4, 0.1, 0.5, -0.3, 0.2, -0.5, 0.3, 0, 0.4, -0.1, 0.6];
+  for (let d = 13; d >= 0; d--) {
+    const date = addDays(t, -d);
+    if (weighed.has(date)) continue;
+    await db.metrics.add({ date, type: 'weight', value: Math.round((185.2 + d * 0.15 + noise[d]) * 10) / 10, sample: true });
   }
   return n;
 }
 
-/** Deletes everything "Add Sample Week" made. */
+/** Deletes everything "Add Sample Week" made (foods, water, sleep, weights). Returns how many foods. */
 export async function removeSampleData(db: ZoroDB = getDB()): Promise<number> {
   const ids = (await db.entries.filter((e) => !!e.sample).primaryKeys()) as number[];
   await db.entries.bulkDelete(ids);
+  await db.water.bulkDelete((await db.water.filter((e) => !!e.sample).primaryKeys()) as number[]);
+  await db.sleep.bulkDelete((await db.sleep.filter((e) => !!e.sample).primaryKeys()) as number[]);
+  await db.metrics.bulkDelete((await db.metrics.filter((e) => !!e.sample).primaryKeys()) as number[]);
   return ids.length;
 }
