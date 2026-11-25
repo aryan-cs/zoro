@@ -5,7 +5,6 @@ import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
 import { Btn, db, Header, Row, Section, useSettings, useToast } from '../ui/kit';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
-import { Sym } from '../ui/Sym';
 
 /** "8 hr 15 min", as Health writes durations. */
 const hrMin = (min: number) => `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`;
@@ -53,7 +52,8 @@ export function LogSleepScreen() {
   const [wake, setWake] = useState('07:00');
   const settings = useSettings();
   const span = ((toMin(wake) - toMin(bed) + 1440) % 1440) || 1440;
-  const [installed] = useState(shortcutInstalled());
+  // Until you've set up the shortcut, the card offers only that; after, only Copy and Paste.
+  const [setUp, setSetUp] = useState(shortcutState() !== 'none');
   const [manualPaste, setManualPaste] = useState(false);
   const [paste, setPaste] = useState('');
 
@@ -90,24 +90,22 @@ export function LogSleepScreen() {
       <div className="fit-stack">
         {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
         <div className="sleep-card sleep-import">
-          {!installed && (
-            <button type="button" className="sleep-import-add" onClick={addSleepShortcut}>
-              <span>Add Zoro Sleep Shortcut</span>
-              <Sym name="chevron.right" size={13} />
-            </button>
-          )}
-          <div className="sleep-import-btns">
+          {setUp ? (
+            <div className="sleep-import-btns">
+              <Btn onClick={() => (window.location.href = RUN_URL)}>Copy</Btn>
+              <Btn onClick={() => void pasteFromClipboard()}>Paste</Btn>
+            </div>
+          ) : (
             <Btn
+              size="lg"
               onClick={() => {
-                // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
-                if (shortcutState() === 'none') addSleepShortcut();
-                else window.location.href = RUN_URL;
+                addSleepShortcut();
+                setSetUp(true);
               }}
             >
-              Copy
+              Set Up Shortcut
             </Btn>
-            <Btn onClick={() => void pasteFromClipboard()}>Paste</Btn>
-          </div>
+          )}
         </div>
       </div>
       {manualPaste && (

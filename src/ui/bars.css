@@ -1491,25 +1491,6 @@ button.meal-row:not(:disabled):active {
   padding: 16px;
   text-align: left;
 }
-.sleep-import-add {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 28px;
-  margin-bottom: 14px;
-  font-size: 17px;
-  line-height: 22px;
-  color: #fff;
-  -webkit-tap-highlight-color: transparent;
-}
-.sleep-import-add:active {
-  opacity: 0.5;
-}
-.sleep-import-add svg {
-  color: rgba(235, 235, 245, 0.3);
-}
 .sleep-import-btns {
   display: grid;
   grid-template-columns: 1fr 1fr;
