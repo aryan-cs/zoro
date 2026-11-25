@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ListItem, Page } from 'konsta/react';
+import { Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
 import { useState, type ReactNode } from 'react';
-import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/calc';
+import { addDays, formatMinutes, nextMonday, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
-import { buildPlan, dayTotals, metricsOf, saveMetric, today } from '../core/store';
+import { buildPlan, dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { Btn, db, dim, fmt, Header, IconBtn, MacroSummary, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, startWorkout } from '../ui/workouts';
 
@@ -49,6 +49,11 @@ export function TodayScreen() {
   const totals = useLiveQuery(() => dayTotals(date, db), [date]) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
+  const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
+  const waterOz = water.reduce((n, e) => n + e.oz, 0);
+  const monday = nextMonday(addDays(date, -6));
+  const weekSessions = useLiveQuery(() => db.sessions.where('date').between(monday, addDays(monday, 6), true, true).toArray(), [monday]) ?? [];
+  const weekDone = new Set(weekSessions.filter((x) => x.finishedAt && !TEMPLATES[x.templateId].secondary).map((x) => x.date)).size;
   const [weighing, setWeighing] = useState(false);
 
   const doneMain = sessions.find((s) => s.templateId === templateId && s.finishedAt);
@@ -66,99 +71,80 @@ export function TodayScreen() {
     toast('Weight saved');
   };
 
-  const weekText = week.week >= 1 ? `Week ${week.week}${week.deload ? ' · easy week' : ''}` : `Starts ${longDate(settings.programStart)}`;
-
   const workoutDone = !templateId || !!doneMain;
   const foodDone = totals.protein >= settings.proteinTarget && totals.kcal >= settings.kcalTarget * 0.9;
-  const bodyDone = !!weighedToday && !!sleep;
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   const workout: ReactNode = (
-    <Section title="Workout" right={workoutDone && templateId ? <DoneMark /> : <span className={dim}>{weekText}</span>}>
+    <FitCard title="Workout" onOpen={() => nav.go('lift')} trailing={workoutDone && templateId ? <DoneMark /> : undefined}>
       {open && open.templateId !== templateId && (
-        <Row
-          accent
-          title={`Resume ${TEMPLATES[open.templateId].name}`}
-          chevron
-          onClick={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
-        />
+        <button
+          type="button"
+          className="fit-link"
+          onClick={(e) => {
+            stop(e);
+            if (open.id !== undefined) nav.go('lift', { name: 'workout', sessionId: open.id });
+          }}
+        >
+          Resume {TEMPLATES[open.templateId].name}
+        </button>
       )}
-      {!templateId ? (
-        <Row title="Rest day" />
-      ) : doneMain ? (
-        <Row
-          title={TEMPLATES[templateId].name}
-          right={`${sets} sets`}
-          chevron
-          onClick={() => doneMain.id !== undefined && nav.go('lift', { name: 'workout', sessionId: doneMain.id })}
-        />
-      ) : (
-        <ListItem
-          title={<span className="block truncate">{TEMPLATES[templateId].name}</span>}
-          subtitle={`${plan?.exercises.length ?? '…'} exercises`}
-          innerClassName="zoro-workout-preview"
-          titleWrapClassName="min-w-0"
-          after={
-            <Btn kind="tint" size="sm" onClick={() => void start(templateId)}>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <FitStat
+            label={week.week >= 1 ? `Today · Week ${week.week}${week.deload ? ' · Easy' : ''}` : `Starts ${longDate(settings.programStart)}`}
+            value={templateId ? TEMPLATES[templateId].name : 'Rest Day'}
+            color={FITNESS.exercise}
+            sub={templateId ? (doneMain ? `${sets} sets` : `${plan?.exercises.length ?? '…'} exercises`) : undefined}
+          />
+        </div>
+        {templateId && !doneMain && (
+          <span className="mb-1" onClick={stop}>
+            <Btn size="sm" onClick={() => void start(templateId)}>
               {open?.templateId === templateId ? 'Resume' : 'Start'}
             </Btn>
-          }
-        />
-      )}
+          </span>
+        )}
+      </div>
       {second && !week.deload && (
-        <Row title={`Optional: ${TEMPLATES[second].name}`} right={TEMPLATES[second].short} chevron onClick={() => void start(second)} />
+        <button
+          type="button"
+          className="fit-link is-row"
+          onClick={(e) => {
+            stop(e);
+            void start(second);
+          }}
+        >
+          <span>Optional: {TEMPLATES[second].name}</span>
+          <span className="fit-link-value">{TEMPLATES[second].short}</span>
+        </button>
       )}
-    </Section>
+    </FitCard>
   );
 
   const food: ReactNode = (
-    <Section
+    <FitCard
       title="Food"
-      right={
+      onOpen={() => nav.go('food')}
+      trailing={
         foodDone ? (
           <DoneMark />
         ) : (
-          <button type="button" aria-label="Log food" className="zoro-header-icon" onClick={() => nav.go('food', { name: 'addFood', date })}>
-            <Sym name="plus" size={19} />
+          <button type="button" aria-label="Log food" className="fit-plus" onClick={() => nav.go('food', { name: 'addFood', date })}>
+            <Sym name="plus" size={17} />
           </button>
         )
       }
     >
-      <ListItem
-        link
-        linkComponent="button"
-        contentClassName="w-full text-left"
-        linkProps={{ type: 'button' }}
-        chevron={false}
-        onClick={() => nav.go('food')}
-        innerClassName="!py-0"
-        innerChildren={<div className="w-full"><MacroSummary totals={totals} settings={settings} /></div>}
-      />
-    </Section>
+      <MacroSummary totals={totals} settings={settings} />
+    </FitCard>
   );
 
-  const body: ReactNode = (
-    <Section title="Body" right={bodyDone ? <DoneMark /> : undefined}>
-      <Row
-        title="Weight"
-        right={weighedToday ? `${fmt(weighedToday.value, 1)} lb` : 'Log'}
-        sub={weighedToday && rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
-        chevron
-        onClick={() => (weighedToday ? nav.go('history') : setWeighing(true))}
-      />
-      <Row
-        title="Sleep"
-        right={sleep ? formatMinutes(sleep.minutes) : 'Log'}
-        chevron
-        onClick={() => nav.push({ name: 'logSleep' })}
-      />
-    </Section>
-  );
-
-  // Finished blocks sink to the bottom so the next thing to do is always on top.
+  // Finished cards sink below the rest so the next thing to do is always on top.
   const blocks = [
     { key: 'workout', done: workoutDone, el: workout },
     { key: 'food', done: foodDone, el: food },
-    { key: 'body', done: bodyDone, el: body },
   ].sort((a, b) => Number(a.done) - Number(b.done));
 
   return (
@@ -167,13 +153,35 @@ export function TodayScreen() {
         title={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
         right={
           <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
-            <Sym name="gearshape" size={19} />
+            <Sym name="gearshape" size={16.5} />
           </IconBtn>
         }
       />
-      {blocks.map((b) => (
-        <div key={b.key}>{b.el}</div>
-      ))}
+      <div className="fit-stack">
+        {blocks.map((b) => (
+          <div key={b.key}>{b.el}</div>
+        ))}
+        <div className="fit-grid">
+          <FitCard title="Water" onOpen={() => nav.go('water')}>
+            <FitStat label="Today" value={`${fmt(waterOz)}/${fmt(settings.waterTargetOz)}`} unit="OZ" color={FITNESS.distance} />
+          </FitCard>
+          <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
+            <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : '--'} color={FITNESS.sleep} />
+          </FitCard>
+          <FitCard title="Weight" onOpen={() => (weighedToday ? nav.go('history') : setWeighing(true))}>
+            <FitStat
+              label="Today"
+              value={weighedToday ? fmt(weighedToday.value, 1) : '--'}
+              unit={weighedToday ? 'LB' : undefined}
+              color={FITNESS.body}
+              sub={rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
+            />
+          </FitCard>
+          <FitCard title="This Week" onOpen={() => nav.go('lift')}>
+            <FitStat label="Workouts" value={`${weekDone}/${settings.daysPerWeek}`} color={FITNESS.exercise} />
+          </FitCard>
+        </div>
+      </div>
       <NumberPrompt
         opened={weighing}
         title="Morning Weight"

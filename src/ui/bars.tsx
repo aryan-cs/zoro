@@ -67,7 +67,7 @@ export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: Re
         <div className="ios-navbar-side">
           {props.onBack ? (
             <NavButton label="Back" onClick={props.onBack}>
-              <Sym name="chevron.left" size={19} />
+              <Sym name="chevron.left" size={17.5} />
             </NavButton>
           ) : (
             props.left

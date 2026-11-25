@@ -15,6 +15,7 @@ import {
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, SegmentedControl } from './bars';
+import { Sym } from './Sym';
 import { getDB, getSettings } from '../core/db';
 import { DEFAULT_SETTINGS } from '../core/settings';
 import type { Macros, Settings } from '../core/types';
@@ -237,6 +238,9 @@ export const FITNESS = {
   stand: '#00f5ea',
   distance: '#00b7ff',
   steps: '#a28be1',
+  /** Not in Fitness: Health's sleep indigo and body orange, at Fitness's brightness. */
+  sleep: '#7d7aff',
+  body: '#ff9f0a',
 };
 
 /**
@@ -301,6 +305,51 @@ export function GoalRing(props: { label: string; value: number; target: number; 
       <div className="ring-legend">
         <RingValue {...props} big />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A Fitness summary card: title top-left, an optional gray chevron circle (whole card taps
+ * through), an optional trailing control, then the content. Measured from Fitness (iOS 27):
+ * 16pt padding, 17pt semibold title, 26pt corners, 12pt between cards.
+ */
+export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing?: ReactNode; children: ReactNode; className?: string }) {
+  const open = props.onOpen;
+  return (
+    <section
+      className={`fit-card ${open ? 'is-link' : ''} ${props.className ?? ''}`}
+      onClick={open}
+      role={open ? 'button' : undefined}
+      tabIndex={open ? 0 : undefined}
+    >
+      <header className="fit-card-head">
+        <h2 className="fit-card-title">{props.title}</h2>
+        <span className="flex items-center gap-2">
+          {/* Controls in the header act on their own instead of opening the card. */}
+          {props.trailing && <span onClick={(e) => e.stopPropagation()}>{props.trailing}</span>}
+          {open && (
+            <span className="fit-chevron" aria-hidden>
+              <Sym name="chevron.right" size={9} />
+            </span>
+          )}
+        </span>
+      </header>
+      {props.children}
+    </section>
+  );
+}
+
+/** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
+export function FitStat(props: { label: string; value: ReactNode; unit?: string; color: string; sub?: ReactNode }) {
+  return (
+    <div className="fit-stat">
+      <div className="fit-stat-label">{props.label}</div>
+      <div className="fit-stat-value" style={{ color: props.color }}>
+        {props.value}
+        {props.unit && <small>{props.unit}</small>}
+      </div>
+      {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
     </div>
   );
 }

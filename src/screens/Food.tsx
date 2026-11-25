@@ -6,7 +6,7 @@ import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
 import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { Cell, db, fmt, Header, IconGroup, MacroSummary, Section, useSettings, useToast } from '../ui/kit';
+import { db, fmt, Header, IconGroup, MacroSummary, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 
@@ -34,11 +34,11 @@ function DayTitle({ date, onChange }: { date: string; onChange: (d: string) => v
   return (
     <span className="flex items-center justify-center">
       <button type="button" aria-label="Previous day" className="ios-title-chevron" onClick={() => onChange(addDays(date, -1))}>
-        <Sym name="chevron.left" size={17} />
+        <Sym name="chevron.left" size={15} />
       </button>
       <span className="truncate px-1">{dayLabel(date)}</span>
       <button type="button" aria-label="Next day" className="ios-title-chevron" disabled={date >= today()} onClick={() => onChange(addDays(date, 1))}>
-        <Sym name="chevron.right" size={17} />
+        <Sym name="chevron.right" size={15} />
       </button>
     </span>
   );
@@ -203,18 +203,18 @@ export function FoodScreen() {
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={18} />, onClick: () => setScanning(true) },
-              { label: 'Add food', icon: <Sym name="plus" size={19} />, onClick: () => nav.push({ name: 'addFood', date }) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
+              { label: 'Add food', icon: <Sym name="plus" size={16.5} />, onClick: () => nav.push({ name: 'addFood', date }) },
             ]}
           />
         }
       />
 
-      <Section>
-        <Cell className="">
+      <div className="fit-stack">
+        <div className="fit-card">
           <MacroSummary totals={totals} settings={settings} />
-        </Cell>
-      </Section>
+        </div>
+      </div>
 
       <div ref={listRef}>
         {MEALS.map((m) => {
@@ -233,7 +233,7 @@ export function FoodScreen() {
                     className="meal-add"
                     onClick={() => nav.push({ name: 'addFood', date, meal: m.id })}
                   >
-                    <Sym name="plus" size={19} />
+                    <Sym name="plus" size={17} />
                   </button>
                 </div>
                 {items.length === 0 && <div className="meal-row is-empty">No Items</div>}

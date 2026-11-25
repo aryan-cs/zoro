@@ -28,6 +28,8 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Ring values (Fitness) | label 15pt white, value below in the ring color, SF Rounded semibold (20pt; 28pt for a single ring) with a smaller uppercase unit ("41/170CAL") |
 | Tab bar (Fitness, iOS 27) | Liquid Glass capsule 62pt tall, 21pt side margins, 20pt above the bottom edge; selected pill inset 4pt, same gray as the bar with a 0.5pt rim; SF Symbol (~18.8pt) centered 24pt from the top, 10pt semibold label 4pt below; selected = tint |
 | Icons | Apple SF Symbols (medium; chevrons semibold) from `src/ui/sf.ts` via `<Sym name size>`; export more with `scripts/sf-symbols.swift` |
+| Summary cards (Fitness) | `FitCard`: #1C1C1E, 26pt corners, 16pt padding, 12pt apart, 17pt semibold title, gray 22pt chevron circle when the card opens something; `FitStat`: 15pt label over a 28pt SF Rounded value in a Fitness color (`FITNESS` in kit.tsx), units in small caps |
+| Bar icons | Regular weight, ~16.5pt (Fitness's toolbar icons: 1.67pt stroke); back chevron semibold 17.5pt; grouped buttons 48pt each in one capsule with 4pt ends |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

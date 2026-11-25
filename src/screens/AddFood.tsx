@@ -306,9 +306,9 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={18} />, onClick: () => setScanning(true) },
-              { label: 'Quick add calories', icon: <Sym name="bolt.fill" size={18} />, onClick: () => setQuick(true) },
-              { label: 'New food', icon: <Sym name="square.and.pencil" size={18} />, onClick: () => setCustom({}) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
+              { label: 'Quick add calories', icon: <Sym name="bolt.fill" size={16.5} />, onClick: () => setQuick(true) },
+              { label: 'New food', icon: <Sym name="square.and.pencil" size={16.5} />, onClick: () => setCustom({}) },
             ]}
           />
         }
