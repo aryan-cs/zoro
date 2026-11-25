@@ -141,7 +141,7 @@ export function TodayScreen() {
             <FitStat value={fmt(waterOz)} unit="OZ" color={FITNESS.distance} />
           </FitCard>
           <FitCard title="Sleep" onOpen={() => nav.push({ name: 'logSleep' })}>
-            <FitStat label="Last Night" value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
+            <FitStat value={sleep ? formatMinutes(sleep.minutes) : null} color={FITNESS.sleep} />
           </FitCard>
           <FitCard title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat

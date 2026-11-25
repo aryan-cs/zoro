@@ -1313,6 +1313,15 @@ button.meal-row:not(:disabled):active {
 }
 .fit-grid.is-squares .fit-stat {
   margin-top: auto;
+  text-align: right;
+}
+/* The square's one number, large and in the bottom-right corner. */
+.fit-grid.is-squares .fit-stat-value {
+  font-size: 40px;
+  line-height: 46px;
+}
+.fit-grid.is-squares .fit-stat-value small {
+  font-size: 26px;
 }
 .sq-center {
   display: flex;
