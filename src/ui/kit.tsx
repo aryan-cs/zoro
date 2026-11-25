@@ -279,6 +279,17 @@ function onRing(cx: number, cy: number, r: number, deg: number) {
  */
 function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
   const p = target > 0 ? Math.max(0, value / target) : 0;
+  // Full (up to ~4% over, where a second lap's tip would just sit on the start as a disc): one
+  // seamless loop with no caps. The shading runs start → end color over three quarters of the
+  // ring, then eases back to the start color so the ends meet without a tip.
+  const closed = p >= 1 && p < 1.04;
+  const over = p > 1 && !closed ? Math.min(p - 1, 1) * 360 : 0;
+  const shade = (a: number) =>
+    closed
+      ? a < 270
+        ? mixColor(colors[0], colors[1], a / 270)
+        : mixColor(colors[1], colors[0], (a - 270) / 90)
+      : mixColor(colors[0], colors[1], (a % 360) / 360);
   const lap = (from: number, to: number, key: string) => {
     // Short arcs with butt ends, each in its own shade, overlapping a hair so no seams show.
     const n = Math.max(2, Math.ceil((to - from) / 5));
@@ -293,14 +304,13 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
           key={`${key}${i}`}
           d={`M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`}
           fill="none"
-          stroke={mixColor(colors[0], colors[1], ((a0 + a1) / 2 % 360) / 360)}
+          stroke={shade((a0 + a1) / 2)}
           strokeWidth={w}
         />
       );
     });
   };
   const end = Math.min(p, 1) * 360;
-  const over = p > 1 ? Math.min(p - 1, 1) * 360 : 0;
   const [ex, ey] = onRing(cx, cy, r, end);
   const [ox, oy] = onRing(cx, cy, r, over);
   const [sx, sy] = onRing(cx, cy, r, 0);
@@ -342,16 +352,12 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
       {p > 0 && (
         <>
           {lap(0, end, 'a')}
-          <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
-          {/* A closed ring's tip overlaps its start: like Fitness, it casts a shadow there so it reads
-              as the ring's end, not a separate disc. */}
-          <circle
-            cx={ex}
-            cy={ey}
-            r={w / 2}
-            fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)}
-            style={p >= 1 && over === 0 ? { filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` } : undefined}
-          />
+          {!closed && (
+            <>
+              <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
+              <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+            </>
+          )}
         </>
       )}
       {over > 0 && (
