@@ -368,8 +368,8 @@ export function GoalRing(props: { label: string; value: number; target: number; 
 }
 
 /**
- * A Fitness summary card: title top-left, an optional gray chevron circle (whole card taps
- * through), an optional trailing control, then the content. Measured from Fitness (iOS 27):
+ * A Fitness summary card: title top-left, an optional trailing control, then the content; the
+ * whole card taps through when it has somewhere to go. Measured from Fitness (iOS 27):
  * 16pt padding, 17pt semibold title, 26pt corners, 12pt between cards.
  */
 export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing?: ReactNode; children: ReactNode; className?: string }) {
@@ -386,11 +386,6 @@ export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing
         <span className="flex items-center gap-2">
           {/* Controls in the header act on their own instead of opening the card. */}
           {props.trailing && <span onClick={(e) => e.stopPropagation()}>{props.trailing}</span>}
-          {open && (
-            <span className="fit-chevron" aria-hidden>
-              <Sym name="chevron.right" size={9} />
-            </span>
-          )}
         </span>
       </header>
       {props.children}

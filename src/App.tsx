@@ -13,7 +13,7 @@ import { WorkoutScreen } from './screens/Workout';
 import { ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
-import { memo, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NavProvider, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
@@ -59,9 +59,28 @@ const TabRoot = memo(function TabRoot({ tab }: { tab: Tab }) {
  * iOS 26 tab bar: Konsta's Tabbar + ToolbarPane, icons only. Its press flash is switched off
  * (highlight=false) and its selection lens is restyled in index.css ("Tab bar").
  */
+/** Today's day of the month, kept current across midnight and when the app comes back. */
+function useDayOfMonth() {
+  const [day, setDay] = useState(() => new Date().getDate());
+  useEffect(() => {
+    const update = () => setDay(new Date().getDate());
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
+    const timer = window.setTimeout(update, midnight + 1000);
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [day]);
+  return day;
+}
+
 function Tabs() {
   const { tab } = useNavState();
   const { setTab } = useNav();
+  // Today shows the date, like Calendar's icon: 25.calendar on the 25th.
+  const day = useDayOfMonth();
   return (
     <Tabbar icons className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
       <ToolbarPane {...({ highlight: false } as object)}>
@@ -71,7 +90,7 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={<Sym name={t.icon} size={17} />}
+            icon={<Sym name={t.id === 'today' ? (`${day}.calendar` as SFName) : t.icon} size={17} />}
           />
         ))}
       </ToolbarPane>

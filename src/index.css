@@ -331,13 +331,21 @@ select {
 .k-toolbar-pane > span > span:first-child {
   opacity: 0 !important;
 }
+/* Tabs share the bar's width less a 4pt inset all round; the pill's track matches them. */
+.zoro-tabbar .k-toolbar-pane {
+  padding: 4px !important;
+}
+.zoro-tabbar .k-toolbar-pane > span:last-child {
+  left: 4px !important;
+  top: 4px !important;
+  height: calc(100% - 8px) !important;
+  width: calc(20% - 1.6px) !important; /* (bar - 8pt) / 5 tabs */
+}
 .k-toolbar-pane > span > span:last-child {
   opacity: 1 !important;
-  /* The glass lens as the resting selection: a light tint with an even rim. 4pt in from the
-   * top and bottom but only 1pt from the sides of its tab, so it's wider; at the end tabs its
-   * round end still sits inside the bar's. */
-  left: 1px !important;
-  right: 1px !important;
+  /* The glass lens as the resting selection: a light tint with an even rim. It fills its tab;
+   * the bar's 4pt padding (below) keeps it concentric with the bar at the ends, as in iOS 26. */
+  inset: 0 !important;
   background: rgba(255, 255, 255, 0.1) !important;
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.35),

@@ -3,7 +3,7 @@ import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta
 import { useRef, useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
-import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, useSettings, useToast } from '../ui/kit';
+import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, useSettings } from '../ui/kit';
 import { saveSettings } from '../core/db';
 
 const DEFAULT_PRESETS = [8, 16, 24, 32];
@@ -56,11 +56,9 @@ function PresetButton({ oz, onAdd, onEdit }: { oz: number; onAdd: () => void; on
 }
 
 export function WaterScreen() {
-  const toast = useToast();
   const settings = useSettings();
   const date = today();
   const entries = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
-  const [custom, setCustom] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
@@ -77,23 +75,21 @@ export function WaterScreen() {
     <Page className="tab-safe">
       <Header title="Water" />
 
-      {/* The day's ring, big and centered, with the percent under it and the ounces below that. */}
-      <div className="water-hero">
-        <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} />
-        <div className="water-pct">{pct}%</div>
-        <div className="water-oz">
-          {fmt(total)} of {fmt(settings.waterTargetOz)} oz
+      {/* The ring, percent and ounces centered in the space; the quick amounts along the bottom. */}
+      <div className="water-body">
+        <div className="water-hero">
+          <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} />
+          <div className="water-pct">{pct}%</div>
+          <div className="water-oz">
+            {fmt(total)} of {fmt(settings.waterTargetOz)} oz
+          </div>
+        </div>
+        <div className="water-presets">
+          {presets.map((oz, i) => (
+            <PresetButton key={i} oz={oz} onAdd={() => void add(oz)} onEdit={() => setEditing(i)} />
+          ))}
         </div>
       </div>
-
-      <div className="water-presets">
-        {presets.map((oz, i) => (
-          <PresetButton key={i} oz={oz} onAdd={() => void add(oz)} onEdit={() => setEditing(i)} />
-        ))}
-      </div>
-      <button type="button" className="water-other" onClick={() => setCustom(true)}>
-        Other Amount
-      </button>
 
 
       <NumberPrompt
@@ -108,18 +104,6 @@ export function WaterScreen() {
           const next = presets.map((v, i) => (i === editing ? n : v));
           void saveSettings({ waterPresets: next });
           setEditing(null);
-        }}
-      />
-      <NumberPrompt
-        opened={custom}
-        title="Add Water"
-        unit="oz"
-        max={128}
-        onCancel={() => setCustom(false)}
-        onSave={(n) => {
-          void add(n);
-          setCustom(false);
-          toast(`Added ${fmt(n, n % 1 ? 1 : 0)} oz`);
         }}
       />
 

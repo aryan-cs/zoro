@@ -1,5 +1,5 @@
-import { Dialog, DialogButton, ListInput, Page } from 'konsta/react';
-import { useEffect, useState } from 'react';
+import { ListInput, Page } from 'konsta/react';
+import { useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
@@ -14,7 +14,6 @@ const toMin = (hhmm: string) => {
 };
 import { useNav } from '../ui/nav';
 
-const SHORTCUT_URL = `${import.meta.env.BASE_URL}ZoroSleep.shortcut`;
 const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Sleep';
 const INSTALLED_KEY = 'zoro.sleepShortcut';
 
@@ -36,64 +35,14 @@ function setShortcutState(v: 'tried' | 'ok') {
 }
 export const shortcutInstalled = () => shortcutState() === 'ok';
 
-/** Load the signed shortcut file ahead of time, so sharing it can happen right on the tap. */
-let shortcutFile: Promise<File | null> | null = null;
-function loadShortcutFile(): Promise<File | null> {
-  shortcutFile ??= fetch(SHORTCUT_URL)
-    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
-    .then((b) => new File([b], 'Zoro Sleep.shortcut', { type: 'application/octet-stream' }))
-    .catch(() => {
-      shortcutFile = null;
-      return null;
-    });
-  return shortcutFile;
-}
+/** Apple's iCloud link for the Zoro Sleep shortcut: opening it shows Shortcuts' own Add Shortcut screen. */
+const SHORTCUT_ICLOUD = 'https://www.icloud.com/shortcuts/323631b5cb6e484ea7559840a38aed85';
 
-/**
- * Native alert, then the iOS share sheet with the signed shortcut file: pick Shortcuts
- * and Apple's own "Add Shortcut" screen opens. (Opening the file as a page only shows
- * a blank sheet in a Home Screen app.)
- */
-export function InstallShortcutDialog({ opened, onClose, onManual }: { opened: boolean; onClose: () => void; onManual?: () => void }) {
-  const toast = useToast();
-  const [file, setFile] = useState<File | null>(null);
-  useEffect(() => {
-    if (opened) void loadShortcutFile().then(setFile);
-  }, [opened]);
-
-  const add = async () => {
-    const f = file ?? (await loadShortcutFile());
-    const data = f ? { files: [f], title: 'Zoro Sleep' } : null;
-    if (!data || !navigator.canShare?.(data)) {
-      onClose();
-      toast("Set up the shortcut manually.");
-      onManual?.();
-      return;
-    }
-    try {
-      await navigator.share(data);
-      setShortcutState('tried');
-    } catch (err) {
-      if (!(err instanceof DOMException && err.name === 'AbortError')) toast('Could not open the share sheet.');
-    }
-    onClose();
-  };
-
-  return (
-    <Dialog
-      opened={opened}
-      title="Add Zoro Sleep?"
-      content="Choose Shortcuts in the share sheet, then Add Shortcut."
-      buttons={
-        <>
-          <DialogButton onClick={onClose}>Cancel</DialogButton>
-          <DialogButton strong onClick={() => void add()}>
-            Add
-          </DialogButton>
-        </>
-      }
-    />
-  );
+/** Open Shortcuts' Add Shortcut screen for Zoro Sleep (one tap, no share sheet). */
+export function addSleepShortcut() {
+  setShortcutState('tried');
+  // A new window leaves the Home Screen app, so iOS hands the link to Shortcuts.
+  if (!window.open(SHORTCUT_ICLOUD, '_blank')) window.location.href = SHORTCUT_ICLOUD;
 }
 
 export function LogSleepScreen() {
@@ -103,8 +52,7 @@ export function LogSleepScreen() {
   const [wake, setWake] = useState('07:00');
   const settings = useSettings();
   const span = ((toMin(wake) - toMin(bed) + 1440) % 1440) || 1440;
-  const [installing, setInstalling] = useState(false);
-  const [installed, setInstalled] = useState(shortcutInstalled());
+  const [installed] = useState(shortcutInstalled());
   const [manualPaste, setManualPaste] = useState(false);
   const [paste, setPaste] = useState('');
 
@@ -139,13 +87,13 @@ export function LogSleepScreen() {
       <Header title="Log Sleep" onBack={nav.pop} />
 
       <Section title="From Apple Health">
-        {!installed && <Row title="Add Zoro Sleep Shortcut" chevron onClick={() => setInstalling(true)} />}
+        {!installed && <Row title="Add Zoro Sleep Shortcut" chevron onClick={addSleepShortcut} />}
         <Row
           accent
           title="1. Copy Sleep"
           onClick={() => {
             // Not added yet: offer to add it first instead of sending you to a Shortcuts error.
-            if (shortcutState() === 'none') setInstalling(true);
+            if (shortcutState() === 'none') addSleepShortcut();
             else window.location.href = RUN_URL;
           }}
         />
@@ -178,7 +126,7 @@ export function LogSleepScreen() {
         <div className="sleep-card">
           <div className="sleep-times">
             <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
-            <SleepTime icon="alarm.fill" label="WAKE UP" time={wake} day="Today" />
+            <SleepTime icon="alarm.waves.left.and.right.fill" label="WAKE UP" time={wake} day="Today" />
           </div>
           <SleepDial
             bed={bed}
@@ -196,14 +144,6 @@ export function LogSleepScreen() {
         </Btn>
       </Section>
 
-      <InstallShortcutDialog
-        onManual={() => nav.push({ name: 'sleepSetup' })}
-        opened={installing}
-        onClose={() => {
-          setInstalling(false);
-          setInstalled(shortcutInstalled());
-        }}
-      />
     </Page>
   );
 }

@@ -6,7 +6,7 @@ import { addSampleWeek, exportAll, importAll, removeSampleData, today } from '..
 import type { Phase, Settings } from '../core/types';
 import { Btn, Field, fmt, Header, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { InstallShortcutDialog } from './LogSleep';
+import { addSleepShortcut } from './LogSleep';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
 
 type NumKey = 'benchMax' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
@@ -138,7 +138,6 @@ export function SettingsScreen() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [pendingImport, setPendingImport] = useState<unknown>(null);
-  const [installing, setInstalling] = useState(false);
   const [usda, setUsda] = useState(settings.usdaApiKey ?? '');
   useEffect(() => setUsda(settings.usdaApiKey ?? ''), [settings.usdaApiKey]);
   useEffect(() => {
@@ -220,7 +219,7 @@ export function SettingsScreen() {
       <CloudBackup />
 
       <Section title="Sleep">
-        <Row title="Apple Health Shortcut" chevron onClick={() => setInstalling(true)} />
+        <Row title="Apple Health Shortcut" chevron onClick={addSleepShortcut} />
         <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
       </Section>
 
@@ -251,7 +250,6 @@ export function SettingsScreen() {
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
       <p className="mx-8 mb-2 mt-6 text-center text-[13px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
 
-      <InstallShortcutDialog opened={installing} onClose={() => setInstalling(false)} onManual={() => nav.push({ name: 'sleepSetup' })} />
       <Dialog
         opened={pendingImport !== null}
         title="Replace Everything?"

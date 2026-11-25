@@ -9,11 +9,15 @@ import { Sym } from './Sym';
  */
 const DAY = 1440;
 const SNAP = 5;
-const C = 150; // center of the 300 x 300 drawing
-const FACE_R = 104; // clock face
-const TRACK_R = 127; // middle of the black track
-const TRACK_W = 46;
-const ARC_W = 40;
+// Proportions measured from Health's sleep schedule dial (iOS 27), in a 300-unit drawing.
+const C = 150; // center
+const FACE_R = 102.5; // clock face
+const TRACK_R = 126; // middle of the black track and of the capsule
+const TRACK_W = 47; // black track, face edge to 149.5
+const ARC_W = 36; // capsule
+const LABEL_R = 79; // hour numbers
+const SIDE_R = 74.5; // 6AM / 6PM sit a little further in (they're wide)
+const ICON_R = 57.5; // moon and sun
 
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -112,6 +116,7 @@ export function SleepDial({ bed, wake, onChange }: { bed: string; wake: string; 
       ref={svg}
       viewBox="0 0 300 300"
       className="sleep-dial"
+      data-no-swipe
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
@@ -122,22 +127,24 @@ export function SleepDial({ bed, wake, onChange }: { bed: string; wake: string; 
       <circle cx={C} cy={C} r={FACE_R} fill="var(--ios-cell)" />
       {ticks.map((m) => {
         const hour = m % 60 === 0;
-        const [ax, ay] = at(m, FACE_R - 6);
-        const [bx, by] = at(m, FACE_R - (hour ? 12 : 8));
+        const [ax, ay] = at(m, FACE_R - 6.5);
+        const [bx, by] = at(m, FACE_R - (hour ? 11.2 : 8.5));
         return <line key={m} x1={ax} y1={ay} x2={bx} y2={by} stroke={hour ? '#8d8d93' : '#48484a'} strokeWidth={hour ? 1.4 : 1} strokeLinecap="round" />;
       })}
       {labels.map(([m, text, major]) => {
-        const [x, y] = at(m, FACE_R - 27);
         const unit = text.match(/[AP]M$/)?.[0];
+        const [x, y] = at(m, m === 360 || m === 1080 ? SIDE_R : LABEL_R);
+        // AM/PM share the number's baseline (small caps, as in Health). The baseline sits half a cap
+        // height below the point; dominant-baseline isn't used because Safari applies it per tspan.
         return (
-          <text key={m} x={x} y={y} textAnchor="middle" dominantBaseline="central" className={`sleep-dial-label ${major ? 'is-major' : ''}`}>
+          <text key={m} x={x} y={y} dy="0.36em" textAnchor="middle" className={`sleep-dial-label ${major ? 'is-major' : ''}`}>
             {unit ? text.slice(0, -2) : text}
             {unit && <tspan className="sleep-dial-unit">{unit}</tspan>}
           </text>
         );
       })}
-      <Glyph name="moon.fill" x={C} y={C - FACE_R + 50} size={15} color="#7d7aff" />
-      <Glyph name="sun.max.fill" x={C} y={C + FACE_R - 50} size={15} color="#ffd60a" />
+      <Glyph name="moon.fill" x={C} y={C - ICON_R} size={13.1} color="#7d7aff" />
+      <Glyph name="sun.max.fill" x={C} y={C + ICON_R} size={12.75} color="#ffd60a" />
 
       <path d={arc} fill="none" stroke="#3a3a3c" strokeWidth={ARC_W} strokeLinecap="round" onPointerDown={down('both')} style={{ cursor: 'grab' }} />
       {grips.map((m) => {
@@ -147,11 +154,11 @@ export function SleepDial({ bed, wake, onChange }: { bed: string; wake: string; 
       })}
       <g onPointerDown={down('bed')} style={{ cursor: 'grab' }}>
         <circle cx={x0} cy={y0} r={ARC_W / 2} fill="#3a3a3c" />
-        <Glyph name="bed.double.fill" x={x0} y={y0} size={13} color="#98989f" />
+        <Glyph name="bed.double.fill" x={x0} y={y0} size={10.8} color="#98989f" />
       </g>
       <g onPointerDown={down('wake')} style={{ cursor: 'grab' }}>
         <circle cx={x1} cy={y1} r={ARC_W / 2} fill="#3a3a3c" />
-        <Glyph name="alarm.fill" x={x1} y={y1} size={13} color="#98989f" />
+        <Glyph name="alarm.waves.left.and.right.fill" x={x1} y={y1} size={11} color="#98989f" />
       </g>
     </svg>
   );
@@ -162,7 +169,7 @@ export function SleepTime({ icon, label, time, day }: { icon: SFName; label: str
   return (
     <div className="sleep-time">
       <div className="sleep-time-label">
-        <Sym name={icon} size={13} />
+        <Sym name={icon} size={8} />
         {label}
       </div>
       <div className="sleep-time-value">{clock12(time)}</div>
