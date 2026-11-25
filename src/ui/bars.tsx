@@ -144,7 +144,12 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
       <div
         className={`ios-menu ${closing ? 'is-closing' : ''}`}
         role="menu"
-        style={{ top: a.bottom + 8, right: Math.max(16, window.innerWidth - a.right) }}
+        // Opens down from its button, on the button's side of the screen (as iOS does).
+        style={
+          a.left + a.width / 2 < window.innerWidth / 2
+            ? { top: a.bottom + 8, left: Math.max(16, a.left), transformOrigin: 'top left' }
+            : { top: a.bottom + 8, right: Math.max(16, window.innerWidth - a.right) }
+        }
         onClick={(e) => e.stopPropagation()}
       >
         {props.items.map((i) => (

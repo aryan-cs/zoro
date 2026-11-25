@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
 import { TEMPLATES } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
@@ -104,10 +104,19 @@ export function TodayScreen() {
   );
 
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const first = settings.name?.trim().split(/\s+/)[0];
 
-  // The greeting stays on one line, like a large title: it steps down from 34pt if a long name
-  // would wrap.
+  // The status-bar fade only shows once content has scrolled under it.
+  const edgeRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const page = edgeRef.current?.closest('.k-page');
+    if (!page) return;
+    const onScroll = () => setScrolled(page.scrollTop > 2);
+    page.addEventListener('scroll', onScroll, { passive: true });
+    return () => page.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // The date stays on one line, like a large title: it steps down from 34pt if it would wrap.
   const titleRef = useRef<HTMLHeadingElement>(null);
   useLayoutEffect(() => {
     const el = titleRef.current;
@@ -115,19 +124,18 @@ export function TodayScreen() {
     el.style.fontSize = '';
     let size = 34;
     while (el.scrollWidth > el.clientWidth && size > 24) el.style.fontSize = `${(size -= 1)}px`;
-  }, [first]);
+  }, [date]);
 
   return (
     <Page className="tab-safe">
-      {/* No navigation bar: the greeting is the title, with Settings beside it (as Fitness puts
-          its profile button beside "Summary"), and both scroll away. Only the status bar keeps a
+      {/* No navigation bar: the date is the title, with Settings beside it (as Fitness puts its
+          profile button beside "Summary"), and both scroll away. Only the status bar keeps a
           thin fade so content doesn't run under the clock. */}
-      <div className="status-edge" aria-hidden />
+      <div ref={edgeRef} className={`status-edge ${scrolled ? 'is-scrolled' : ''}`} aria-hidden />
       <header className="hello">
         <div className="min-w-0 flex-1">
-          <div className="hello-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
           <h1 ref={titleRef} className="hello-title">
-            {first ? `Welcome Back, ${first}` : 'Welcome Back'}
+            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </h1>
         </div>
         <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>

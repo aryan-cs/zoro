@@ -1623,32 +1623,42 @@ button.meal-row:not(:disabled):active {
 }
 
 /* ---------- Today: welcome ---------- */
-/* Date in small gray caps over a large greeting, like Fitness's Summary title, with Settings
- * level with the greeting on the right. */
+/* Today's date as a large title, like Fitness's "Summary", with Settings level with it. */
 .hello {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0 20px;
 }
-/* Behind the status bar only: content scrolling up fades out under the clock. */
+/* Behind the status bar: black under the clock, then (once content scrolls under it) the same
+ * 24pt fade-and-blur scroll edge as the navigation bar, instead of a hard cut. */
 .status-edge {
   position: sticky;
   top: 0;
   z-index: 20;
   height: env(safe-area-inset-top, 0px);
   margin-bottom: calc(-1 * env(safe-area-inset-top, 0px));
-  background: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0));
+  background: var(--ios-bg);
   pointer-events: none;
 }
-.hello-date {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #8d8d93;
+.status-edge::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 24px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: linear-gradient(to bottom, var(--ios-bg), rgba(0, 0, 0, 0));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.status-edge.is-scrolled::after {
+  opacity: 1;
 }
 .hello-title {
   font-size: 34px;
@@ -1727,4 +1737,20 @@ button.meal-row:not(:disabled):active {
 }
 .chart-head .wt-change {
   padding-bottom: 6px;
+}
+
+/* A card title that's also a menu (History's lift): the name, then a small up-down chevron. */
+.lift-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.lift-picker svg {
+  color: #8d8d93;
+}
+.lift-picker:active {
+  opacity: 0.5;
 }

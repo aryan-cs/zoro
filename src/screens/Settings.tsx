@@ -139,8 +139,6 @@ export function SettingsScreen() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [pendingImport, setPendingImport] = useState<unknown>(null);
   const [usda, setUsda] = useState(settings.usdaApiKey ?? '');
-  const [name, setName] = useState(settings.name ?? '');
-  useEffect(() => setName(settings.name ?? ''), [settings.name]);
   useEffect(() => setUsda(settings.usdaApiKey ?? ''), [settings.usdaApiKey]);
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted);
@@ -184,10 +182,6 @@ export function SettingsScreen() {
   return (
     <Page className="tab-safe">
       <Header title="Settings" onBack={nav.pop} />
-
-      <Section title="You">
-        <Field label="Name" placeholder="For Today's greeting" value={name} onChange={setName} onBlur={() => void saveSettings({ name: name.trim() || undefined })} wide />
-      </Section>
 
       <Section title="Plan">
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />

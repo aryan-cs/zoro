@@ -8,7 +8,8 @@ import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -35,6 +36,20 @@ function StatGrid({ items, color }: { items: [string, string | null, string?][];
 
 const LIFTS = ['bench', 'pausedBench', 'squat', 'rdl', 'inclineBarbell', 'barbellRow', 'hipThrust', 'closeGripBench', 'dbShoulderPress', 'pullup'];
 
+/** The main lifts you can follow over time (estimated max per session), with short names. */
+const TRACKED: Record<string, string> = {
+  bench: 'Bench Press',
+  squat: 'Squat',
+  rdl: 'Romanian Deadlift',
+  pausedBench: 'Paused Bench',
+  inclineBarbell: 'Incline Press',
+  closeGripBench: 'Close-Grip Bench',
+  barbellRow: 'Barbell Row',
+  hipThrust: 'Hip Thrust',
+  dbShoulderPress: 'Shoulder Press',
+};
+const LIFT_KEY = 'zoro.history.lift';
+
 function Lifts() {
   const nav = useNav();
   const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
@@ -50,19 +65,33 @@ function Lifts() {
     }
     return out;
   }, [history]);
-  const bench = [...(best.bench ?? []), ...(best.pausedBench ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const labels = useMemo(() => (bench.length ? bench.map((b) => short(b.date)) : emptyDays(30)), [bench]);
+  // The lift being followed, picked from the card's title menu and remembered.
+  const [lift, setLift] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(LIFT_KEY);
+      return saved && saved in TRACKED ? saved : 'bench';
+    } catch {
+      return 'bench';
+    }
+  });
+  const [menu, setMenu] = useState<DOMRect | null>(null);
+  const points = useMemo(() => best[lift] ?? [], [best, lift]);
+  const isBench = lift === 'bench';
+  const labels = useMemo(() => (points.length ? points.map((b) => short(b.date)) : emptyDays(30)), [points]);
   const series = useMemo<Series[]>(
     () =>
-      bench.length
+      points.length
         ? [
-            { label: 'Estimated max', data: bench.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-            { label: 'Goal', data: bench.map(() => 225), color: 'rgba(255,255,255,0.3)' },
+            { label: 'Estimated max', data: points.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
+            ...(isBench ? [{ label: 'Goal', data: points.map(() => 225), color: 'rgba(255,255,255,0.3)' }] : []),
           ]
         : [],
-    [bench],
+    [points, isBench],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
+  const top = points.length ? Math.max(...points.map((b) => b.e1rm)) : null;
+  const latest = points.at(-1)?.e1rm ?? null;
+  const change = points.length > 1 ? Math.round(points.at(-1)!.e1rm - points[0].e1rm) : null;
 
   const settings = useSettings();
   // The max your bench weights come from (it steps up as you finish 12-step blocks).
@@ -70,21 +99,57 @@ function Lifts() {
   return (
     <>
       <div className="fit-stack">
-        <FitCard title="Bench to 225">
+        <FitCard
+          title={
+            <button
+              type="button"
+              className="lift-picker"
+              onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}
+              aria-label={`Lift: ${TRACKED[lift]}. Choose another`}
+            >
+              {TRACKED[lift]}
+              <Sym name="chevron.up.chevron.down" size={13} />
+            </button>
+          }
+        >
           <StatGrid
             color={FITNESS.exercise}
-            items={[
-              ['Training Max', fmt(trainingMax), 'LB'],
-              ['Best', bench.length ? fmt(Math.max(...bench.map((b) => b.e1rm))) : null, bench.length ? 'LB' : undefined],
-              ['Goal', '225', 'LB'],
-            ]}
+            items={
+              isBench
+                ? [
+                    ['Training Max', fmt(trainingMax), 'LB'],
+                    ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
+                    ['Goal', '225', 'LB'],
+                  ]
+                : [
+                    ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
+                    ['Latest', latest ? fmt(latest) : null, latest ? 'LB' : undefined],
+                    ['Change', change === null ? null : `${change > 0 ? '+' : ''}${change}`, change === null ? undefined : 'LB'],
+                  ]
+            }
           />
-          <Bar value={bench.length ? Math.max(...bench.map((b) => b.e1rm)) : trainingMax} target={225} color={FITNESS.exercise} className="mt-4" />
+          {isBench && <Bar value={top ?? trainingMax} target={225} color={FITNESS.exercise} className="mt-4" />}
           <div className="fit-chart">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </div>
         </FitCard>
       </div>
+      <Menu
+        anchor={menu}
+        onClose={() => setMenu(null)}
+        items={Object.entries(TRACKED).map(([id, name]) => ({
+          label: name,
+          icon: id === lift ? <Sym name="checkmark" size={15} /> : undefined,
+          onClick: () => {
+            setLift(id);
+            try {
+              localStorage.setItem(LIFT_KEY, id);
+            } catch {
+              /* remembered until the app closes */
+            }
+          },
+        }))}
+      />
 
       <Section title="Workouts">
         {history.length === 0 && <EmptyRow>No Workouts</EmptyRow>}
