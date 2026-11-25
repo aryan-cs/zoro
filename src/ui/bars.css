@@ -1598,3 +1598,45 @@ button.meal-row:not(:disabled):active {
 .unit-switch:active {
   opacity: 0.4;
 }
+
+/* Today's Water square: the ring fills it, with the ounces in the middle. */
+.sq-ring {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+}
+.sq-ring .big-ring {
+  width: 100%;
+  height: 100%;
+}
+.sq-ring-value {
+  position: absolute;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #00b7ff;
+}
+.sq-ring-value small {
+  margin-left: 1px;
+  font-size: 0.55em;
+}
+/* Weight change, like Stocks: green up, red down, an arrow then the amount. */
+.wt-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wt-change.is-up {
+  color: #30d158;
+}
+.wt-change.is-down {
+  color: #ff453a;
+}

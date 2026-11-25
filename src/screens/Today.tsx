@@ -2,11 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { formatMinutes, programWeek, weeklyRate, weightTrend } from '../core/calc';
+import { formatMinutes, programWeek } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast, WorkoutCard } from '../ui/kit';
+import { BigRing, db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
@@ -39,9 +39,10 @@ export function TodayScreen() {
   const [weighing, setWeighing] = useState(false);
 
   const doneMain = sessions.find((s) => s.templateId === templateId && s.finishedAt);
-  const trend = weightTrend(weights);
-  const rate = weeklyRate(trend);
   const weighedToday = weights.find((w) => w.date === date);
+  // Change since the weigh-in before today, shown like a stock: green up, red down.
+  const before = [...weights].filter((w) => w.date < date).sort((x, y) => x.date.localeCompare(y.date)).at(-1);
+  const change = weighedToday && before ? Math.round((weighedToday.value - before.value) * 10) / 10 : null;
 
   const start = async (id: TemplateId) => {
     const sessionId = await startWorkout(id);
@@ -132,14 +133,28 @@ export function TodayScreen() {
         </FitCard>
         <div className="fit-grid is-squares">
           <FitCard bare title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
-            <FitStat value={fmt(waterOz)} unit="OZ" color={FITNESS.distance} />
+            {/* The day's ring filling the square, the ounces inside it. */}
+            <div className="sq-ring">
+              <BigRing value={waterOz} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
+              <div className="sq-ring-value">
+                {fmt(waterOz)}
+                <small>OZ</small>
+              </div>
+            </div>
           </FitCard>
           <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat
               value={weighedToday ? fmt(weighedToday.value, 1) : null}
               unit={weighedToday ? 'LB' : undefined}
               color={FITNESS.body}
-              sub={rate !== null ? `${rate > 0 ? '+' : ''}${fmt(rate, 2)} lb/wk` : undefined}
+              sub={
+                change ? (
+                  <span className={`wt-change ${change > 0 ? 'is-up' : 'is-down'}`}>
+                    <Sym name={change > 0 ? 'arrowtriangle.up.fill' : 'arrowtriangle.down.fill'} size={11} />
+                    {fmt(Math.abs(change), 1)} LB
+                  </span>
+                ) : undefined
+              }
             />
           </FitCard>
         </div>
