@@ -58,7 +58,6 @@ function TabBar() {
   const { tab, setTab } = useNav();
   return (
     <Tabbar
-      labels
       icons
       className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]"
       bgClassName="!hidden"
@@ -70,7 +69,7 @@ function TabBar() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             icon={<t.icon className="h-6 w-6" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
-            label={t.label}
+            aria-label={t.label}
           />
         ))}
       </ToolbarPane>

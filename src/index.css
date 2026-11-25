@@ -48,7 +48,7 @@ select {
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 72px);
+  padding-bottom: calc(var(--tabbar-bottom) + 64px);
 }
 
 /* Keep content sharp at the top and bottom edges: no blur strips behind the bars. */
