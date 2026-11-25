@@ -93,7 +93,7 @@ export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: Re
 }
 
 /** Round glass button for an icon in the navigation bar. */
-export function NavButton(props: { label: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
+export function NavButton(props: { label: string; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void; children: ReactNode; disabled?: boolean }) {
   return (
     <button type="button" aria-label={props.label} disabled={props.disabled} onClick={props.onClick} className="ios-navbtn ios-glass">
       {props.children}
@@ -102,14 +102,49 @@ export function NavButton(props: { label: string; onClick?: () => void; children
 }
 
 /** Several icon buttons sharing one glass capsule, like iOS 26 groups bar buttons. */
-export function NavButtonGroup({ items }: { items: { label: string; icon: ReactNode; onClick: () => void }[] }) {
+export function NavButtonGroup({ items }: { items: { label: string; icon: ReactNode; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }[] }) {
   return (
     <div className="ios-navgroup ios-glass">
       {items.map((i) => (
-        <button key={i.label} type="button" aria-label={i.label} className="ios-navgroup-btn" onClick={i.onClick}>
+        <button key={i.label} type="button" aria-label={i.label} className="ios-navgroup-btn" onClick={(e) => i.onClick(e)}>
           {i.icon}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * iOS 26 pull-down menu: a glass panel that grows out of the button that opened it, with
+ * white 17pt items and their symbols on the right. Tapping outside closes it.
+ */
+export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => void; items: { label: string; icon?: ReactNode; onClick: () => void }[] }) {
+  if (!props.anchor) return null;
+  const a = props.anchor;
+  return (
+    <div className="ios-menu-scrim" onClick={props.onClose}>
+      <div
+        className="ios-menu"
+        role="menu"
+        style={{ top: a.bottom + 8, right: Math.max(16, window.innerWidth - a.right) }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {props.items.map((i) => (
+          <button
+            key={i.label}
+            type="button"
+            role="menuitem"
+            className="ios-menu-item"
+            onClick={() => {
+              props.onClose();
+              i.onClick();
+            }}
+          >
+            <span>{i.label}</span>
+            {i.icon}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -126,7 +161,7 @@ export function NavTextButton(props: { onClick?: () => void; children: ReactNode
 // ---------- Search field ----------
 
 /** iOS search field: capsule, magnifier, clear button, and Cancel while editing. */
-export function SearchField(props: { value: string; onChange: (v: string) => void; onSubmit?: () => void; onCancel?: () => void; placeholder?: string }) {
+export function SearchField(props: { value: string; onChange: (v: string) => void; onSubmit?: () => void; onCancel?: () => void; placeholder?: string; inputMode?: 'search' | 'numeric'; autoFocus?: boolean }) {
   const [editing, setEditing] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -143,6 +178,8 @@ export function SearchField(props: { value: string; onChange: (v: string) => voi
         <input
           ref={input}
           type="search"
+          inputMode={props.inputMode}
+          autoFocus={props.autoFocus}
           enterKeyHint="search"
           value={props.value}
           placeholder={props.placeholder ?? 'Search'}

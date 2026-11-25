@@ -14,7 +14,7 @@ import {
 } from 'konsta/react';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
-import { NavBar, NavButton, NavButtonGroup, NavTextButton, SegmentedControl } from './bars';
+import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { Sym } from './Sym';
 import type { SFName } from './sf';
 import { getDB, getSettings } from '../core/db';
@@ -58,7 +58,7 @@ export function Header(props: { title: ReactNode; onBack?: () => void; left?: Re
 }
 
 /** Round glass icon button for the navigation bar. */
-export function IconBtn(props: { label: string; onClick?: () => void; children: ReactNode; className?: string; disabled?: boolean }) {
+export function IconBtn(props: { label: string; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void; children: ReactNode; className?: string; disabled?: boolean }) {
   return (
     <NavButton label={props.label} onClick={props.onClick} disabled={props.disabled}>
       {props.children}
@@ -68,6 +68,7 @@ export function IconBtn(props: { label: string; onClick?: () => void; children: 
 
 /** Icon buttons grouped in one glass capsule in the navigation bar. */
 export const IconGroup = NavButtonGroup;
+export const Menu = PullDownMenu;
 
 /** Text button for the navigation bar (Done, Cancel, Finish). */
 export function NavText(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {
@@ -343,6 +344,15 @@ function RingValue({ label, value, target, unit, color, big }: { label: string; 
   );
 }
 
+/** A single large Fitness ring on its own, sized by the page (Water). */
+export function BigRing(props: { value: number; target: number; colors: readonly [string, string] }) {
+  return (
+    <svg viewBox="0 0 220 220" className="big-ring" aria-hidden>
+      <Ring c={[110, 110]} r={88} w={44} value={props.value} target={props.target} colors={props.colors} glyph="arrow" />
+    </svg>
+  );
+}
+
 /** One goal as a single Fitness ring with its value beside it (Water). */
 export function GoalRing(props: { label: string; value: number; target: number; unit: string; color: string; gradient?: readonly [string, string] }) {
   return (
@@ -457,6 +467,27 @@ export function FitStat(props: { label: string; value: ReactNode | null; unit?: 
       </div>
       {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
     </div>
+  );
+}
+
+/** Just the four macro rings, filling their box (Today's Food square). */
+export function MacroRings({ totals, settings }: { totals: Macros; settings: Settings }) {
+  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
+  const rows: [number, number, readonly [string, string], RingGlyph][] = [
+    [totals.kcal, settings.kcalTarget, RING_GRADIENT.move, 'arrow'],
+    [totals.protein, settings.proteinTarget, RING_GRADIENT.exercise, 'double'],
+    [totals.carbs, carbs, RING_GRADIENT.carbs, 'up'],
+    [totals.fat, settings.fatTarget, RING_GRADIENT.steps, 'chevron'],
+  ];
+  const R = 70;
+  const W = R * 0.19;
+  const GAP = R * 0.017;
+  return (
+    <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="macro-rings-sq" aria-hidden>
+      {rows.map(([v, t, grad, glyph], i) => (
+        <Ring key={i} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={v} target={t} colors={grad} glyph={glyph} />
+      ))}
+    </svg>
   );
 }
 

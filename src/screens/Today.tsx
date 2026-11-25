@@ -1,16 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { addDays, formatMinutes, nextMonday, programWeek, weeklyRate, weightTrend } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, TEMPLATES, templateForWeekday } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, TemplateId } from '../core/types';
-import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroSummary, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, FitCard, FitStat, fmt, Header, IconBtn, MacroRings, NumberPrompt, useSettings, useToast, WorkoutCard } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
+import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
-const SECOND: Record<number, TemplateId> = { 1: 'pmCardio', 2: 'pmForearms', 3: 'pmAbs', 4: 'pmCardio', 6: 'pmForearms' };
 
 export const longDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -36,7 +35,7 @@ export function TodayScreen() {
   const weekday = new Date().getDay();
   const week = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS);
   const templateId = templateForWeekday(weekday, settings.daysPerWeek);
-  const second = SECOND[weekday];
+  const second = SECOND_BY_WEEKDAY[weekday];
 
   const sessions = useLiveQuery(() => db.sessions.where('date').equals(date).toArray(), [date]) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
@@ -65,47 +64,52 @@ export function TodayScreen() {
     toast('Weight saved');
   };
 
-  const workoutDone = !templateId || !!doneMain;
   const foodDone = totals.protein >= settings.proteinTarget && totals.kcal >= settings.kcalTarget * 0.9;
 
 
 
-  // Fitness-style workout cards: what's in progress, today's session, then the optional one.
-  const workout: ReactNode = (
-    <div className="flex flex-col gap-3">
-      {open && open.templateId !== templateId && (
-        <WorkoutCard
-          title={TEMPLATES[open.templateId].name}
-          glyph={TEMPLATE_GLYPH[open.templateId]}
-          color={FITNESS.exercise}
-          onPlay={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
-          onOpen={() => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id })}
-        />
-      )}
-      {templateId ? (
-        <WorkoutCard
-          title={TEMPLATES[templateId].name}
-          glyph={TEMPLATE_GLYPH[templateId]}
-          color={FITNESS.exercise}
-          done={!!doneMain}
-          onPlay={() => void start(templateId)}
-          onOpen={() =>
-            doneMain?.id !== undefined ? nav.go('lift', { name: 'workout', sessionId: doneMain.id }) : nav.go('lift')
-          }
-        />
-      ) : (
-        <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.go('lift')} />
-      )}
-      {second && !week.deload && (
-        <WorkoutCard
-          title={TEMPLATES[second].name}
-          glyph={TEMPLATE_GLYPH[second]}
-          color={FITNESS.steps}
-          onPlay={() => void start(second)}
-        />
-      )}
-    </div>
-  );
+  // Today's sessions: one in progress (if it isn't today's), today's, and the optional one.
+  type Session = { id: TemplateId; color: string; done?: boolean; play: () => void };
+  const sessionsToday: Session[] = [];
+  if (open && open.templateId !== templateId)
+    sessionsToday.push({ id: open.templateId, color: FITNESS.exercise, play: () => open.id !== undefined && nav.go('lift', { name: 'workout', sessionId: open.id }) });
+  if (templateId) sessionsToday.push({ id: templateId, color: FITNESS.exercise, done: !!doneMain, play: () => void start(templateId) });
+  if (second && !week.deload) sessionsToday.push({ id: second, color: FITNESS.steps, play: () => void start(second) });
+
+  // One session: a colored square with its figure. Several: a gray square with a button each.
+  const workout: ReactNode =
+    sessionsToday.length === 0 ? (
+      <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} onOpen={() => nav.go('lift')} />
+    ) : sessionsToday.length === 1 ? (
+      <WorkoutCard
+        title={TEMPLATES[sessionsToday[0].id].name}
+        glyph={TEMPLATE_GLYPH[sessionsToday[0].id]}
+        color={sessionsToday[0].color}
+        done={sessionsToday[0].done}
+        onPlay={sessionsToday[0].play}
+        onOpen={() => nav.go('lift')}
+      />
+    ) : (
+      <FitCard title="Workouts" onOpen={() => nav.go('lift')}>
+        <div className="wk-buttons">
+          {sessionsToday.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              className="wk-btn"
+              style={{ '--tint': w.color } as CSSProperties}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!w.done) w.play();
+              }}
+            >
+              <Sym name={w.done ? 'checkmark.bold' : TEMPLATE_GLYPH[w.id]} size={w.done ? 14 : 18} />
+              <span>{TEMPLATES[w.id].name}</span>
+            </button>
+          ))}
+        </div>
+      </FitCard>
+    );
 
   const food: ReactNode = (
     <FitCard
@@ -121,15 +125,11 @@ export function TodayScreen() {
         )
       }
     >
-      <MacroSummary totals={totals} settings={settings} />
+      <div className="sq-center">
+        <MacroRings totals={totals} settings={settings} />
+      </div>
     </FitCard>
   );
-
-  // Finished cards sink below the rest so the next thing to do is always on top.
-  const blocks = [
-    { key: 'workout', done: workoutDone, el: workout },
-    { key: 'food', done: foodDone, el: food },
-  ].sort((a, b) => Number(a.done) - Number(b.done));
 
   return (
     <Page className="tab-safe">
@@ -142,10 +142,9 @@ export function TodayScreen() {
         }
       />
       <div className="fit-stack">
-        {blocks.map((b) => (
-          <div key={b.key}>{b.el}</div>
-        ))}
-        <div className="fit-grid">
+        <div className="fit-grid is-squares">
+          {food}
+          {workout}
           <FitCard title="Water" onOpen={() => nav.go('water')}>
             <FitStat label="Today" value={`${fmt(waterOz)}/${fmt(settings.waterTargetOz)}`} unit="OZ" color={FITNESS.distance} />
           </FitCard>

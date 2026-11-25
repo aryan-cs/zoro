@@ -1,14 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { addDays, e1rm, nextMonday, roundTo } from '../core/calc';
-import { EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
-import { benchProgress } from '../core/progression';
+import { addDays, nextMonday, programWeek } from '../core/calc';
+import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { Bar, db, FITNESS, FitCard, FitStat, fmtLb, Header, NavText, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, fmtLb, Header, IconBtn, Menu, NavText, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
+import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
-import { activeSession, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
+import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
 
 const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
 const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
@@ -92,43 +92,54 @@ function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => 
   );
 }
 
+const ALL_SESSIONS: TemplateId[] = [...MAIN, ...SECONDARY];
+
+/**
+ * Lift is the plan for one day: pick a day in the week strip, see its session(s), and the
+ * exercises in it. Any other session can be started from + in the bar.
+ */
 export function LiftScreen() {
   const nav = useNav();
   const settings = useSettings();
   const date = today();
   const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
-  // The day picked in the week strip (today by default); the card and exercises follow it.
   const [sel, setSel] = useState(date);
+  const [menu, setMenu] = useState<DOMRect | null>(null);
   const isToday = sel === date;
-  const todayId = templateForWeekday(new Date(`${sel}T12:00`).getDay(), settings.daysPerWeek);
-  const todaysSession = history.find((h) => h.date === sel && h.templateId === todayId);
+  const weekday = new Date(`${sel}T12:00`).getDay();
+  const mainId = templateForWeekday(weekday, settings.daysPerWeek);
+  const deload = programWeek(settings.programStart, sel, DELOAD_BLOCK_WEEKS).deload;
+  const secondId = !deload ? SECOND_BY_WEEKDAY[weekday] : undefined;
+  const mainSession = history.find((h) => h.date === sel && h.templateId === mainId);
   const plan = useLiveQuery(
-    () => (todayId ? buildPlan(todayId, sel, db, todaysSession?.sessionId) : undefined),
-    [todayId, sel, settings.daysPerWeek, todaysSession?.sessionId],
+    () => (mainId ? buildPlan(mainId, sel, db, mainSession?.sessionId) : undefined),
+    [mainId, sel, settings.daysPerWeek, mainSession?.sessionId],
   );
+  const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
 
   const start = async (id: TemplateId) => {
     const sessionId = await startWorkout(id);
     nav.push({ name: 'workout', sessionId });
   };
-
   const doneDates = new Set(history.filter((h) => !TEMPLATES[h.templateId].secondary && h.sets.length).map((h) => h.date));
-
-  const bench = benchProgress(settings, history);
-  const blockMax = bench.newMax ?? settings.benchMax;
-  const benchBest = history
-    .flatMap((h) => h.sets.filter((s) => s.exerciseId === 'bench' || s.exerciseId === 'pausedBench'))
-    .reduce((m, s) => Math.max(m, e1rm(s.weight, s.reps)), 0);
-  const todayDone = !!todaysSession?.sets.length && open?.templateId !== todayId;
+  const allowed = ALL_SESSIONS.filter((id) => settings.daysPerWeek === 5 || id !== 'arms');
 
   return (
     <Page className="tab-safe">
-      <Header title="Lift" right={!isToday ? <NavText onClick={() => setSel(date)}>Today</NavText> : undefined} />
+      <Header
+        title="Lift"
+        left={!isToday ? <NavText onClick={() => setSel(date)}>Today</NavText> : undefined}
+        right={
+          <IconBtn label="Start another workout" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
+            <Sym name="plus" size={18.3} />
+          </IconBtn>
+        }
+      />
       <WeekStrip date={date} sel={sel} onSelect={setSel} daysPerWeek={settings.daysPerWeek} doneDates={doneDates} />
 
-      <div className="fit-stack">
-        {isToday && open?.id !== undefined && open.templateId !== todayId && (
+      <div className="fit-stack lift-day-cards">
+        {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && (
           <WorkoutCard
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
@@ -137,20 +148,29 @@ export function LiftScreen() {
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
           />
         )}
-        {todayId ? (
+        {mainId ? (
           <WorkoutCard
-            title={TEMPLATES[todayId].name}
-            glyph={TEMPLATE_GLYPH[todayId]}
+            title={TEMPLATES[mainId].name}
+            glyph={TEMPLATE_GLYPH[mainId]}
             color={FITNESS.exercise}
-            done={todayDone}
-            onPlay={isToday ? () => void start(todayId) : undefined}
+            done={doneOn(mainId)}
+            onPlay={isToday ? () => void start(mainId) : undefined}
           />
         ) : (
           <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
         )}
+        {secondId && (
+          <WorkoutCard
+            title={TEMPLATES[secondId].name}
+            glyph={TEMPLATE_GLYPH[secondId]}
+            color={FITNESS.steps}
+            done={doneOn(secondId)}
+            onPlay={isToday ? () => void start(secondId) : undefined}
+          />
+        )}
       </div>
 
-      {todayId && plan && (
+      {mainId && plan && (
         <Section title="Exercises">
           {plan.exercises.map((e) => {
             const def = EXERCISES[e.exerciseId];
@@ -166,32 +186,11 @@ export function LiftScreen() {
         </Section>
       )}
 
-      <Section title="Workouts" plain>
-        <div className="fit-grid">
-          {MAIN.filter((id) => settings.daysPerWeek === 5 || id !== 'arms').map((id) => (
-            <WorkoutCard key={id} title={TEMPLATES[id].name} glyph={TEMPLATE_GLYPH[id]} color={FITNESS.exercise} onPlay={() => void start(id)} />
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Second Sessions" plain>
-        <div className="fit-grid">
-          {SECONDARY.map((id) => (
-            <WorkoutCard key={id} title={TEMPLATES[id].name} glyph={TEMPLATE_GLYPH[id]} color={FITNESS.steps} onPlay={() => void start(id)} />
-          ))}
-        </div>
-      </Section>
-
-      <div className="fit-stack">
-        <FitCard title="Bench to 225">
-          <div className="fit-grid !gap-3">
-            <FitStat label="Training Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
-            <FitStat label="Estimated Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : null} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
-          </div>
-          {/* Progress toward 225 along the bottom: 16pt from the card's left, right and bottom edges. */}
-          <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-4" />
-        </FitCard>
-      </div>
+      <Menu
+        anchor={menu}
+        onClose={() => setMenu(null)}
+        items={allowed.map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void start(id) }))}
+      />
     </Page>
   );
 }

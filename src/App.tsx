@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'food', label: 'Food', icon: 'fork.knife' },
   { id: 'today', label: 'Today', icon: 'calendar' },
   { id: 'lift', label: 'Lift', icon: 'figure.run.circle.fill' },
-  { id: 'history', label: 'History', icon: 'chart.bar.fill' },
+  { id: 'history', label: 'History', icon: 'text.book.closed.fill' },
 ];
 
 function RouteScreen({ route }: { route: Route }) {
@@ -71,7 +71,7 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={<Sym name={t.icon} size={19} />}
+            icon={<Sym name={t.icon} size={17} />}
           />
         ))}
       </ToolbarPane>

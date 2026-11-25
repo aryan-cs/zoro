@@ -194,6 +194,8 @@ export interface Settings {
   sleepTargetMin: number;
   /** Daily water goal in fluid ounces. */
   waterTargetOz: number;
+  /** The four quick-add amounts on the Water tab, in ounces (hold one to change it). */
+  waterPresets?: number[];
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

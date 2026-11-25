@@ -1,11 +1,59 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
-import { Btn, Cell, db, FITNESS, fmt, GoalRing, RING_GRADIENT, Header, NumberPrompt, Row, Section, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, useSettings, useToast } from '../ui/kit';
+import { saveSettings } from '../core/db';
 
-const QUICK = [8, 16, 24, 32];
+const DEFAULT_PRESETS = [8, 16, 24, 32];
+const HOLD_MS = 450;
+
+/**
+ * A quick-add amount. Tap adds it; touch and hold (the button sinks, then pops like a context
+ * menu) opens an editor for its amount.
+ */
+function PresetButton({ oz, onAdd, onEdit }: { oz: number; onAdd: () => void; onEdit: () => void }) {
+  const timer = useRef(0);
+  const held = useRef(false);
+  const [state, setState] = useState<'' | 'pressing' | 'popped'>('');
+  const cancel = () => {
+    window.clearTimeout(timer.current);
+    setState('');
+  };
+  return (
+    <button
+      type="button"
+      className={`ios-btn is-md is-glass water-preset ${state ? `is-${state}` : ''}`}
+      onPointerDown={() => {
+        held.current = false;
+        setState('pressing');
+        timer.current = window.setTimeout(() => {
+          held.current = true;
+          setState('popped');
+          navigator.vibrate?.(10);
+          window.setTimeout(() => {
+            setState('');
+            onEdit();
+          }, 180);
+        }, HOLD_MS);
+      }}
+      onPointerUp={() => {
+        window.clearTimeout(timer.current);
+        if (!held.current) setState('');
+      }}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={() => {
+        if (held.current) return;
+        onAdd();
+      }}
+    >
+      +{fmt(oz, oz % 1 ? 1 : 0)} oz
+    </button>
+  );
+}
 
 export function WaterScreen() {
   const toast = useToast();
@@ -13,8 +61,11 @@ export function WaterScreen() {
   const date = today();
   const entries = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const [custom, setCustom] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null);
   const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
+  const presets = settings.waterPresets?.length === 4 ? settings.waterPresets : DEFAULT_PRESETS;
+  const pct = settings.waterTargetOz > 0 ? Math.round((total / settings.waterTargetOz) * 100) : 0;
   const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const add = async (oz: number) => {
@@ -26,27 +77,39 @@ export function WaterScreen() {
     <Page className="tab-safe">
       <Header title="Water" />
 
-      <Section>
-        <Cell className="">
-          <GoalRing label="Water" value={total} target={settings.waterTargetOz} unit="OZ" color={FITNESS.distance} gradient={RING_GRADIENT.distance} />
-        </Cell>
-        <Row accent title="Other Amount…" onClick={() => setCustom(true)} />
-      </Section>
-      <div className="mx-4 mt-3 grid grid-cols-4 gap-2">
-        {QUICK.map((oz) => (
-          <Btn key={oz} className="!w-full !px-0" onClick={() => void add(oz)}>
-            +{oz} oz
-          </Btn>
-        ))}
+      {/* The day's ring, big and centered, with the percent under it and the ounces below that. */}
+      <div className="water-hero">
+        <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} />
+        <div className="water-pct">{pct}%</div>
+        <div className="water-oz">
+          {fmt(total)} of {fmt(settings.waterTargetOz)} oz
+        </div>
       </div>
 
-      <Section title="Today">
-        {entries.length === 0 && <EmptyRow>No Water Logged</EmptyRow>}
-        {[...entries].reverse().map((e) => (
-          <Row key={e.id} title={`${fmt(e.oz, e.oz % 1 ? 1 : 0)} oz`} right={time(e.at)} onClick={() => setSelected(e)} />
+      <div className="water-presets">
+        {presets.map((oz, i) => (
+          <PresetButton key={i} oz={oz} onAdd={() => void add(oz)} onEdit={() => setEditing(i)} />
         ))}
-      </Section>
+      </div>
+      <button type="button" className="water-other" onClick={() => setCustom(true)}>
+        Other Amount
+      </button>
 
+
+      <NumberPrompt
+        opened={editing !== null}
+        title="Edit Amount"
+        unit="oz"
+        initial={editing !== null ? String(presets[editing]) : undefined}
+        max={128}
+        onCancel={() => setEditing(null)}
+        onSave={(n) => {
+          if (editing === null) return;
+          const next = presets.map((v, i) => (i === editing ? n : v));
+          void saveSettings({ waterPresets: next });
+          setEditing(null);
+        }}
+      />
       <NumberPrompt
         opened={custom}
         title="Add Water"

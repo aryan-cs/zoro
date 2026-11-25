@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react';
 import { addDays, averageSleep, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
+import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -54,19 +55,22 @@ function Lifts() {
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
 
-  const latest = bench[bench.length - 1];
+  const settings = useSettings();
+  // The max your bench weights come from (it steps up as you finish 12-step blocks).
+  const trainingMax = benchProgress(settings, history).newMax ?? settings.benchMax;
   return (
     <>
       <div className="fit-stack">
-        <FitCard title="Bench Estimated Max">
+        <FitCard title="Bench to 225">
           <StatGrid
             color={FITNESS.exercise}
             items={[
-              ['Latest', latest ? fmt(latest.e1rm) : null, latest ? 'LB' : undefined],
+              ['Training Max', fmt(trainingMax), 'LB'],
               ['Best', bench.length ? fmt(Math.max(...bench.map((b) => b.e1rm))) : null, bench.length ? 'LB' : undefined],
               ['Goal', '225', 'LB'],
             ]}
           />
+          <Bar value={bench.length ? Math.max(...bench.map((b) => b.e1rm)) : trainingMax} target={225} color={FITNESS.exercise} className="mt-4" />
           {bench.length > 1 && (
             <div className="fit-chart">
               <LineChart labels={labels} series={series} unit=" lb" height={150} />

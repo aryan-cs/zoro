@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Actions, ActionsButton, ActionsGroup, Block, ListItem, Page, Preloader } from 'konsta/react';
+import { Block, ListItem, Page, Preloader } from 'konsta/react';
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,7 +7,7 @@ import { BUILTIN_FOODS } from '../core/builtinFoods';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, Field, FITNESS, fmt, GlassSheet, Header, IconGroup, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, db, Field, FITNESS, fmt, GlassSheet, Header, IconGroup, Menu, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -171,6 +171,11 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
 function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: boolean; barcode?: string; onClose: () => void; onCreated: (f: FoodItem) => void }) {
   const blank = { name: '', brand: '', serving: '1 serving', grams: '', kcal: '', protein: '', carbs: '', fat: '' };
   const [f, setF] = useState(blank);
+  // Optional barcode: filled in when you got here from a scan, or scan/type it now, so scanning
+  // this item later brings this food straight back.
+  const [code, setCode] = useState(barcode ?? '');
+  const [scanning, setScanning] = useState(false);
+  useEffect(() => setCode(barcode ?? ''), [barcode, opened]);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
   const save = async () => {
     if (!f.name.trim() || !f.kcal) return;
@@ -179,7 +184,7 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
     const food: FoodItem = {
       name: f.name.trim(),
       brand: f.brand.trim() || undefined,
-      barcode: barcode ? normalizeBarcode(barcode) : undefined,
+      barcode: code.length >= 8 ? normalizeBarcode(code) : undefined,
       serving: { label: f.serving || '1 serving', grams, macros },
       per100g: grams ? { kcal: (macros.kcal * 100) / grams, protein: (macros.protein * 100) / grams, carbs: (macros.carbs * 100) / grams, fat: (macros.fat * 100) / grams } : undefined,
       source: 'custom',
@@ -192,7 +197,6 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
   };
   return (
     <SheetPage opened={opened} onClose={onClose} title="New Food">
-      {barcode && <Section><Row title="Barcode" right={barcode} /></Section>}
       <Section>
         <Field label="Name" placeholder="Protein bar" value={f.name} onChange={set('name')} wide />
         <Field label="Brand" placeholder="Optional" value={f.brand} onChange={set('brand')} wide />
@@ -205,6 +209,18 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
         <Field label="Carbs (g)" inputMode="decimal" value={f.carbs} onChange={set('carbs')} />
         <Field label="Fat (g)" inputMode="decimal" value={f.fat} onChange={set('fat')} />
       </Section>
+      <Section title="Barcode">
+        <Field label="Barcode" inputMode="numeric" placeholder="Optional" value={code} onChange={(v) => setCode(v.replace(/\D/g, ''))} />
+        <Row accent title="Scan Barcode" onClick={() => setScanning(true)} />
+      </Section>
+      <Scanner
+        opened={scanning}
+        onClose={() => setScanning(false)}
+        onCode={(c) => {
+          setCode(c);
+          setScanning(false);
+        }}
+      />
       <div className="mx-4 mt-4">
         <Btn kind="tint" size="lg" disabled={!f.name.trim() || !f.kcal} onClick={() => void save()}>
           Save Food
@@ -258,7 +274,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   const [scanning, setScanning] = useState(false);
   const [quick, setQuick] = useState(false);
   // Two bar buttons (scan, +) keep the title centered; + opens the other ways to add.
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState<DOMRect | null>(null);
   const [custom, setCustom] = useState<{ barcode?: string } | null>(null);
   // Arrived from a scan that found nothing: go straight to entering it from the label.
   useEffect(() => {
@@ -319,7 +335,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
           <IconGroup
             items={[
               { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
-              { label: 'More ways to add', icon: <Sym name="plus" size={18.3} />, onClick: () => setMenu(true) },
+              { label: 'More ways to add', icon: <Sym name="plus" size={18.3} />, onClick: (e) => setMenu(e.currentTarget.getBoundingClientRect()) },
             ]}
           />
         }
@@ -366,31 +382,14 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
 
       <AmountSheet food={picked} meal={meal} onMeal={setMeal} date={date} onClose={() => setPicked(null)} onLogged={logged} />
       <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={onCode} />
-      <Actions opened={menu} onBackdropClick={() => setMenu(false)}>
-        <ActionsGroup>
-          <ActionsButton
-            onClick={() => {
-              setMenu(false);
-              setQuick(true);
-            }}
-          >
-            Quick Add Calories
-          </ActionsButton>
-          <ActionsButton
-            onClick={() => {
-              setMenu(false);
-              setCustom({});
-            }}
-          >
-            New Food
-          </ActionsButton>
-        </ActionsGroup>
-        <ActionsGroup>
-          <ActionsButton bold onClick={() => setMenu(false)}>
-            Cancel
-          </ActionsButton>
-        </ActionsGroup>
-      </Actions>
+      <Menu
+        anchor={menu}
+        onClose={() => setMenu(null)}
+        items={[
+          { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
+          { label: 'New Food', icon: <Sym name="square.and.pencil" size={16} />, onClick: () => setCustom({}) },
+        ]}
+      />
       <QuickAddSheet
         opened={quick}
         meal={meal}
