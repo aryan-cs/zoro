@@ -1354,31 +1354,42 @@ button.meal-row:not(:disabled):active {
   margin-top: 16px;
 }
 
-/* Several workouts on Today: a round button per session, figure only. */
+/* Several workouts on Today: round buttons on a 2 x 2 grid under the title. Two sessions sit in
+ * the bottom row, three make an upside-down triangle (two over one), four fill the grid. */
 .wk-circles {
-  display: flex;
+  display: grid;
   flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  overflow: hidden;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  place-items: center;
+  gap: 6px;
+  min-height: 0;
+  margin-top: 6px;
+}
+.wk-circles.n2 > :nth-child(1) {
+  grid-row: 2;
+  grid-column: 1;
+}
+.wk-circles.n2 > :nth-child(2) {
+  grid-row: 2;
+  grid-column: 2;
+}
+.wk-circles.n3 > :nth-child(3) {
+  grid-row: 2;
+  grid-column: 1 / span 2;
 }
 .wk-circle {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
+  width: 54px;
+  height: 54px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tint) 22%, #1c1c1e);
   color: var(--tint);
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s ease-out;
-}
-.wk-circles.n3 .wk-circle {
-  width: 44px;
-  height: 44px;
 }
 .wk-circle:active {
   transform: scale(0.92);
