@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Block, BlockTitle, Button, Dialog, DialogButton, List, Navbar, NavbarBackLink, Page } from 'konsta/react';
+import { Dialog, DialogButton, Page } from 'konsta/react';
 import { Check, Timer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { platesPerSide } from '../core/calc';
@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { db, fmtLb, NumField, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, fmtLb, Header, NumField, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -43,21 +43,21 @@ function RestTimer({ endsAt, onAdd, onSkip }: { endsAt: number; onAdd: () => voi
   const left = Math.max(0, Math.round((endsAt - now) / 1000));
   const done = left === 0;
   return (
-    <div className="fixed inset-x-3 z-30 flex items-center justify-between rounded-2xl bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur dark:bg-[#2c2c2e]/95" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 92px)' }}>
+    <div className="glass-control fixed inset-x-3 z-30 mx-auto flex max-w-md items-center justify-between rounded-full py-1.5 pl-4 pr-1.5" style={{ bottom: 'calc(env(safe-area-inset-bottom) * 0.5 + 70px)' }}>
       <div className="flex items-center gap-2">
-        <Timer className={`h-5 w-5 ${done ? 'text-[#34c759]' : 'text-[#007aff]'}`} />
+        <Timer className={`h-5 w-5 ${done ? 'text-accent' : 'text-accent'}`} />
         <span className="tabular text-[20px] font-semibold">
           {done ? 'Go' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`}
         </span>
         <span className="text-[13px] text-black/50 dark:text-white/55">rest</span>
       </div>
       <div className="flex gap-2">
-        <Button small rounded tonal inline onClick={onAdd}>
+        <Btn size="sm" onClick={onAdd}>
           +30s
-        </Button>
-        <Button small rounded inline onClick={onSkip}>
+        </Btn>
+        <Btn size="sm" kind="tint" onClick={onSkip}>
           {done ? 'Close' : 'Skip'}
-        </Button>
+        </Btn>
       </div>
     </div>
   );
@@ -101,7 +101,7 @@ function SetRow(props: {
   };
 
   return (
-    <div className={`flex items-center gap-2 px-4 py-2 ${done ? 'bg-[#34c759]/8' : ''}`}>
+    <div className={`row flex items-center gap-2 px-4 py-1.5 ${done ? 'bg-accent/10' : ''}`}>
       <div className="w-[76px] shrink-0">
         <div className="text-[15px] font-medium">{props.target.label ?? `Set ${props.index + 1}`}</div>
         <div className="tabular text-[12px] text-black/45 dark:text-white/50">{targetText}</div>
@@ -122,11 +122,11 @@ function SetRow(props: {
         type="button"
         aria-label={done ? 'Undo set' : 'Log set'}
         onClick={toggle}
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${
-          done ? 'border-[#34c759] bg-[#34c759] text-white' : 'border-black/20 text-transparent dark:border-white/25'
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
+          done ? 'border-accent bg-accent text-black' : 'border-black/20 text-transparent dark:border-white/25'
         }`}
       >
-        <Check className="h-5 w-5" strokeWidth={3} />
+        <Check className="h-4 w-4" strokeWidth={3} />
       </button>
     </div>
   );
@@ -175,23 +175,23 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
   return (
     <Page className="tab-safe">
-      <Navbar
+      <Header
         title={TEMPLATES[session.templateId].name}
-        subtitle={`${doneSets} of ${totalSets} sets${plan.deload ? ' · easy week' : ''}`}
-        left={<NavbarBackLink onClick={nav.pop} />}
+        sub={`${doneSets} of ${totalSets} sets${plan.deload ? ' · easy week' : ''}`}
+        onBack={nav.pop}
         right={
           !finished && (
-            <Button clear small inline onClick={() => void finish()}>
+            <Btn size="sm" kind="tint" className="!h-8" onClick={() => void finish()}>
               Finish
-            </Button>
+            </Btn>
           )
         }
       />
 
       {plan.newBenchMax && (
-        <Block strong inset className="!my-3 text-[15px]">
+        <div className="glass mx-4 mt-3 rounded-[22px] px-4 py-2.5 text-[14px]">
           New bench block from your tested max of <b>{plan.newBenchMax} lb</b>. Every bench weight went up.
-        </Block>
+        </div>
       )}
 
       {plan.exercises.map((ex) => {
@@ -199,36 +199,35 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         const topTarget = ex.sets.reduce((m, s) => Math.max(m, s.weight ?? 0), 0);
         const plates = def.kind === 'barbell' && topTarget > settings.barWeight ? platesPerSide(topTarget, settings.barWeight, settings.plates) : null;
         return (
-          <div key={ex.exerciseId}>
-            <BlockTitle className="!mt-6 !mb-2 flex items-baseline justify-between">
-              <span>
+          <section key={ex.exerciseId} className="mx-4 mt-4">
+            <div className="mb-1.5 flex items-baseline justify-between px-1">
+              <span className="text-[15px] font-semibold">
                 {ex.name}
-                {ex.superset && <span className="ml-2 text-[12px] font-normal text-[#af52de]">superset {ex.superset}</span>}
+                {ex.superset && <span className="ml-2 text-[11px] font-medium text-[#bf5af2]">superset {ex.superset}</span>}
               </span>
-              <span className="text-[12px] font-normal text-black/45 dark:text-white/50">rest {Math.round(ex.restSec / 60 * 2) / 2} min</span>
-            </BlockTitle>
-            <List strong inset dividers className="!my-0">
+              <span className={`text-[11px] ${dim}`}>rest {Math.round((ex.restSec / 60) * 2) / 2} min</span>
+            </div>
+            <div className="glass overflow-hidden rounded-[22px]">
               {ex.sets.map((t, i) => (
-                <li key={i}>
-                  <SetRow
-                    index={i}
-                    target={t}
-                    ex={ex}
-                    logged={byKey.get(`${ex.exerciseId}:${i}`)}
-                    fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight : undefined}
-                    onLog={(weight, reps) => {
-                      void logSet(
-                        { sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps },
-                        db,
-                      );
-                      if (ex.restSec > 0) setRestEnds(Date.now() + ex.restSec * 1000);
-                    }}
-                    onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
-                  />
-                </li>
+                <SetRow
+                  key={i}
+                  index={i}
+                  target={t}
+                  ex={ex}
+                  logged={byKey.get(`${ex.exerciseId}:${i}`)}
+                  fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight : undefined}
+                  onLog={(weight, reps) => {
+                    void logSet(
+                      { sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps },
+                      db,
+                    );
+                    if (ex.restSec > 0) setRestEnds(Date.now() + ex.restSec * 1000);
+                  }}
+                  onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
+                />
               ))}
-            </List>
-            <Block className="!my-2 space-y-1 text-[13px] text-black/50 dark:text-white/55">
+            </div>
+            <div className={`mt-1.5 space-y-0.5 px-1 text-[12px] leading-snug ${dim}`}>
               {plates && plates.plates.length > 0 && (
                 <div>
                   {fmtLb(topTarget)} lb = {plates.plates.join(' + ')} per side
@@ -243,29 +242,29 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
               {ex.notes.map((n) => (
                 <div key={n}>{n}</div>
               ))}
-            </Block>
-          </div>
+            </div>
+          </section>
         );
       })}
 
-      <Block className="space-y-3">
+      <div className="mx-4 mt-6 space-y-2">
         {!finished ? (
           <>
-            <Button large rounded onClick={() => void finish()}>
+            <Btn kind="tint" size="lg" onClick={() => void finish()}>
               Finish workout
-            </Button>
-            <Button large rounded clear className="!text-[#ff3b30]" onClick={() => setConfirmDiscard(true)}>
+            </Btn>
+            <Btn kind="plain" size="lg" className="!text-[#ff453a]" onClick={() => setConfirmDiscard(true)}>
               Discard workout
-            </Button>
+            </Btn>
           </>
         ) : (
-          <Button large rounded tonal className="!text-[#ff3b30]" onClick={() => setConfirmDiscard(true)}>
+          <Btn kind="danger" size="lg" onClick={() => setConfirmDiscard(true)}>
             Delete this workout
-          </Button>
+          </Btn>
         )}
-      </Block>
+      </div>
 
-      {restEnds && <div className="h-20" />}
+      {restEnds && <div className="h-14" />}
       {restEnds && <RestTimer endsAt={restEnds} onAdd={() => setRestEnds(Math.max(restEnds, Date.now()) + 30_000)} onSkip={() => setRestEnds(null)} />}
 
       <Dialog
@@ -276,7 +275,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         buttons={
           <>
             <DialogButton onClick={() => setConfirmDiscard(false)}>Cancel</DialogButton>
-            <DialogButton strong className="!text-[#ff3b30]" onClick={() => void discard()}>
+            <DialogButton strong className="!text-[#ff453a]" onClick={() => void discard()}>
               Delete
             </DialogButton>
           </>

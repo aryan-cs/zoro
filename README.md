@@ -12,11 +12,13 @@ A free, private training, food, and sleep tracker that installs on an iPhone as 
 
 ## What it does
 
-- **Train:** today's workout with exact weights, sets, and reps. Bench follows a 12-step table toward a new max; everything else uses double progression (add weight once every set hits the top of the rep range). Weeks 6 and 12 of each block are easy weeks. Logs sets, runs a rest timer, keeps the screen awake, and shows plates per side.
-- **Food:** search Open Food Facts and (with a free key) USDA, scan barcodes, quick add, make custom foods, and track calories and macros against your targets.
-- **Body:** weight trend, weekly rate, an estimate of the calories you burn with a suggested target, sleep, lift progress, and measurements.
-- **Sleep:** enter bed and wake times, or paste last night's sleep from Apple Health using the Shortcut described in the app (Settings → Sleep).
-- **Backups:** Settings → Back up exports a JSON file. Restore it on any device.
+- **Today:** the date, then today's workout, food and body check-ins. Finished blocks move to the bottom. Settings is the gear in the corner.
+- **Water:** log cups and bottles toward a daily goal in ounces.
+- **Food:** scan barcodes (USDA label data first, then Open Food Facts), search, quick add, make custom foods, and track calories and macros against your targets.
+- **Lift:** today's lifts with exact weights, sets and reps. Bench follows a 12-step table toward a new max; everything else uses double progression (add weight once every set hits the top of the rep range). Weeks 6 and 12 of each block are easy weeks. Logs sets, runs a rest timer, keeps the screen awake, and shows plates per side.
+- **History:** lifts, weight trend with a calorie-burn estimate, measurements, food and water by day, and sleep.
+- **Sleep:** enter bed and wake times, or paste last night's sleep from Apple Health using the Shortcut described in the app (Today → Sleep).
+- **Backups:** Settings → Cloud backup saves everything to a private GitHub repo a few seconds after each change, using a fine-grained token that can only touch that repo. You can also export a JSON file.
 
 ## Develop
 

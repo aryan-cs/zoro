@@ -1,4 +1,5 @@
-import { Block, BlockTitle, Navbar, NavbarBackLink, Page } from 'konsta/react';
+import { Page } from 'konsta/react';
+import { Header, Note, Section } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 const STEPS: [string, string][] = [
@@ -11,31 +12,26 @@ const STEPS: [string, string][] = [
   ['Combine', 'After End Repeat, add “Combine Text” on Repeat Results, combined with New Lines.'],
   ['Wrap it', 'Add a Text action: ZORO-SLEEP [ then the Combined Text, then ] on the end.'],
   ['Copy', 'Add “Copy to Clipboard” with that text. Optional: add “Show Notification” saying “Sleep copied”.'],
-  ['Run it each morning', 'Tap “Run the Zoro Sleep shortcut” on the Body → Sleep tab (or add the shortcut as a widget). Then come back to Zoro, tap the box, and paste.'],
+  ['Run it each morning', 'On Today, tap Sleep, then “Run the Zoro Sleep shortcut” (or add the shortcut as a widget). Then come back to Zoro, tap the box, and paste.'],
 ];
 
 export function SleepSetupScreen() {
   const nav = useNav();
   return (
     <Page className="tab-safe">
-      <Navbar title="Sleep shortcut" left={<NavbarBackLink onClick={nav.pop} />} />
-      <Block className="!my-3 text-[15px] text-black/70 dark:text-white/70">
-        Web apps can't read Apple Health directly. This one-time Shortcut copies last night's sleep so you can paste it into Zoro. It takes about 5 minutes to set up.
-      </Block>
+      <Header title="Sleep shortcut" onBack={nav.pop} />
+      <Note className="mt-3 text-[13px]">
+        Web apps can't read Apple Health directly. This one-time Shortcut copies last night's sleep so you can paste it into Zoro. It takes about 5 minutes.
+      </Note>
       {STEPS.map(([title, body], i) => (
-        <div key={title}>
-          <BlockTitle>
-            {i + 1}. {title}
-          </BlockTitle>
-          <Block strong inset className="!my-2 whitespace-pre-line text-[15px]">
-            {body}
-          </Block>
-        </div>
+        <Section key={title} title={`${i + 1}. ${title}`} cardClass="px-4 py-2.5 text-[14px] whitespace-pre-line">
+          {body}
+        </Section>
       ))}
-      <Block className="text-[13px] text-black/50 dark:text-white/55">
-        Zoro only counts time asleep, merges overlapping samples from your watch and phone, and ignores naps earlier in the day. If you don't wear a watch, just
-        enter your bed and wake times by hand.
-      </Block>
+      <Note className="mt-3">
+        Zoro only counts time asleep, merges overlapping samples from your watch and phone, and ignores naps earlier in the day. No watch? Enter your bed and wake
+        times by hand.
+      </Note>
     </Page>
   );
 }

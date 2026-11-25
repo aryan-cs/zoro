@@ -1,23 +1,25 @@
-import { App as KonstaApp, Button, Tabbar, TabbarLink, Toast, ToolbarPane } from 'konsta/react';
-import { CalendarDays, ChartLine, Dumbbell, Salad, Settings as SettingsIcon } from 'lucide-react';
+import { App as KonstaApp, Toast } from 'konsta/react';
+import { CalendarDays, Droplet, Dumbbell, History, Salad } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AddFoodScreen } from './screens/AddFood';
-import { BodyScreen } from './screens/Body';
 import { FoodScreen } from './screens/Food';
-import { MoreScreen } from './screens/More';
+import { HistoryScreen } from './screens/History';
+import { LiftScreen } from './screens/Lift';
+import { LogSleepScreen } from './screens/LogSleep';
+import { SettingsScreen } from './screens/Settings';
 import { SleepSetupScreen } from './screens/SleepSetup';
 import { TodayScreen } from './screens/Today';
-import { TrainScreen } from './screens/Train';
+import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
-import { ToastProvider } from './ui/kit';
+import { Btn, ToastProvider } from './ui/kit';
 import { NavProvider, useNav, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
-  { id: 'today', label: 'Today', icon: CalendarDays },
-  { id: 'train', label: 'Train', icon: Dumbbell },
+  { id: 'water', label: 'Water', icon: Droplet },
   { id: 'food', label: 'Food', icon: Salad },
-  { id: 'body', label: 'Body', icon: ChartLine },
-  { id: 'more', label: 'Settings', icon: SettingsIcon },
+  { id: 'today', label: 'Today', icon: CalendarDays },
+  { id: 'lift', label: 'Lift', icon: Dumbbell },
+  { id: 'history', label: 'History', icon: History },
 ];
 
 function RouteScreen({ route }: { route: Route }) {
@@ -26,45 +28,65 @@ function RouteScreen({ route }: { route: Route }) {
       return <WorkoutScreen key={route.sessionId} sessionId={route.sessionId} />;
     case 'addFood':
       return <AddFoodScreen meal={route.meal} date={route.date} />;
+    case 'logSleep':
+      return <LogSleepScreen />;
     case 'sleepSetup':
       return <SleepSetupScreen />;
+    case 'settings':
+      return <SettingsScreen />;
   }
 }
 
 function TabRoot({ tab }: { tab: Tab }) {
   switch (tab) {
-    case 'today':
-      return <TodayScreen />;
-    case 'train':
-      return <TrainScreen />;
+    case 'water':
+      return <WaterScreen />;
     case 'food':
       return <FoodScreen />;
-    case 'body':
-      return <BodyScreen />;
-    case 'more':
-      return <MoreScreen />;
+    case 'today':
+      return <TodayScreen />;
+    case 'lift':
+      return <LiftScreen />;
+    case 'history':
+      return <HistoryScreen />;
   }
 }
 
+/** Slim floating glass tab bar. */
+function TabBar() {
+  const { tab, setTab } = useNav();
+  return (
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)*0.5+8px)]">
+      <div className="glass-control pointer-events-auto mx-auto flex h-[54px] max-w-md items-center rounded-full px-1">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => setTab(t.id)}
+              className={`flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition ${
+                active ? 'bg-white/12 text-accent' : 'text-black/75 active:bg-black/5 dark:text-white/80'
+              }`}
+            >
+              <t.icon className="h-[21px] w-[21px]" strokeWidth={active ? 2.2 : 1.8} />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 function Shell() {
-  const { tab, stack, setTab } = useNav();
+  const { tab, stack } = useNav();
   const top = stack[stack.length - 1];
   return (
     <>
       {top ? <RouteScreen route={top} /> : <TabRoot tab={tab} />}
-      <Tabbar labels icons className="fixed bottom-0 left-0 z-20">
-        <ToolbarPane>
-        {TABS.map((t) => (
-          <TabbarLink
-            key={t.id}
-            active={tab === t.id}
-            onClick={() => setTab(t.id)}
-            icon={<t.icon className="h-7 w-7" strokeWidth={tab === t.id ? 2.2 : 1.8} />}
-            label={t.label}
-          />
-        ))}
-        </ToolbarPane>
-      </Tabbar>
+      <TabBar />
     </>
   );
 }
@@ -88,9 +110,9 @@ function UpdateToast() {
       opened={needRefresh}
       className="top-[calc(env(safe-area-inset-top)+8px)] bottom-auto"
       button={
-        <Button rounded clear small inline onClick={() => void updateServiceWorker(true)}>
+        <Btn size="sm" kind="plain" onClick={() => void updateServiceWorker(true)}>
           Update
-        </Button>
+        </Btn>
       }
     >
       <button type="button" className="shrink" onClick={() => setNeedRefresh(false)}>

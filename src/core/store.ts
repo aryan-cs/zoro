@@ -1,4 +1,4 @@
-import { searchBuiltin } from './builtinFoods';
+import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
 import { templateFor, templateForWeekday } from './program';
@@ -15,6 +15,7 @@ import type {
   SetLog,
   SleepEntry,
   TemplateId,
+  WaterEntry,
   WorkoutSession,
 } from './types';
 
@@ -141,6 +142,7 @@ export async function logFood(
     unit: args.unit,
     macros: macrosFor(args.food, args.quantity, args.unit),
     loggedAt: Date.now(),
+    liquid: args.food.liquid || undefined,
   };
   return (await db.entries.add(entry)) as number;
 }
@@ -173,7 +175,7 @@ export async function recentFoods(limit = 20, db: ZoroDB = getDB()): Promise<Foo
 export async function searchLocalFoods(q: string, db: ZoroDB = getDB()): Promise<FoodItem[]> {
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
-  const saved = await db.foods.filter((f) => `${f.name} ${f.brand ?? ''}`.toLowerCase().includes(needle)).limit(25).toArray();
+  const saved = await db.foods.filter((f) => matchesWords(`${f.name} ${f.brand ?? ''}`, needle)).limit(25).toArray();
   const savedIds = new Set(saved.map((f) => `${f.source}:${f.sourceId ?? f.name}`));
   const builtin = searchBuiltin(needle).filter((f) => !savedIds.has(`builtin:${f.sourceId}`));
   return [...saved, ...builtin];
@@ -204,6 +206,25 @@ export async function saveMetric(type: MetricType, value: number, date: ISODate 
 export async function metricsOf(type: MetricType, sinceDays = 365, db: ZoroDB = getDB()): Promise<BodyMetric[]> {
   const since = addDays(today(), -sinceDays);
   return (await db.metrics.where('type').equals(type).toArray()).filter((m) => m.date >= since).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ---------- Water ----------
+
+export async function addWater(oz: number, date: ISODate = today(), db: ZoroDB = getDB()): Promise<number> {
+  return (await db.water.add({ date, oz, at: Date.now() })) as number;
+}
+
+export async function waterFor(date: ISODate, db: ZoroDB = getDB()): Promise<WaterEntry[]> {
+  return db.water.where('date').equals(date).sortBy('at');
+}
+
+/** Total ounces per day for the last `days` days (days with nothing logged are left out). */
+export async function dailyWater(days: number, db: ZoroDB = getDB()): Promise<{ date: ISODate; oz: number }[]> {
+  const since = addDays(today(), -days + 1);
+  const rows = await db.water.where('date').aboveOrEqual(since).toArray();
+  const byDay = new Map<ISODate, number>();
+  for (const r of rows) byDay.set(r.date, (byDay.get(r.date) ?? 0) + r.oz);
+  return [...byDay.entries()].map(([date, oz]) => ({ date, oz })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ---------- Backup ----------

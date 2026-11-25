@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fatTarget: 70,
   stepsTarget: 9000,
   sleepTargetMin: 450,
+  waterTargetOz: 120,
   dumbbellMax: 60,
   barWeight: 45,
   plates: [45, 35, 25, 10, 5, 2.5],

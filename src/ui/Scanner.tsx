@@ -1,8 +1,8 @@
 import { BarcodeDetector, prepareZXingModule } from 'barcode-detector/ponyfill';
-import { Block, Button, List, ListInput, Navbar, Popup, Page } from 'konsta/react';
 import { Camera } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
+import { Btn, Field, Note, Section, SheetPage } from './kit';
 
 let prepared = false;
 function detector(): BarcodeDetector {
@@ -72,43 +72,26 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
   };
 
   return (
-    <Popup opened={opened} onBackdropClick={onClose}>
-      <Page>
-        <Navbar
-          title="Scan barcode"
-          right={
-            <Button clear small inline onClick={onClose}>
-              Close
-            </Button>
-          }
-        />
-        <div className="relative mx-4 mt-4 aspect-[3/4] overflow-hidden rounded-2xl bg-black">
-          <video ref={video} playsInline muted autoPlay className="h-full w-full object-cover" />
-          <div className="pointer-events-none absolute inset-x-8 top-1/2 h-28 -translate-y-1/2 rounded-xl border-2 border-white/80" />
-        </div>
-        {error && <Block className="!my-3 text-[14px] text-[#ff3b30]">{error}</Block>}
-        <Block className="!my-3">
-          <label className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#007aff]/10 py-3 text-[16px] font-medium text-[#007aff]">
-            <Camera className="h-5 w-5" /> Take a photo instead
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
-          </label>
-        </Block>
-        <List strong inset className="!my-3">
-          <ListInput
-            label="Type the barcode"
-            type="text"
-            inputMode="numeric"
-            placeholder="0123456789012"
-            value={manual}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManual(e.target.value.replace(/\D/g, ''))}
-          />
-        </List>
-        <Block>
-          <Button large rounded disabled={manual.length < 8} onClick={() => onCode(manual)}>
-            Look up
-          </Button>
-        </Block>
-      </Page>
-    </Popup>
+    <SheetPage opened={opened} onClose={onClose} title="Scan barcode" closeLabel="Close">
+      <div className="relative mx-4 mt-3 aspect-[4/3] overflow-hidden rounded-[22px] bg-black">
+        <video ref={video} playsInline muted autoPlay className="h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-2xl border-2 border-white/80" />
+      </div>
+      {error && <Note className="mt-3 !text-[#ff453a]">{error}</Note>}
+      <div className="mx-4 mt-3">
+        <label className="glass-control flex h-11 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold text-accent">
+          <Camera className="h-[18px] w-[18px]" /> Take a photo instead
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
+        </label>
+      </div>
+      <Section title="Or type it">
+        <Field label="Barcode" inputMode="numeric" placeholder="0123456789012" value={manual} onChange={(v) => setManual(v.replace(/\D/g, ''))} wide />
+      </Section>
+      <div className="mx-4 mt-3">
+        <Btn kind="tint" size="lg" disabled={manual.length < 8} onClick={() => onCode(manual)}>
+          Look up
+        </Btn>
+      </div>
+    </SheetPage>
   );
 }

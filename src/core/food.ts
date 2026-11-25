@@ -1,13 +1,15 @@
 import type { FoodItem, Macros } from './types';
 
 /**
- * Food lookups. Open Food Facts is free with no key (best for barcodes and packaged food).
- * USDA FoodData Central is free with a key (best for plain foods like rice or chicken).
+ * Food lookups. USDA FoodData Central has US label data (barcodes, serving sizes) and plain foods
+ * like rice or chicken; it needs a free key, or the shared DEMO_KEY with a low hourly limit.
+ * Open Food Facts is free with no key and covers products sold worldwide.
  * Requests carry only the barcode or search words.
  */
 
 const OFF = 'https://world.openfoodfacts.org';
-const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_size,serving_quantity,serving_quantity_unit';
+const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit';
+export const USDA_DEMO_KEY = 'DEMO_KEY';
 const APP_TAG = 'app_name=Zoro&app_version=0.1';
 
 type Num = number | string | undefined;
@@ -26,6 +28,9 @@ interface OffProduct {
   serving_size?: string;
   serving_quantity?: Num;
   serving_quantity_unit?: string;
+  quantity?: string;
+  product_quantity?: Num;
+  product_quantity_unit?: string;
   nutriments?: Record<string, Num>;
 }
 
@@ -48,37 +53,45 @@ function offMacros(n: Record<string, Num>, suffix: '_100g' | '_serving'): Macros
   };
 }
 
+const isMl = (unit?: string, text?: string) => /^(ml|mlt|l|cl|fl ?oz)$/i.test(unit ?? '') || /\b(ml|fl\.? ?oz|l)\b/i.test(text ?? '');
+
+function scaled(m: Macros, grams: number): Macros {
+  const f = grams / 100;
+  return { kcal: Math.round(m.kcal * f), protein: r1(m.protein * f), carbs: r1(m.carbs * f), fat: r1(m.fat * f), fiber: r1((m.fiber ?? 0) * f) };
+}
+
 export function parseOffProduct(p: OffProduct): FoodItem | null {
   const name = (p.product_name || p.product_name_en || '').trim();
   const n = p.nutriments ?? {};
   const per100g = offMacros(n, '_100g');
   let servingMacros = offMacros(n, '_serving');
-  const grams = num(p.serving_quantity);
-  if (!servingMacros && per100g && grams) {
-    const f = grams / 100;
-    servingMacros = {
-      kcal: Math.round(per100g.kcal * f),
-      protein: r1(per100g.protein * f),
-      carbs: r1(per100g.carbs * f),
-      fat: r1(per100g.fat * f),
-      fiber: r1((per100g.fiber ?? 0) * f),
-    };
+  let grams = num(p.serving_quantity);
+  let label = p.serving_size;
+  const liquid = isMl(p.serving_quantity_unit ?? p.product_quantity_unit, p.serving_size ?? p.quantity);
+  // No serving on file: use the whole package if it's a single item (a can, a bar).
+  const pkg = num(p.product_quantity);
+  if (!servingMacros && !grams && pkg && pkg <= 1000) {
+    grams = pkg;
+    label = `1 package (${p.quantity?.trim() || `${pkg} ${liquid ? 'ml' : 'g'}`})`;
   }
+  if (!servingMacros && per100g && grams) servingMacros = scaled(per100g, grams);
   if (!name || (!per100g && !servingMacros)) return null;
   return {
     barcode: p.code,
     name,
     brand: (Array.isArray(p.brands) ? p.brands[0] : p.brands?.split(',')[0])?.trim() || undefined,
     per100g,
-    serving: servingMacros ? { label: p.serving_size || (grams ? `${grams} g` : '1 serving'), grams, macros: servingMacros } : undefined,
+    serving: servingMacros ? { label: label || (grams ? `${grams} ${liquid ? 'ml' : 'g'}` : '1 serving'), grams, macros: servingMacros } : undefined,
     source: 'off',
     sourceId: p.code,
     updatedAt: Date.now(),
+    liquid: liquid || undefined,
   };
 }
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+  if (res.status === 429) throw new Error('USDA_LIMIT');
   if (!res.ok) throw new Error(`Food lookup failed (${res.status}).`);
   return (await res.json()) as T;
 }
@@ -89,8 +102,8 @@ export function normalizeBarcode(raw: string): string {
   return code.length === 12 ? `0${code}` : code;
 }
 
-/** Look up a barcode. Returns null if Open Food Facts doesn't have it. */
-export async function lookupBarcode(barcode: string, signal?: AbortSignal): Promise<FoodItem | null> {
+/** Open Food Facts barcode lookup. Returns null if it doesn't have the product. */
+export async function lookupOffBarcode(barcode: string, signal?: AbortSignal): Promise<FoodItem | null> {
   const code = normalizeBarcode(barcode);
   if (!code) return null;
   const res = await fetch(`${OFF}/api/v3/product/${code}.json?fields=${OFF_FIELDS}`, { signal, headers: { Accept: 'application/json' } });
@@ -100,6 +113,42 @@ export async function lookupBarcode(barcode: string, signal?: AbortSignal): Prom
   const data = (await res.json()) as { status?: string; product?: OffProduct };
   if (!data.product || data.status === 'failure') return null;
   return parseOffProduct({ code, ...data.product });
+}
+
+/** USDA stores label barcodes as 12-digit UPCs or 14-digit GTINs and only matches the exact string. */
+export function barcodeVariants(barcode: string): string[] {
+  const digits = barcode.replace(/\D/g, '');
+  const bare = digits.replace(/^0+/, '');
+  if (!bare) return [];
+  const out = [bare.length <= 12 ? bare.padStart(12, '0') : bare, bare.padStart(14, '0')];
+  return [...new Set(out)];
+}
+
+/** USDA branded-food lookup by barcode. Returns null if USDA doesn't have it. */
+export async function lookupUsdaBarcode(barcode: string, apiKey: string, signal?: AbortSignal): Promise<FoodItem | null> {
+  const want = barcode.replace(/\D/g, '').replace(/^0+/, '');
+  for (const v of barcodeVariants(barcode)) {
+    const data = await getJSON<{ foods?: FdcFood[] }>(
+      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${v}&dataType=Branded&pageSize=5`,
+      signal,
+    );
+    const hit = (data.foods ?? []).find((f) => (f.gtinUpc ?? '').replace(/^0+/, '') === want);
+    const food = hit ? parseFdcFood(hit) : null;
+    if (food) return { ...food, barcode: normalizeBarcode(barcode) };
+  }
+  return null;
+}
+
+/**
+ * Look up a barcode in both databases at once. USDA wins when it has the product
+ * (it's copied from the US label, with real serving sizes); Open Food Facts fills the gaps.
+ */
+export async function lookupBarcode(barcode: string, usdaKey?: string, signal?: AbortSignal): Promise<FoodItem | null> {
+  const [usda, off] = await Promise.allSettled([lookupUsdaBarcode(barcode, usdaKey || USDA_DEMO_KEY, signal), lookupOffBarcode(barcode, signal)]);
+  if (usda.status === 'fulfilled' && usda.value) return usda.value;
+  if (off.status === 'fulfilled' && off.value) return off.value;
+  if (usda.status === 'rejected' && off.status === 'rejected') throw off.reason;
+  return null;
 }
 
 /**
@@ -136,6 +185,7 @@ interface FdcNutrient {
 interface FdcFood {
   fdcId: number;
   description: string;
+  gtinUpc?: string;
   brandOwner?: string;
   brandName?: string;
   dataType?: string;
@@ -170,34 +220,31 @@ export function parseFdcFood(f: FdcFood): FoodItem | null {
     fat: r1(fat ?? 0),
     fiber: r1(fdcValue(list, [1079], ['291']) ?? 0),
   };
-  const grams = f.servingSize && f.servingSizeUnit?.toLowerCase() === 'g' ? f.servingSize : undefined;
+  const unit = (f.servingSizeUnit ?? '').toLowerCase();
+  const liquid = unit === 'ml' || unit === 'mlt';
+  const grams = f.servingSize && (liquid || unit === 'g' || unit === 'grm') ? Math.round(f.servingSize * 10) / 10 : undefined;
+  const amount = grams ? `${fmtNum(grams)} ${liquid ? 'ml' : 'g'}` : '';
+  const household = f.householdServingFullText?.trim();
   const name = f.description.charAt(0) + f.description.slice(1).toLowerCase();
   return {
     name,
     brand: f.brandName || f.brandOwner || undefined,
     per100g,
-    serving: grams
-      ? {
-          label: f.householdServingFullText ? `${f.householdServingFullText} (${grams} g)` : `${grams} g`,
-          grams,
-          macros: {
-            kcal: Math.round((per100g.kcal * grams) / 100),
-            protein: r1((per100g.protein * grams) / 100),
-            carbs: r1((per100g.carbs * grams) / 100),
-            fat: r1((per100g.fat * grams) / 100),
-          },
-        }
-      : undefined,
+    serving: grams ? { label: household && household !== amount ? `${household} (${amount})` : amount, grams, macros: scaled(per100g, grams) } : undefined,
     source: 'usda',
     sourceId: String(f.fdcId),
     updatedAt: Date.now(),
+    liquid: liquid || undefined,
   };
 }
 
-export async function searchUsda(query: string, apiKey: string, signal?: AbortSignal): Promise<FoodItem[]> {
+const fmtNum = (n: number) => String(Math.round(n * 10) / 10);
+
+/** Plain foods (Foundation, SR Legacy, survey foods). Add `branded` for packaged foods too. */
+export async function searchUsda(query: string, apiKey: string, signal?: AbortSignal, branded = false): Promise<FoodItem[]> {
   const q = encodeURIComponent(query.trim());
   if (!q || !apiKey) return [];
-  const types = encodeURIComponent('Foundation,SR Legacy,Survey (FNDDS)');
+  const types = encodeURIComponent(branded ? 'Branded' : 'Foundation,SR Legacy,Survey (FNDDS)');
   const data = await getJSON<{ foods?: FdcFood[] }>(
     `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${q}&pageSize=20&dataType=${types}`,
     signal,

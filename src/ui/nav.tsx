@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { ISODate, Meal } from '../core/types';
 
-export type Tab = 'today' | 'train' | 'food' | 'body' | 'more';
+export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
 
 export type Route =
   | { name: 'workout'; sessionId: number }
   | { name: 'addFood'; meal: Meal; date: ISODate }
-  | { name: 'sleepSetup' };
+  | { name: 'logSleep' }
+  | { name: 'sleepSetup' }
+  | { name: 'settings' };
 
 interface Nav {
   tab: Tab;
@@ -19,10 +21,11 @@ interface Nav {
 }
 
 const NavContext = createContext<Nav | null>(null);
+const EMPTY: Record<Tab, Route[]> = { water: [], food: [], today: [], lift: [], history: [] };
 
 export function NavProvider({ children }: { children: ReactNode }) {
   const [tab, setTabState] = useState<Tab>('today');
-  const [stacks, setStacks] = useState<Record<Tab, Route[]>>({ today: [], train: [], food: [], body: [], more: [] });
+  const [stacks, setStacks] = useState<Record<Tab, Route[]>>(EMPTY);
 
   const setTab = useCallback(
     (t: Tab) => {

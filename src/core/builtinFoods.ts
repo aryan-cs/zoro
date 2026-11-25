@@ -58,8 +58,13 @@ export const BUILTIN_FOODS: FoodItem[] = ROWS.map(([name, kcal, protein, carbs, 
   };
 });
 
-export function searchBuiltin(q: string): FoodItem[] {
+/** Every word in the query appears in the text, ignoring plurals ("eggs" finds "Egg"). */
+export function matchesWords(text: string, q: string): boolean {
+  const hay = text.toLowerCase();
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
-  return BUILTIN_FOODS.filter((f) => words.every((w) => f.name.toLowerCase().includes(w)));
+  return words.length > 0 && words.every((w) => hay.includes(w) || hay.includes(w.replace(/(es|s)$/, '')));
+}
+
+export function searchBuiltin(q: string): FoodItem[] {
+  return BUILTIN_FOODS.filter((f) => matchesWords(f.name, q));
 }

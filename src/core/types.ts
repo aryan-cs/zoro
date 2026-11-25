@@ -121,6 +121,8 @@ export interface FoodItem {
   updatedAt: number;
   lastUsedAt?: number;
   favorite?: boolean;
+  /** Drinks: amounts are in ml instead of grams. */
+  liquid?: boolean;
 }
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -136,6 +138,14 @@ export interface FoodEntry {
   /** Macros for this entry, frozen at log time. */
   macros: Macros;
   loggedAt: number;
+  liquid?: boolean;
+}
+
+export interface WaterEntry {
+  id?: number;
+  date: ISODate;
+  oz: number;
+  at: number;
 }
 
 export interface SavedMeal {
@@ -181,6 +191,8 @@ export interface Settings {
   fatTarget: number;
   stepsTarget: number;
   sleepTargetMin: number;
+  /** Daily water goal in fluid ounces. */
+  waterTargetOz: number;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];
