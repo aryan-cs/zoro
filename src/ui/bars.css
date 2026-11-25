@@ -424,8 +424,8 @@ button.meal-row:not(:disabled):active {
   padding: 14px 0;
 }
 .ring-card.is-multi .ring-art {
-  width: 128px;
-  height: 128px;
+  width: 132px;
+  height: 132px;
 }
 .ring-value-label {
   font-size: 15px;

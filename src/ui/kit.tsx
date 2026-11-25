@@ -230,6 +230,15 @@ export function Bar(props: { value: number; target: number; color: string; class
 }
 
 /** Calories left plus protein, carbs and fat, in one compact block. */
+/** Apple Fitness's ring and stat colors, sampled from the Fitness app (iOS 27, dark). */
+export const FITNESS = {
+  move: '#fa114f',
+  exercise: '#a6ff00',
+  stand: '#00f5ea',
+  distance: '#00b7ff',
+  steps: '#a28be1',
+};
+
 /**
  * Activity ring, drawn like Apple Fitness: a dark track in the ring's color, a round-capped arc
  * from 12 o'clock, and past the goal a second lap whose tip casts a shadow on the first.
@@ -245,7 +254,8 @@ function Ring({ c: [cx, cy], r, w, value, target, color, arrow }: { c: [number, 
   return (
     <>
       <g transform={`rotate(-90 ${cx} ${cy})`}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeOpacity="0.18" strokeWidth={w} />
+        {/* Fitness's track is the ring color at ~14% (Move's is #3e1a26 on a card). */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeOpacity="0.15" strokeWidth={w} />
         {p > 0 && arc(Math.min(p, 1))}
         {lap > 0 && (
           <>
@@ -299,16 +309,19 @@ export function GoalRing(props: { label: string; value: number; target: number; 
 export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const rows: [string, number, number, string, string][] = [
-    ['Calories', totals.kcal, settings.kcalTarget, '#ff9f0a', 'KCAL'],
-    ['Protein', totals.protein, settings.proteinTarget, '#30d158', 'G'],
-    ['Carbs', totals.carbs, carbs, '#0a84ff', 'G'],
-    ['Fat', totals.fat, settings.fatTarget, '#bf5af2', 'G'],
+    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL'],
+    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G'],
+    ['Carbs', totals.carbs, carbs, FITNESS.stand, 'G'],
+    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G'],
   ];
+  // Like the Watch rings: thick strokes, hairline gaps, a glyph at each ring's start.
+  const W = 13;
+  const GAP = 1.5;
   return (
     <div className="ring-card is-multi">
-      <svg viewBox="0 0 110 110" className="ring-art" aria-hidden>
+      <svg viewBox="0 0 132 132" className="ring-art" aria-hidden>
         {rows.map(([label, v, t, color], i) => (
-          <Ring key={label} c={[55, 55]} r={49.5 - i * 13} w={11} value={v} target={t} color={color} />
+          <Ring key={label} c={[66, 66]} r={66 - W / 2 - i * (W + GAP)} w={W} value={v} target={t} color={color} arrow />
         ))}
       </svg>
       <div className="ring-legend">

@@ -3,7 +3,7 @@ import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta
 import { useState } from 'react';
 import { addWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
-import { Btn, Cell, db, fmt, GoalRing, Header, NumberPrompt, Row, Section, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, Cell, db, FITNESS, fmt, GoalRing, Header, NumberPrompt, Row, Section, useSettings, useToast, EmptyRow } from '../ui/kit';
 
 const QUICK = [8, 16, 24, 32];
 
@@ -28,7 +28,7 @@ export function WaterScreen() {
 
       <Section>
         <Cell className="">
-          <GoalRing label="Water" value={total} target={settings.waterTargetOz} unit="OZ" color="#64d2ff" />
+          <GoalRing label="Water" value={total} target={settings.waterTargetOz} unit="OZ" color={FITNESS.distance} />
         </Cell>
         <Row accent title="Other Amount…" onClick={() => setCustom(true)} />
       </Section>
