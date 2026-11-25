@@ -22,7 +22,7 @@ interface OffProduct {
   code?: string;
   product_name?: string;
   product_name_en?: string;
-  brands?: string;
+  brands?: string | string[];
   serving_size?: string;
   serving_quantity?: Num;
   serving_quantity_unit?: string;
@@ -68,7 +68,7 @@ export function parseOffProduct(p: OffProduct): FoodItem | null {
   return {
     barcode: p.code,
     name,
-    brand: p.brands?.split(',')[0]?.trim() || undefined,
+    brand: (Array.isArray(p.brands) ? p.brands[0] : p.brands?.split(',')[0])?.trim() || undefined,
     per100g,
     serving: servingMacros ? { label: p.serving_size || (grams ? `${grams} g` : '1 serving'), grams, macros: servingMacros } : undefined,
     source: 'off',
@@ -83,26 +83,44 @@ async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** 12-digit UPC-A codes are stored by Open Food Facts as 13-digit EAN with a leading 0. */
+export function normalizeBarcode(raw: string): string {
+  const code = raw.replace(/\D/g, '');
+  return code.length === 12 ? `0${code}` : code;
+}
+
 /** Look up a barcode. Returns null if Open Food Facts doesn't have it. */
 export async function lookupBarcode(barcode: string, signal?: AbortSignal): Promise<FoodItem | null> {
-  const code = barcode.replace(/\D/g, '');
+  const code = normalizeBarcode(barcode);
   if (!code) return null;
-  const data = await getJSON<{ status?: number; product?: OffProduct }>(
-    `${OFF}/api/v2/product/${code}?fields=${OFF_FIELDS}&${APP_TAG}`,
-    signal,
-  );
-  if (!data.product || data.status === 0) return null;
+  const res = await fetch(`${OFF}/api/v3/product/${code}.json?fields=${OFF_FIELDS}`, { signal, headers: { Accept: 'application/json' } });
+  // v3 answers 404 with a JSON body when the product isn't in the database.
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Food lookup failed (${res.status}).`);
+  const data = (await res.json()) as { status?: string; product?: OffProduct };
+  if (!data.product || data.status === 'failure') return null;
   return parseOffProduct({ code, ...data.product });
 }
 
+/**
+ * Text search. Search-a-licious is fast and allows browser requests; the older search
+ * endpoint is a fallback (it's often overloaded). Only search on submit: there are rate limits.
+ */
 export async function searchOff(query: string, signal?: AbortSignal): Promise<FoodItem[]> {
   const q = encodeURIComponent(query.trim());
   if (!q) return [];
-  const data = await getJSON<{ products?: OffProduct[] }>(
-    `${OFF}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}&${APP_TAG}`,
-    signal,
-  );
-  return (data.products ?? []).map(parseOffProduct).filter((f): f is FoodItem => f !== null);
+  const parse = (list: OffProduct[] | undefined) => (list ?? []).map(parseOffProduct).filter((f): f is FoodItem => f !== null);
+  try {
+    const data = await getJSON<{ hits?: OffProduct[] }>(`https://search.openfoodfacts.org/search?q=${q}&page_size=25&fields=${OFF_FIELDS}`, signal);
+    return parse(data.hits);
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    const data = await getJSON<{ products?: OffProduct[] }>(
+      `${OFF}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}&${APP_TAG}`,
+      signal,
+    );
+    return parse(data.products);
+  }
 }
 
 // ---------- USDA FoodData Central ----------

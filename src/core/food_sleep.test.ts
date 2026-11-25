@@ -17,6 +17,11 @@ describe('Open Food Facts parsing', () => {
     expect(f.serving?.macros.protein).toBeCloseTo(17.5, 1);
   });
 
+  it('handles brands as a list (search results)', () => {
+    const f = parseOffProduct({ code: '1', product_name: 'Greek Yogurt 0%', brands: ['fage'], nutriments: { 'energy-kcal_100g': 53, proteins_100g: 10.6 } })!;
+    expect(f.brand).toBe('fage');
+  });
+
   it('converts kJ when kcal is missing', () => {
     const f = parseOffProduct({ product_name: 'Oats', nutriments: { energy_100g: 1580, proteins_100g: 13 } })!;
     expect(f.per100g?.kcal).toBe(378);
@@ -55,6 +60,21 @@ describe('sleep import', () => {
   it('parses JSON and falls back to time in bed', () => {
     const s = parseSleepImport('{"start":"2026-11-24T23:00:00","end":"2026-11-25T07:00:00"}')!;
     expect(s.minutes).toBe(480);
+  });
+
+  it('merges Health samples into one night and skips awake time', () => {
+    const text = `ZORO-SLEEP [
+      {"start":"2026-11-24T14:00:00-06:00","end":"2026-11-24T14:30:00-06:00","value":"Asleep Core"},
+      {"start":"2026-11-24T23:30:00-06:00","end":"2026-11-25T02:00:00-06:00","value":"Asleep Core"},
+      {"start":"2026-11-25T01:30:00-06:00","end":"2026-11-25T03:00:00-06:00","value":"Asleep Deep"},
+      {"start":"2026-11-25T03:00:00-06:00","end":"2026-11-25T03:20:00-06:00","value":"Awake"},
+      {"start":"2026-11-25T03:20:00-06:00","end":"2026-11-25T07:00:00-06:00","value":"Asleep REM"},
+      {"start":"2026-11-24T23:00:00-06:00","end":"2026-11-25T07:15:00-06:00","value":"In Bed"},
+    ]`;
+    const s = parseSleepImport(text)!;
+    // 23:30–03:00 (210 min) + 03:20–07:00 (220 min); the afternoon nap is a separate cluster.
+    expect(s.minutes).toBe(430);
+    expect(new Date(s.wakeTime!).toISOString()).toBe('2026-11-25T13:00:00.000Z');
   });
 
   it('rejects junk', () => {
