@@ -79,6 +79,14 @@ select {
 .zoro-section-untitled {
   margin-top: 35px;
 }
+/* Under a search field or segmented control: the same 12pt gap as above it. The header's
+ * 22pt line box has ~5pt above its capitals, so 7pt of margin reads as 12pt. */
+.ios-navbar.has-sub + div > .zoro-section-title {
+  margin-top: 7px !important;
+}
+.ios-navbar.has-sub + .zoro-section-untitled {
+  margin-top: 12px;
+}
 .ios-navbar + .zoro-section-untitled {
   margin-top: 20px;
 }

@@ -167,8 +167,32 @@ export async function dailyIntake(days: number, db: ZoroDB = getDB()): Promise<{
   return [...byDay.entries()].map(([date, kcal]) => ({ date, kcal })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Everything you've logged lately, newest first: saved foods plus Quick Add entries (which have
+ * no saved food, so they're offered back as one serving of the same calories and macros).
+ */
 export async function recentFoods(limit = 20, db: ZoroDB = getDB()): Promise<FoodItem[]> {
-  return (await db.foods.orderBy('lastUsedAt').reverse().limit(limit * 2).toArray()).filter((f) => f.lastUsedAt).slice(0, limit);
+  const saved = (await db.foods.orderBy('lastUsedAt').reverse().limit(limit * 2).toArray()).filter((f) => f.lastUsedAt);
+  const quick = (await db.entries.where('date').aboveOrEqual(addDays(today(), -60)).toArray())
+    .filter((e) => e.foodId === undefined)
+    .map<FoodItem>((e) => ({
+      name: e.name,
+      serving: { label: '1 serving', macros: e.macros },
+      source: 'custom',
+      sourceId: `quick:${e.name.trim().toLowerCase()}`,
+      updatedAt: e.loggedAt,
+      lastUsedAt: e.loggedAt,
+    }));
+  const seen = new Set<string>();
+  return [...saved, ...quick]
+    .sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0))
+    .filter((f) => {
+      const k = f.name.trim().toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .slice(0, limit);
 }
 
 /** Foods you've used before plus the built-in list, without hitting the network. */

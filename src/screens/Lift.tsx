@@ -186,12 +186,12 @@ export function LiftScreen() {
       <div className="fit-stack">
         <FitCard title="Bench to 225">
           <div className="fit-grid !gap-3">
-            <FitStat label="Block Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
-            <FitStat label="Best Est. Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : null} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
+            <FitStat label="Training Max" value={fmtLb(blockMax)} unit="LB" color={FITNESS.exercise} />
+            <FitStat label="Estimated Max" value={benchBest ? fmtLb(roundTo(benchBest, 1)) : null} unit={benchBest ? 'LB' : undefined} color={FITNESS.exercise} />
           </div>
           <Bar value={benchBest || blockMax} target={225} color={FITNESS.exercise} className="mt-3" />
           <div className="fit-stat-sub mt-3 truncate">
-            Step {bench.step + 1} of 12 · {step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)}`).join(', ')}
+            Next Bench (Step {bench.step + 1} of 12): {step.groups.map((g) => `${g.sets}×${g.reps} @ ${roundTo(blockMax * g.pct, 5)} lb`).join(', ')}
           </div>
         </FitCard>
       </div>

@@ -187,8 +187,8 @@ export function SettingsScreen() {
       <Section title="Plan">
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
         <Row title="Days per Week" right={<Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
-        <NumSetting label="Bench Max (lb)" k="benchMax" settings={settings} />
-        <Field label="Bench Block Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
+        <NumSetting label="Bench Training Max (lb)" k="benchMax" settings={settings} />
+        <Field label="Bench Cycle Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
         <NumSetting label="Dumbbell Max (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 

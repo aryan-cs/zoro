@@ -73,7 +73,7 @@ export function NavBar(props: { title: ReactNode; onBack?: () => void; left?: Re
     return () => page.removeEventListener('scroll', onScroll);
   }, []);
   return (
-    <header ref={ref} className={`ios-navbar ${scrolled ? 'is-scrolled' : ''}`}>
+    <header ref={ref} className={`ios-navbar ${props.children ? 'has-sub' : ''} ${scrolled ? 'is-scrolled' : ''}`}>
       <div className="ios-navbar-row">
         <div className="ios-navbar-side">
           {props.onBack ? (

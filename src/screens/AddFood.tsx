@@ -3,6 +3,7 @@ import { Actions, ActionsButton, ActionsGroup, Block, ListItem, Page, Preloader 
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useState } from 'react';
+import { BUILTIN_FOODS } from '../core/builtinFoods';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
@@ -340,10 +341,11 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         </div>
       )}
 
-      <Section title={q.trim() ? 'Your foods' : 'Recent'}>
+      <Section title={q.trim() ? 'Your Foods' : 'Recent'}>
         {local.length ? list(local, 'local') : <EmptyRow>{q.trim() ? 'No Saved Matches' : 'No Recent Foods'}</EmptyRow>}
         {q.trim() && !online && !loading && <Row accent title="Search Online" onClick={() => void search()} />}
       </Section>
+      {!q.trim() && <Section title="Common Foods">{list(BUILTIN_FOODS, 'builtin')}</Section>}
 
       {error && <Block role="status" className="!my-3 text-[#ff453a]">{error}</Block>}
       {online && (
