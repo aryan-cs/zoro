@@ -206,8 +206,8 @@ select {
 }
 
 /*
- * Konsta grows the lens on every touch-down. Hold the grow back for a moment so a quick
- * tap just slides the selection; holding or dragging still magnifies it, like iOS 26.
+ * Konsta grows the lens on every touch-down. Hold the grow back until a touch lasts as long
+ * as an iOS long press (0.45s) so taps, even slow ones, just slide the selection; holding or dragging still magnifies it, like iOS 26.
  * Letting go shrinks it right away.
  */
 .k-toolbar-pane > span > span:last-child {
@@ -217,6 +217,6 @@ select {
 }
 .k-toolbar-pane > span > span:last-child.scale-140 {
   transition:
-    scale 0.3s ease-out 0.2s,
+    scale 0.3s ease-out 0.45s,
     opacity 0.2s ease-out !important;
 }
