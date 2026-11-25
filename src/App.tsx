@@ -79,37 +79,48 @@ function TabBar() {
   );
 }
 
+/** Elements a sideways drag should operate instead of swiping back. */
+const NO_SWIPE = 'input, textarea, select, [contenteditable], .k-stepper, .k-range, canvas, [data-no-swipe]';
+
 /**
- * A pushed screen: slides in from the right like a UINavigationController push,
- * slides out on Back, and follows your finger when you swipe from the left edge.
+ * A pushed screen: slides in from the right like a UINavigationController push and slides
+ * out on Back. As in iOS 26, you can swipe right from anywhere on it (not just the edge)
+ * to go back; it follows your finger and finishes or snaps back when you let go.
  */
 function StackPage({ entry, onSwipeBack }: { entry: Entry; onSwipeBack: () => void }) {
   const el = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number; t: number; active: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; t: number; active: boolean; dead: boolean } | null>(null);
+
+  const reset = () => {
+    const node = el.current;
+    if (!node) return;
+    node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+    node.style.transform = 'translateX(0)';
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1 || (e.target as Element).closest?.(NO_SWIPE)) return;
     const t = e.touches[0];
-    // Only from the left edge, like iOS.
-    if (t.clientX > 24) return;
-    drag.current = { x: t.clientX, y: t.clientY, t: Date.now(), active: false };
+    drag.current = { x: t.clientX, y: t.clientY, t: Date.now(), active: false, dead: false };
   };
   const onTouchMove = (e: React.TouchEvent) => {
     const d = drag.current;
     const node = el.current;
-    if (!d || !node) return;
+    if (!d || d.dead || !node) return;
     const t = e.touches[0];
     const dx = t.clientX - d.x;
+    const dy = t.clientY - d.y;
     if (!d.active) {
-      if (Math.abs(t.clientY - d.y) > Math.abs(dx)) {
-        drag.current = null;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      // Mostly sideways and to the right: it's a back swipe. Otherwise let the page scroll.
+      if (dx > 0 && dx > Math.abs(dy) * 1.3) d.active = true;
+      else {
+        d.dead = true;
         return;
       }
-      d.active = dx > 6;
     }
-    if (d.active) {
-      node.style.transition = 'none';
-      node.style.transform = `translateX(${Math.max(0, dx)}px)`;
-    }
+    node.style.transition = 'none';
+    node.style.transform = `translateX(${Math.max(0, dx)}px)`;
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     const d = drag.current;
@@ -118,22 +129,24 @@ function StackPage({ entry, onSwipeBack }: { entry: Entry; onSwipeBack: () => vo
     if (!d?.active || !node) return;
     const dx = e.changedTouches[0].clientX - d.x;
     const fast = dx / Math.max(1, Date.now() - d.t) > 0.5;
-    node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
-    if (dx > node.offsetWidth * 0.35 || fast) {
+    if (dx > node.offsetWidth * 0.35 || (fast && dx > 40)) {
+      node.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
       node.style.transform = 'translateX(100%)';
       setTimeout(onSwipeBack, SLIDE_MS);
-    } else {
-      node.style.transform = 'translateX(0)';
-    }
+    } else reset();
   };
 
   return (
     <div
       ref={el}
-      className={`stack-page absolute inset-0 z-30 ${entry.leaving ? 'stack-out' : 'stack-in'}`}
+      className={`stack-page absolute inset-0 z-30 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onTouchCancel={() => {
+        if (drag.current?.active) reset();
+        drag.current = null;
+      }}
     >
       <RouteScreen route={entry.route} />
     </div>
@@ -171,7 +184,7 @@ document.addEventListener('visibilitychange', () => {
  */
 function UpdatePrompt() {
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_url, reg) {
@@ -191,14 +204,11 @@ function UpdatePrompt() {
     <Dialog
       opened={needRefresh && !justOpened}
       title="Update Available"
-      content="A new version of Zoro is ready. Update now? Your data stays on your phone."
+      content="A new version of Zoro is ready."
       buttons={
-        <>
-          <DialogButton onClick={() => setNeedRefresh(false)}>Later</DialogButton>
-          <DialogButton strong onClick={() => void updateServiceWorker(true)}>
-            Update
-          </DialogButton>
-        </>
+        <DialogButton strong onClick={() => void updateServiceWorker(true)}>
+          Update
+        </DialogButton>
       }
     />
   );

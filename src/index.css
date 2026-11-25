@@ -185,3 +185,8 @@ select {
     animation-duration: 1ms;
   }
 }
+
+/* Vertical scrolling stays native; sideways drags are left to the swipe-back gesture. */
+.stack-page .k-page {
+  touch-action: pan-y;
+}

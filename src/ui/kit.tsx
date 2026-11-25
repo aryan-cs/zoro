@@ -175,8 +175,8 @@ export function Field(props: {
 }) {
   return (
     <li className="relative">
-      <label className="hairline-b relative ms-4 flex min-h-11 items-center gap-3 pe-4">
-        <span className="shrink-0 text-[17px]">{props.label}</span>
+      <label className="hairline-b relative ms-4 flex min-h-11 items-center gap-3 py-1.5 pe-4">
+        <span className="min-w-0 max-w-[60%] shrink-0 truncate text-[17px]">{props.label}</span>
         <input
           type={props.secret ? 'password' : (props.type ?? 'text')}
           inputMode={props.inputMode}
