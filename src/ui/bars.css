@@ -228,25 +228,25 @@
 
 /* ---------- Segmented control ---------- */
 .ios-segmented {
+  /* Measured from Health's D/W/M/6M/Y control (iOS 27): 30pt track of tertiary fill,
+   * #5A5A5F thumb inset 2.5pt, 13pt medium labels that keep their weight when selected. */
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--count), minmax(0, 1fr));
-  height: 32px;
-  padding: 2px;
+  height: 30px;
+  padding: 2.5px;
   border-radius: 999px;
   background: var(--ios-fill-3);
 }
 .ios-segmented-thumb {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc((100% - 4px) / var(--count));
+  top: 2.5px;
+  bottom: 2.5px;
+  left: 2.5px;
+  width: calc((100% - 5px) / var(--count));
   border-radius: 999px;
-  background: #636366;
-  box-shadow:
-    0 3px 8px rgba(0, 0, 0, 0.12),
-    0 3px 1px rgba(0, 0, 0, 0.04);
+  background: #5a5a5f;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
   transform: translateX(calc(var(--index) * 100%));
 }
 .ios-segmented.is-ready .ios-segmented-thumb {
@@ -263,7 +263,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .ios-segmented-item.is-active {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Day switcher chevrons inside the navigation title ("‹ Today ›"). */
