@@ -424,22 +424,24 @@ export function GoalRing(props: { label: string; value: number; target: number; 
  * whole card taps through when it has somewhere to go. Measured from Fitness (iOS 27):
  * 16pt padding, 17pt semibold title, 26pt corners, 12pt between cards.
  */
-export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing?: ReactNode; children: ReactNode; className?: string }) {
+export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing?: ReactNode; children: ReactNode; className?: string; bare?: boolean }) {
   const open = props.onOpen;
   return (
     <section
-      className={`fit-card ${open ? 'is-link' : ''} ${props.className ?? ''}`}
+      className={`fit-card ${open ? 'is-link' : ''} ${props.bare ? 'is-bare' : ''} ${props.className ?? ''}`}
       onClick={open}
       role={open ? 'button' : undefined}
       tabIndex={open ? 0 : undefined}
+      // Bare cards (Today) show no title; it's still their accessible name.
+      aria-label={props.bare && typeof props.title === 'string' ? props.title : undefined}
     >
-      <header className="fit-card-head">
+      {!props.bare && <header className="fit-card-head">
         <h2 className="fit-card-title">{props.title}</h2>
         <span className="flex items-center gap-2">
           {/* Controls in the header act on their own instead of opening the card. */}
           {props.trailing && <span onClick={(e) => e.stopPropagation()}>{props.trailing}</span>}
         </span>
-      </header>
+      </header>}
       {props.children}
     </section>
   );
@@ -637,25 +639,38 @@ export function SheetPage({ opened, onClose, title, children, closeLabel = 'Canc
  * iOS alert with a number field (like UIAlertController with a text field):
  * title, short message, the field with its unit, then Cancel / Save.
  */
-/** Units a prompt can switch between: the stored unit, and its alternative with the factor to it. */
-const ALT_UNITS: Record<string, { unit: string; per: number; digits: number }> = {
-  lb: { unit: 'kg', per: 0.45359237, digits: 1 },
-  oz: { unit: 'ml', per: 29.5735, digits: 0 },
-  in: { unit: 'cm', per: 2.54, digits: 1 },
+/** Units a prompt can enter a value in, by the unit it's stored in: factor from the stored unit, and decimals. */
+const UNITS: Record<string, { unit: string; per: number; digits: number }[]> = {
+  oz: [
+    { unit: 'oz', per: 1, digits: 1 },
+    { unit: 'ml', per: 29.5735, digits: 0 },
+    { unit: 'L', per: 0.0295735, digits: 2 },
+    { unit: 'cups', per: 0.125, digits: 2 },
+    { unit: 'gal', per: 0.0078125, digits: 2 },
+  ],
+  lb: [
+    { unit: 'lb', per: 1, digits: 1 },
+    { unit: 'kg', per: 0.45359237, digits: 1 },
+  ],
+  in: [
+    { unit: 'in', per: 1, digits: 2 },
+    { unit: 'cm', per: 2.54, digits: 1 },
+  ],
 };
 const unitKey = (u: string) => `zoro.unit.${u}`;
-function readUnit(u: string) {
+function readUnit(base: string) {
   try {
-    return localStorage.getItem(unitKey(u)) === 'alt';
+    const saved = localStorage.getItem(unitKey(base));
+    return UNITS[base]?.find((u) => u.unit === saved) ?? (saved === 'alt' ? UNITS[base]?.[1] : undefined);
   } catch {
-    return false;
+    return undefined;
   }
 }
 
 /**
- * Asks for one number. When the unit has an alternative (lb/kg, oz/ml, in/cm), tapping the unit
- * switches it; the value is converted back to the stored unit on save, and the choice is
- * remembered for next time.
+ * Asks for one number. Where the stored unit has others (oz: ml, L, cups, gal; lb: kg; in: cm),
+ * tapping the unit opens a menu of them; the value is converted back to the stored unit on save,
+ * and the choice is remembered for next time.
  */
 export function NumberPrompt(props: {
   opened: boolean;
@@ -669,28 +684,25 @@ export function NumberPrompt(props: {
   max?: number;
 }) {
   const [v, setV] = useState('');
-  const alt = ALT_UNITS[props.unit];
-  const [useAlt, setUseAlt] = useState(() => !!alt && readUnit(props.unit));
-  const k = alt && useAlt ? alt.per : 1;
-  const shownUnit = alt && useAlt ? alt.unit : props.unit;
+  const options = UNITS[props.unit];
+  const [chosen, setChosen] = useState(() => readUnit(props.unit) ?? options?.[0]);
+  const [menu, setMenu] = useState<DOMRect | null>(null);
+  const k = chosen?.per ?? 1;
+  const shownUnit = chosen?.unit ?? props.unit;
   const n = parseFloat(v);
   const valid = Number.isFinite(n) && n >= (props.min ?? 0.01) * k && n <= (props.max ?? 10000) * k;
-  const initial = props.initial && k !== 1 ? fmt(parseFloat(props.initial) * k, alt!.digits).replace(/,/g, '') : props.initial;
+  const round = (x: number, d: number) => String(Math.round(x * 10 ** d) / 10 ** d);
+  const initial = props.initial && chosen && k !== 1 ? round(parseFloat(props.initial) * k, chosen.digits) : props.initial;
   const save = () => {
     props.onSave(n / k);
     setV('');
   };
-  const switchUnit = () => {
-    if (!alt) return;
-    const next = !useAlt;
+  const pick = (next: (typeof options)[number]) => {
     // Carry a typed value across so switching converts it instead of reinterpreting it.
-    if (Number.isFinite(n)) {
-      const conv = next ? n * alt.per : n / alt.per;
-      setV(String(Math.round(conv * 10 ** (next ? alt.digits : 1)) / 10 ** (next ? alt.digits : 1)));
-    }
-    setUseAlt(next);
+    if (Number.isFinite(n)) setV(round((n / k) * next.per, next.digits));
+    setChosen(next);
     try {
-      localStorage.setItem(unitKey(props.unit), next ? 'alt' : 'base');
+      localStorage.setItem(unitKey(props.unit), next.unit);
     } catch {
       /* remembered for this session only */
     }
@@ -712,8 +724,16 @@ export function NumberPrompt(props: {
               onKeyDown={(e) => e.key === 'Enter' && valid && save()}
               className="tabular min-w-0 flex-1 bg-transparent py-2.5 text-[17px] text-white outline-none placeholder:text-[rgba(235,235,245,0.3)]"
             />
-            {alt ? (
-              <button type="button" className="unit-switch" onClick={switchUnit} aria-label={`Units: ${shownUnit}. Switch to ${useAlt ? props.unit : alt.unit}`}>
+            {options ? (
+              <button
+                type="button"
+                className="unit-switch"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenu(e.currentTarget.getBoundingClientRect());
+                }}
+                aria-label={`Units: ${shownUnit}`}
+              >
                 {shownUnit}
                 <Sym name="chevron.up.chevron.down" size={11} />
               </button>
@@ -721,6 +741,17 @@ export function NumberPrompt(props: {
               <span className="pr-2 text-[17px] text-[rgba(235,235,245,0.6)]">{props.unit}</span>
             )}
           </label>
+          {options && (
+            <PullDownMenu
+              anchor={menu}
+              onClose={() => setMenu(null)}
+              items={options.map((o) => ({
+                label: o.unit,
+                icon: o.unit === shownUnit ? <Sym name="checkmark" size={15} /> : undefined,
+                onClick: () => pick(o),
+              }))}
+            />
+          )}
         </div>
       }
       buttons={

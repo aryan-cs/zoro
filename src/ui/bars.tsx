@@ -1,5 +1,6 @@
 import { Sym } from './Sym';
 import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { InStack, useNav } from './nav';
 import './bars.css';
 
@@ -136,7 +137,9 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
       props.onClose();
     }, MENU_CLOSE_MS);
   };
-  return (
+  // Portaled to <body>: inside a dialog (or any transformed box) a fixed menu would be placed
+  // relative to that box and clipped by it.
+  return createPortal(
     <div className={`ios-menu-scrim ${closing ? 'is-closing' : ''}`} onClick={() => close()}>
       <div
         className={`ios-menu ${closing ? 'is-closing' : ''}`}
@@ -151,7 +154,8 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
           </button>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 const MENU_CLOSE_MS = 220;

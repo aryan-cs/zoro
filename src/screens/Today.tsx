@@ -78,7 +78,7 @@ export function TodayScreen() {
         onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
       />
     ) : (
-      <FitCard title="Workouts" className="is-rect" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
+      <FitCard bare title="Workouts" className="is-rect" onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}>
         <div className="wk-circles is-row">
           {sessionsToday.map((w) => (
             <button
@@ -101,6 +101,7 @@ export function TodayScreen() {
 
   const food: ReactNode = (
     <FitCard
+      bare
       title="Food"
       onOpen={() => nav.push({ name: 'screen', tab: 'food' })}
     >
@@ -122,7 +123,7 @@ export function TodayScreen() {
       <div className="fit-stack">
         {food}
         {workout}
-        <FitCard title="Sleep" className="is-rect" onOpen={() => nav.push({ name: 'logSleep' })}>
+        <FitCard bare title="Sleep" className="is-rect" onOpen={() => nav.push({ name: 'logSleep' })}>
           {/* Last night against the sleep goal: the ring on the left, the hours on the right. */}
           <div className="rect-row">
             <SingleRing className="rect-ring" value={sleep?.minutes ?? 0} target={settings.sleepTargetMin} colors={RING_GRADIENT.sleep} glyph="moon.fill" />
@@ -130,10 +131,10 @@ export function TodayScreen() {
           </div>
         </FitCard>
         <div className="fit-grid is-squares">
-          <FitCard title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
+          <FitCard bare title="Water" onOpen={() => nav.push({ name: 'screen', tab: 'water' })}>
             <FitStat value={fmt(waterOz)} unit="OZ" color={FITNESS.distance} />
           </FitCard>
-          <FitCard title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
+          <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
             <FitStat
               value={weighedToday ? fmt(weighedToday.value, 1) : null}
               unit={weighedToday ? 'LB' : undefined}
