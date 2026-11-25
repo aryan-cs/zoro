@@ -48,7 +48,7 @@ select {
 /* Bottom of the tab bar: just above the home indicator. */
 :root {
   /* env() directly: Konsta's safe-area variables only exist inside .k-app, not on :root. */
-  --tabbar-bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) - 12px));
+  --tabbar-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) - 4px));
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
