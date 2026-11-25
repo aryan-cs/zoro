@@ -12,8 +12,8 @@ import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { ToastProvider } from './ui/kit';
-import { useEffect, useRef } from 'react';
-import { NavProvider, SLIDE_MS, useNav, type Entry, type Route, type Tab } from './ui/nav';
+import { memo, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { NavProvider, SLIDE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
   { id: 'water', label: 'Water', icon: Droplet },
@@ -38,7 +38,8 @@ function RouteScreen({ route }: { route: Route }) {
   }
 }
 
-function TabRoot({ tab }: { tab: Tab }) {
+/** A tab's first screen. Memoized: switching tabs doesn't re-render the other tabs. */
+const TabRoot = memo(function TabRoot({ tab }: { tab: Tab }) {
   switch (tab) {
     case 'water':
       return <WaterScreen />;
@@ -51,14 +52,15 @@ function TabRoot({ tab }: { tab: Tab }) {
     case 'history':
       return <HistoryScreen />;
   }
-}
+});
 
 /**
  * iOS 26 tab bar: Konsta's Tabbar + ToolbarPane, icons only. Its press flash is switched off
  * (highlight=false) and its selection lens is restyled in index.css ("Tab bar").
  */
 function Tabs() {
-  const { tab, setTab } = useNav();
+  const { tab } = useNavState();
+  const { setTab } = useNav();
   return (
     <Tabbar icons className="fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
       <ToolbarPane {...({ highlight: false } as object)}>
@@ -84,7 +86,9 @@ const NO_SWIPE = 'input, textarea, select, [contenteditable], .k-stepper, .k-ran
  * out on Back. As in iOS 26, you can swipe right from anywhere on it (not just the edge)
  * to go back; it follows your finger and finishes or snaps back when you let go.
  */
-function StackPage({ entry, onSwipeBack }: { entry: Entry; onSwipeBack: () => void }) {
+const StackPage = memo(function StackPage({ entry }: { entry: Entry }) {
+  const { pop } = useNav();
+  const onSwipeBack = () => pop(true);
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; t: number; active: boolean; dead: boolean } | null>(null);
 
@@ -148,20 +152,51 @@ function StackPage({ entry, onSwipeBack }: { entry: Entry; onSwipeBack: () => vo
       <RouteScreen route={entry.route} />
     </div>
   );
+});
+
+/**
+ * One tab and its pushed screens. Hidden tabs are display:none, so nothing of the old tab
+ * stays on screen while the new one paints (visibility:hidden kept its layers around on iOS).
+ * display:none resets scroll positions, so they're remembered and put back on return.
+ */
+function TabPane({ active, children }: { active: boolean; children: ReactNode }) {
+  const el = useRef<HTMLDivElement>(null);
+  const scrolls = useRef(new WeakMap<Element, number>());
+  useEffect(() => {
+    const node = el.current;
+    if (!node) return;
+    const onScroll = (e: Event) => {
+      if (e.target instanceof Element) scrolls.current.set(e.target, e.target.scrollTop);
+    };
+    node.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => node.removeEventListener('scroll', onScroll, { capture: true });
+  }, []);
+  useLayoutEffect(() => {
+    if (!active || !el.current) return;
+    for (const page of el.current.querySelectorAll('.k-page')) {
+      const top = scrolls.current.get(page);
+      if (top) page.scrollTop = top;
+    }
+  }, [active]);
+  return (
+    <div ref={el} className="absolute inset-0" style={active ? undefined : { display: 'none' }} aria-hidden={!active}>
+      {children}
+    </div>
+  );
 }
 
 function Shell() {
-  const { tab, stacks, pop } = useNav();
+  const { tab, stacks } = useNavState();
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
       {TABS.map((t) => (
-        <div key={t.id} className={`absolute inset-0 ${t.id === tab ? '' : 'invisible pointer-events-none'}`} aria-hidden={t.id !== tab}>
+        <TabPane key={t.id} active={t.id === tab}>
           <TabRoot tab={t.id} />
           {stacks[t.id].map((e) => (
-            <StackPage key={e.id} entry={e} onSwipeBack={() => pop(true)} />
+            <StackPage key={e.id} entry={e} />
           ))}
-        </div>
+        </TabPane>
       ))}
       <Tabs />
     </>

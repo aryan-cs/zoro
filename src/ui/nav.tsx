@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ISODate, Meal } from '../core/types';
 
 export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
@@ -20,11 +20,8 @@ export interface Entry {
 /** How long the iOS push/pop slide takes, in ms. */
 export const SLIDE_MS = 350;
 
-interface Nav {
-  tab: Tab;
-  stacks: Record<Tab, Entry[]>;
-  /** Routes on the current tab's stack (top last). */
-  stack: Route[];
+/** What screens use: stable functions, so a tab switch doesn't re-render every screen. */
+interface NavActions {
   setTab: (t: Tab) => void;
   push: (r: Route) => void;
   /** Slide the top screen away. `instant` skips the animation (after a swipe-back already moved it). */
@@ -33,53 +30,72 @@ interface Nav {
   go: (t: Tab, r?: Route) => void;
 }
 
-const NavContext = createContext<Nav | null>(null);
+/** What the shell and tab bar use. */
+interface NavState {
+  tab: Tab;
+  stacks: Record<Tab, Entry[]>;
+}
+
+const ActionsContext = createContext<NavActions | null>(null);
+const StateContext = createContext<NavState | null>(null);
 const EMPTY: Record<Tab, Entry[]> = { water: [], food: [], today: [], lift: [], history: [] };
 
 export function NavProvider({ children }: { children: ReactNode }) {
   const [tab, setTabState] = useState<Tab>('today');
   const [stacks, setStacks] = useState<Record<Tab, Entry[]>>(EMPTY);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
   const nextId = useRef(1);
-  const entry = (route: Route): Entry => ({ id: nextId.current++, route });
 
-  const setTab = useCallback(
-    (t: Tab) => {
-      // Tapping the active tab again goes back to its first screen, like iOS.
-      if (t === tab) setStacks((s) => ({ ...s, [t]: [] }));
-      setTabState(t);
-    },
-    [tab],
-  );
-  const push = useCallback((r: Route) => setStacks((s) => ({ ...s, [tab]: [...s[tab], entry(r)] })), [tab]);
-  const pop = useCallback(
-    (instant?: boolean) => {
-      const t = tab;
-      setStacks((s) => {
-        const list = s[t];
-        const top = list.findLastIndex((e) => !e.leaving);
-        if (top < 0) return s;
-        // After a swipe-back the screen is already off to the right: just drop it.
-        if (instant) return { ...s, [t]: list.filter((_, i) => i !== top) };
-        return { ...s, [t]: list.map((e, i) => (i === top ? { ...e, leaving: true } : e)) };
-      });
-      if (!instant) setTimeout(() => setStacks((s) => ({ ...s, [t]: s[t].filter((e) => !e.leaving) })), SLIDE_MS);
-    },
-    [tab],
-  );
-  const go = useCallback((t: Tab, r?: Route) => {
-    setTabState(t);
-    setStacks((s) => ({ ...s, [t]: r ? [entry(r)] : [] }));
+  const actions = useMemo<NavActions>(() => {
+    const entry = (route: Route): Entry => ({ id: nextId.current++, route });
+    return {
+      setTab: (t) => {
+        // Tapping the active tab again goes back to its first screen, like iOS.
+        if (t === tabRef.current) setStacks((s) => (s[t].length ? { ...s, [t]: [] } : s));
+        tabRef.current = t;
+        setTabState(t);
+      },
+      push: (r) => {
+        const t = tabRef.current;
+        setStacks((s) => ({ ...s, [t]: [...s[t], entry(r)] }));
+      },
+      pop: (instant) => {
+        const t = tabRef.current;
+        setStacks((s) => {
+          const list = s[t];
+          const top = list.findLastIndex((e) => !e.leaving);
+          if (top < 0) return s;
+          // After a swipe-back the screen is already off to the right: just drop it.
+          if (instant) return { ...s, [t]: list.filter((_, i) => i !== top) };
+          return { ...s, [t]: list.map((e, i) => (i === top ? { ...e, leaving: true } : e)) };
+        });
+        if (!instant) setTimeout(() => setStacks((s) => ({ ...s, [t]: s[t].filter((e) => !e.leaving) })), SLIDE_MS);
+      },
+      go: (t, r) => {
+        tabRef.current = t;
+        setTabState(t);
+        setStacks((s) => ({ ...s, [t]: r ? [entry(r)] : [] }));
+      },
+    };
   }, []);
 
-  const value = useMemo(
-    () => ({ tab, stacks, stack: stacks[tab].filter((e) => !e.leaving).map((e) => e.route), setTab, push, pop, go }),
-    [tab, stacks, setTab, push, pop, go],
+  const state = useMemo(() => ({ tab, stacks }), [tab, stacks]);
+  return (
+    <ActionsContext.Provider value={actions}>
+      <StateContext.Provider value={state}>{children}</StateContext.Provider>
+    </ActionsContext.Provider>
   );
-  return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
 }
 
-export function useNav(): Nav {
-  const n = useContext(NavContext);
+export function useNav(): NavActions {
+  const n = useContext(ActionsContext);
   if (!n) throw new Error('useNav outside NavProvider');
+  return n;
+}
+
+export function useNavState(): NavState {
+  const n = useContext(StateContext);
+  if (!n) throw new Error('useNavState outside NavProvider');
   return n;
 }
