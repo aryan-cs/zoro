@@ -2381,12 +2381,19 @@ button.water-oz:active {
   gap: 10px;
 }
 .step-card {
-  padding: 18px 16px 11px; /* the numbers' baseline sits as far from the bottom as the name sits from the top */
+  padding: 10px 16px 6px; /* the name hugs the top and the numbers the bottom, about 16pt from each edge */
   border-radius: 26px; /* the list groups' corners (Settings): one row reads as a single rounded row */
   background: var(--ios-cell);
   transition: opacity 0.25s;
 }
 
+/* A set: tall, with its name at the top and what to do at the bottom. */
+.step-card:not(.is-rest) {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 130px;
+}
 .step-card.is-done {
   opacity: 0.5;
 }
@@ -2462,7 +2469,6 @@ button.water-oz:active {
   align-items: baseline;
   justify-content: flex-end; /* bottom right, under the tick */
   gap: 10px;
-  margin-top: 10px;
 }
 .step-num {
   display: inline-flex;
@@ -2471,7 +2477,7 @@ button.water-oz:active {
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
   font-size: 40px;
   font-weight: 700;
-  line-height: 40px;
+  line-height: 32px;
   color: var(--ios-label);
   font-variant-numeric: tabular-nums;
   -webkit-tap-highlight-color: transparent;
