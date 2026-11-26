@@ -107,8 +107,15 @@ const p = (
  * The week, planned from the research and checked for time, recovery and balance:
  * Mon heavy bench + back + arms, Tue legs + abs + forearms, Thu volume bench + back + shoulders,
  * Fri paused or close-grip bench + legs + arms, Sat an optional arms/shoulders/abs day, and
- * Sun and Wed rest (steps, an easy walk and posture work). One exercise at a time, about 70
- * minutes a day. Arms and forearms get the most work (about 20 sets a week each), bench three
+ * Sun and Wed rest (steps, an easy walk and posture work). One exercise at a time, about 65–75
+ * minutes a day plus warm-ups.
+ *
+ * Rest between sets, from the research: 3–3.5 minutes on bench and squats and 2–2.5 on the other
+ * big lifts (Schoenfeld 2016: 3 minutes beat 1 for strength and size in trained lifters; Grgic
+ * 2018: over 2 minutes for strength on multi-joint lifts), and 90 seconds on single-joint work
+ * (Singer 2024: resting over a minute helps growth a little; past about 90 seconds, no more).
+ * Moves done one side at a time rest 60 seconds after both sides, so each side gets about 90
+ * while the other works. Arms and forearms get the most work (about 20 sets a week each), bench three
  * days, abs three or four. An exercise that shows up on two days keeps the same rep range, so
  * its weights carry over.
  */
@@ -121,10 +128,10 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
       p('bench', 4, 1, 8, 210, { scheme: 'bench-heavy' }),
       p('pullup', 4, 4, 8, 120), // about 4 now: build reps first, then add weight
       p('inclineBarbell', 3, 8, 12, 150),
-      p('ohTricepsExt', 3, 8, 12, 75),
-      p('inclineCurl', 3, 8, 12, 75),
-      p('reverseCurl', 3, 10, 15, 60),
-      p('cableCrunch', 3, 10, 15, 60),
+      p('ohTricepsExt', 3, 8, 12, 90),
+      p('inclineCurl', 3, 8, 12, 90),
+      p('reverseCurl', 3, 10, 15, 90),
+      p('cableCrunch', 3, 10, 15, 90),
     ],
   },
   lowerA: {
@@ -134,14 +141,14 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     exercises: [
       p('squat', 3, 5, 8, 180),
       p('rdl', 3, 6, 10, 150),
-      p('calfRaise', 3, 8, 15, 30),
-      p('bayesianCurl', 3, 10, 15, 30),
-      p('rearDeltFly', 3, 12, 20, 60), // face pulls pull you off balance: rear-delt flies instead
-      p('woodchopper', 3, 10, 15, 30),
-      p('lateralRaise', 4, 12, 20, 60),
-      p('hangingLegRaise', 3, 8, 15, 60),
-      p('wristCurl', 3, 12, 20, 45),
-      p('reverseWristCurl', 3, 12, 20, 45),
+      p('calfRaise', 3, 8, 15, 60),
+      p('bayesianCurl', 3, 10, 15, 60),
+      p('rearDeltFly', 3, 12, 20, 90), // face pulls pull you off balance: rear-delt flies instead
+      p('woodchopper', 3, 10, 15, 60),
+      p('lateralRaise', 4, 12, 20, 90),
+      p('hangingLegRaise', 3, 8, 15, 90),
+      p('wristCurl', 3, 12, 20, 90),
+      p('reverseWristCurl', 3, 12, 20, 90),
     ],
   },
   upperB: {
@@ -149,15 +156,15 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Bench, Back, and Shoulders',
     short: 'Volume bench, rows, delts',
     exercises: [
-      p('bench', 4, 3, 8, 150, { scheme: 'bench-volume' }),
-      p('kneelingPulldown', 3, 8, 12, 60),
+      p('bench', 4, 3, 8, 180, { scheme: 'bench-volume' }),
+      p('kneelingPulldown', 3, 8, 12, 90),
       p('dips', 3, 6, 12, 120),
       p('cableRow', 3, 8, 12, 120),
-      p('preacherCurl', 3, 8, 12, 75),
-      p('pushdown', 3, 10, 15, 60),
-      p('lateralRaise', 3, 12, 20, 60),
-      p('rearDeltFly', 3, 12, 20, 60),
-      p('woodchopper', 3, 10, 15, 30),
+      p('preacherCurl', 3, 8, 12, 90),
+      p('pushdown', 3, 10, 15, 90),
+      p('lateralRaise', 3, 12, 20, 90),
+      p('rearDeltFly', 3, 12, 20, 90),
+      p('woodchopper', 3, 10, 15, 60),
     ],
   },
   lowerB: {
@@ -165,17 +172,17 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Bench, Legs, and Arms',
     short: 'Paused or close-grip bench, legs, arms',
     exercises: [
-      p('pausedBench', 3, 3, 6, 150, { scheme: 'bench-variation' }),
+      p('pausedBench', 3, 3, 6, 180, { scheme: 'bench-variation' }),
       p('barbellRow', 3, 8, 12, 120),
-      p('bulgarian', 3, 8, 12, 75),
-      p('ballLegCurl', 3, 8, 15, 60),
-      p('calfRaise', 2, 8, 15, 30),
-      p('cableLegExt', 2, 12, 20, 30),
-      p('cableLateral', 3, 12, 20, 30),
-      p('leaningOhExt', 3, 10, 15, 30),
-      p('hammerCurl', 3, 8, 12, 75),
-      p('reverseWristCurl', 2, 12, 20, 45),
-      p('wristCurl', 2, 12, 20, 45),
+      p('bulgarian', 3, 8, 12, 90),
+      p('ballLegCurl', 3, 8, 15, 90),
+      p('calfRaise', 2, 8, 15, 60),
+      p('cableLegExt', 2, 12, 20, 60),
+      p('cableLateral', 3, 12, 20, 60),
+      p('leaningOhExt', 3, 10, 15, 60),
+      p('hammerCurl', 3, 8, 12, 90),
+      p('reverseWristCurl', 2, 12, 20, 90),
+      p('wristCurl', 2, 12, 20, 90),
     ],
   },
   arms: {
@@ -183,14 +190,14 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Arms, Shoulders, and Abs',
     short: 'Optional, about 40 minutes',
     exercises: [
-      p('cableLateral', 3, 12, 20, 30),
-      p('rearDeltFly', 3, 12, 20, 60), // face pulls pull you off balance: rear-delt flies instead
-      p('ezCurl', 3, 8, 12, 75),
-      p('wristCurl', 3, 12, 20, 45),
-      p('reverseWristCurl', 2, 12, 20, 45),
-      p('cableCrunch', 3, 10, 15, 60),
-      p('sidePlank', 2, 30, 60, 30),
-      p('deadHang', 2, 30, 60, 60),
+      p('cableLateral', 3, 12, 20, 60),
+      p('rearDeltFly', 3, 12, 20, 90), // face pulls pull you off balance: rear-delt flies instead
+      p('ezCurl', 3, 8, 12, 90),
+      p('wristCurl', 3, 12, 20, 90),
+      p('reverseWristCurl', 2, 12, 20, 90),
+      p('cableCrunch', 3, 10, 15, 90),
+      p('sidePlank', 2, 30, 60, 60),
+      p('deadHang', 2, 30, 60, 90),
       p('inclineWalk', 1, 900, 1200, 0),
     ],
   },
