@@ -360,9 +360,10 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
                   const delta = ((((d - pos) % 10) + 15) % 10) - 5;
                   if (Math.abs(delta) >= 1) return null;
                   const angle = -delta * STEP_DEG;
-                  const light = Math.max(0, Math.cos((angle * Math.PI) / 180));
+                  // Fades all the way out as it turns away (gone exactly when it stops being drawn).
+                  const fade = 1 - Math.abs(delta);
                   return (
-                    <span key={d} className="odo-face" style={{ transform: `rotateX(${angle}deg) translateZ(var(--odo-r))`, opacity: light }}>
+                    <span key={d} className="odo-face" style={{ transform: `rotateX(${angle}deg) translateZ(var(--odo-r))`, opacity: fade * fade }}>
                       {d === 0 && blankZero ? '\u00a0' : d}
                     </span>
                   );
