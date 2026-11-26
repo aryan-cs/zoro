@@ -62,7 +62,8 @@ export async function scheduledTemplate(date: ISODate, db: ZoroDB = getDB()): Pr
 /** Targets for a workout, computed from everything logged before it. */
 export async function buildPlan(templateId: TemplateId, date: ISODate = today(), db: ZoroDB = getDB(), excludeSessionId?: number): Promise<WorkoutPlan> {
   const settings = await getSettings(db);
-  const history = (await loadHistory(db)).filter((h) => h.sessionId !== excludeSessionId && h.date <= date);
+  // While sample data is on (the app is a demo), its workouts count too, so sets show real numbers.
+  const history = (await loadHistory(db, 400, settings.sampleData !== false)).filter((h) => h.sessionId !== excludeSessionId && h.date <= date);
   return planWorkout({ template: templateFor(templateId, settings.daysPerWeek), settings, today: date, history });
 }
 

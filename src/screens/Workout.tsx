@@ -2,12 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { platesPerSide } from '../core/calc';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Bar, Btn, db, dim, FITNESS, fmtLb, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, fmtLb, Header, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -35,84 +34,98 @@ function useWakeLock(active: boolean) {
 }
 
 /**
- * One set, as a step in the workout: the exercise, which set and its target, then the weight and
- * reps you did and a circle to tick it off. Notes for the exercise (plates, a starting weight,
- * last time) sit under its first set.
+ * One set, as a step in the workout: the exercise and exactly what to do (135 lb × 6), and a
+ * circle to tick it off. Ticking logs what it says; tap the weight or the reps first if you did
+ * something else. A weight it doesn't know yet (an exercise's first time) asks to be picked.
  */
 function SetStep(props: {
-  index: number;
-  of: number;
   target: SetTarget;
   ex: ExercisePlan;
   logged?: SetLog;
   current: boolean;
   /** Which step this is, so the screen can scroll to it. */
   stepId: string;
-  /** Weight used on the previous set, to prefill when there's no target yet. */
+  /** Weight used on the previous set, when there's no target yet. */
   fallbackWeight?: number;
-  notes?: string[];
   onLog: (weight: number, reps: number) => void;
   onUnlog: () => void;
 }) {
   const def = EXERCISES[props.ex.exerciseId];
   const noLoad = (def.kind === 'bodyweight' && !def.addedLoad) || def.timed || def.increment === 0;
-  const [weight, setWeight] = useState(String(props.logged?.weight ?? props.target.weight ?? ''));
-  const [reps, setReps] = useState(String(props.logged?.reps ?? props.target.reps));
-  useEffect(() => {
-    if (props.logged) {
-      setWeight(String(props.logged.weight));
-      setReps(String(props.logged.reps));
-    }
-  }, [props.logged]);
-  useEffect(() => {
-    if (!props.logged && props.fallbackWeight !== undefined) setWeight((w) => w || String(props.fallbackWeight));
-  }, [props.fallbackWeight, props.logged]);
+  const [edit, setEdit] = useState<{ w?: number; r?: number }>({});
+  const [prompt, setPrompt] = useState<'w' | 'r' | null>(null);
   const done = !!props.logged;
-  const repsLabel = def.timed ? 'sec' : def.perSide ? 'each' : 'reps';
-  const target = `${def.timed ? `${props.target.reps}s` : `${props.target.reps}${props.target.repMax && props.target.repMax > props.target.reps ? `–${props.target.repMax}` : ''} ${repsLabel}`}${
-    props.target.weight ? ` @ ${fmtLb(props.target.weight)} lb` : ''
-  }`;
+  const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
+  const reps = props.logged?.reps ?? edit.r ?? props.target.reps;
+  const repUnit = def.timed ? 'sec' : def.perSide ? 'each' : 'reps';
+
+  const log = (w: number | undefined, r: number) => props.onLog(noLoad ? 0 : (w ?? 0), r);
   const toggle = () => {
     if (done) return props.onUnlog();
-    const w = noLoad ? 0 : parseFloat(weight || '0');
-    const r = parseFloat(reps || '0');
-    if (!Number.isFinite(r) || r <= 0) return;
-    props.onLog(Number.isFinite(w) ? w : 0, Math.round(r));
+    if (!noLoad && weight === undefined) return setPrompt('w');
+    log(weight, reps);
+  };
+  // A change made after ticking updates what was logged.
+  const change = (next: { w?: number; r?: number }) => {
+    setEdit((e) => ({ ...e, ...next }));
+    if (done) log(next.w ?? weight, next.r ?? reps);
   };
 
   return (
     <section data-step={props.stepId} className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}>
       <div className="step-head">
-        <div className="min-w-0">
-          <h3 className="step-title">{props.ex.name}</h3>
-          <div className="step-sub">
-            {props.ex.superset ? `Superset ${props.ex.superset} · ` : ''}
-            {props.target.label ?? `Set ${props.index + 1} of ${props.of}`} · {target}
-          </div>
-        </div>
-        <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}, set ${props.index + 1}`}>
+        <h3 className="step-title">{props.ex.name}</h3>
+        <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
           {done && <Sym name="checkmark" size={15} />}
         </button>
       </div>
-      <div className="step-inputs">
-        {noLoad ? (
-          <span className={`text-[15px] ${dim}`}>{def.timed ? 'Hold for' : 'Body weight'}</span>
-        ) : (
+      <div className="step-presc">
+        {!noLoad && (
           <>
-            <NumField value={weight} onChange={setWeight} label="Weight" disabled={done} placeholder="lb" width="w-20" />
-            <span className={`text-[15px] ${dim}`}>{def.addedLoad ? '+ lb  ×' : 'lb  ×'}</span>
+            <button type="button" className="step-num" onClick={() => setPrompt('w')} aria-label="Change weight">
+              {weight === undefined ? (
+                <span className="step-pick">Pick weight</span>
+              ) : (
+                <>
+                  {fmtLb(weight)}
+                  <small>{def.addedLoad ? '+LB' : 'LB'}</small>
+                </>
+              )}
+            </button>
+            <span className="step-times">×</span>
           </>
         )}
-        <NumField value={reps} onChange={setReps} width="w-16" label={repsLabel} disabled={done} />
-        <span className={`text-[15px] ${dim}`}>{repsLabel}</span>
+        <button type="button" className="step-num" onClick={() => setPrompt('r')} aria-label={`Change ${repUnit}`}>
+          {reps}
+          <small>{def.timed ? 'SEC' : def.perSide ? 'EACH' : noLoad ? 'REPS' : ''}</small>
+        </button>
       </div>
-      {props.notes && props.notes.length > 0 && (
-        <div className="step-notes">
-          {props.notes.map((n) => (
-            <div key={n}>{n}</div>
-          ))}
-        </div>
-      )}
+      <NumberPrompt
+        opened={prompt === 'w'}
+        title={def.name}
+        unit="lb"
+        initial={weight !== undefined ? String(weight) : undefined}
+        min={0}
+        max={2000}
+        onCancel={() => setPrompt(null)}
+        onSave={(n) => {
+          setPrompt(null);
+          change({ w: n });
+        }}
+      />
+      <NumberPrompt
+        opened={prompt === 'r'}
+        title={def.name}
+        unit={def.timed ? 'sec' : 'reps'}
+        initial={String(reps)}
+        min={1}
+        max={def.timed ? 600 : 100}
+        onCancel={() => setPrompt(null)}
+        onSave={(n) => {
+          setPrompt(null);
+          change({ r: Math.round(n) });
+        }}
+      />
     </section>
   );
 }
@@ -176,8 +189,25 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   const session = useLiveQuery(() => db.sessions.get(sessionId), [sessionId]) as WorkoutSession | undefined;
   const logged = useLiveQuery(() => db.sets.where({ sessionId }).toArray(), [sessionId]) ?? [];
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
-  // The rest running now: which set it follows, and when it ends.
-  const [rest, setRest] = useState<{ after: string; endsAt: number } | null>(null);
+  // The rest running now: which set it follows, and when it ends. Saved for the session, so
+  // leaving the workout and coming back picks the countdown up where it should be.
+  const restKey = `zoro.rest.${sessionId}`;
+  const [rest, setRestState] = useState<{ after: string; endsAt: number } | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(restKey) ?? 'null');
+    } catch {
+      return null;
+    }
+  });
+  const setRest = (r: { after: string; endsAt: number } | null) => {
+    setRestState(r);
+    try {
+      if (r) localStorage.setItem(restKey, JSON.stringify(r));
+      else localStorage.removeItem(restKey);
+    } catch {
+      /* kept until the screen closes */
+    }
+  };
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   useEffect(() => {
@@ -191,6 +221,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   // under the title, so ticking a set off moves the workout along under your thumb.
   const activeStep = useRef('');
   const scrolledOnce = useRef(false);
+  const restChecked = useRef(false);
   useWakeLock(!!session && !finished);
 
   const byKey = useMemo(() => {
@@ -234,35 +265,37 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
     const nxt = steps.slice(k + 1).find((x) => x.kind === 'set') as SetStepT | undefined;
     if (nxt) st.next = `${nxt.ex.exerciseId}:${nxt.i}`;
   });
+  // A rest that's over because you've already done the set after it.
+  if (rest) {
+    const st = steps.find((x) => x.kind === 'rest' && x.after === rest.after) as RestStepT | undefined;
+    if (!st || (st.next && byKey.get(st.next))) queueMicrotask(() => setRest(null));
+  }
+  // No rest saved (logged on another screen, or before this was kept): the rest after the last set
+  // you ticked, counted from when you ticked it, if it isn't over and you haven't moved on.
+  if (!rest && !restChecked.current && logged.length) {
+    restChecked.current = true;
+    const last = [...logged].sort((a, b) => b.completedAt - a.completedAt)[0];
+    const lastKey = `${last.exerciseId}:${last.setIndex}`;
+    const st = steps.find((x) => x.kind === 'rest' && x.after === lastKey) as RestStepT | undefined;
+    if (st && !(st.next && byKey.get(st.next)) && last.completedAt + st.sec * 1000 > Date.now()) {
+      const r = { after: lastKey, endsAt: last.completedAt + st.sec * 1000 };
+      queueMicrotask(() => setRest(r));
+    }
+  }
   // The next set to do: the first one not yet logged.
   const firstOpen = steps.find((x) => x.kind === 'set' && !byKey.get(`${x.ex.exerciseId}:${x.i}`)) as SetStepT | undefined;
   const currentKey = firstOpen ? `${firstOpen.ex.exerciseId}:${firstOpen.i}` : '';
   activeStep.current = rest ? `r${rest.after}` : currentKey ? `s${currentKey}` : '';
-  // Notes for an exercise, shown with its first set: plates to load, a starting weight, last time.
-  const notesFor = (ex: ExercisePlan) => {
-    const def = EXERCISES[ex.exerciseId];
-    const top = ex.sets.reduce((m, x) => Math.max(m, x.weight ?? 0), 0);
-    const plates = def.kind === 'barbell' && top > settings.barWeight ? platesPerSide(top, settings.barWeight, settings.plates) : null;
-    const out: string[] = [];
-    if (plates && plates.plates.length) out.push(`${fmtLb(top)} lb = ${plates.plates.join(' + ')} per side${plates.leftover > 0 ? ` (+${plates.leftover} lb short)` : ''}`);
-    for (const note of ex.notes.filter((n) => /^(First time:|Only go for|Light week, then test\.)/.test(n)))
-      out.push(
-        note
-          .replace('First time: pick a weight you could do about ', 'Start with a weight you could lift ')
-          .replace('Only go for the top single if last week’s single moved fast.', 'Top single only if last week’s single moved fast.')
-          .replace('Light week, then test. Warm up: bar ×10, then build up in 3–4 sets.', 'Before testing: bar ×10, then 3–4 warm-up sets.'),
-      );
-    if (ex.last) out.push(`Last time (${ex.last.date.slice(5).replace('-', '/')}): ${ex.last.sets.map((x) => (x.weight ? `${fmtLb(x.weight)}×${x.reps}` : `${x.reps}`)).join(', ')}`);
-    return out;
-  };
   const doneSets = logged.length;
 
   const finish = async () => {
+    setRest(null);
     await finishSession(sessionId, db);
     toast('Workout saved');
     nav.pop();
   };
   const discard = async () => {
+    setRest(null);
     await deleteSession(sessionId, db);
     setConfirmDiscard(false);
     nav.pop();
@@ -320,17 +353,14 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             <SetStep
               key={key}
               stepId={`s${key}`}
-              index={i}
-              of={ex.sets.length}
               target={t}
               ex={ex}
               current={key === currentKey}
               logged={byKey.get(key)}
-              notes={i === 0 ? notesFor(ex) : undefined}
               fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight || undefined : undefined}
               onLog={(weight, reps) => {
                 void logSet({ sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps }, db);
-                if (step.restAfter) setRest({ after: key, endsAt: Date.now() + step.restAfter * 1000 });
+                if (step.restAfter && !byKey.get(key)) setRest({ after: key, endsAt: Date.now() + step.restAfter * 1000 });
               }}
               onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
             />

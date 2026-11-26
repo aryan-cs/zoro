@@ -2452,3 +2452,52 @@ button.water-oz:active {
   font-weight: 600;
   color: var(--ios-label);
 }
+
+/* What to do in a set, big: "135 LB × 6", in SF Rounded like Fitness's metrics. The set you're on
+ * shows it in the workout's lime; tap a number to change it. */
+.step-presc {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
+}
+.step-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 46px;
+  color: var(--ios-label);
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+}
+.step-num:active {
+  opacity: 0.5;
+}
+.step-num small {
+  font-size: 17px;
+  font-weight: 600;
+  color: #8d8d93;
+}
+.step-times {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: #8d8d93;
+}
+.step-pick {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ios-blue);
+}
+.step-card.is-current .step-num {
+  color: #a6ff00;
+}
+.step-card .step-head {
+  align-items: center;
+}
+.step-card .step-title {
+  color: #c7c7cc;
+}
