@@ -122,6 +122,34 @@ export function backupNow(): Promise<void> {
   return running;
 }
 
+/** Anything logged on this phone (an empty, never-started workout doesn't count). */
+async function hasLoggedData(): Promise<boolean> {
+  const db = getDB();
+  const counts = await Promise.all([db.sets.count(), db.entries.count(), db.sleep.count(), db.metrics.count(), db.water.count()]);
+  return counts.some((n) => n > 0);
+}
+
+/**
+ * On open: if GitHub has a newer copy written somewhere else (another phone, or set up for you on
+ * a computer), take it when this phone has nothing logged yet; otherwise ask which to keep.
+ */
+async function checkRemote(): Promise<void> {
+  const current = cfg;
+  if (!current) return;
+  try {
+    const remote = await readRemote(current);
+    if (!remote || remote.sha === meta.sha) return;
+    if (remote.backup.device === meta.device) {
+      saveMeta({ sha: remote.sha });
+      return;
+    }
+    if (!(await hasLoggedData())) await restore(remote);
+    else emit({ state: 'conflict', remote, lastSavedAt: meta.lastSavedAt });
+  } catch {
+    /* offline or GitHub unreachable: check again next time */
+  }
+}
+
 async function hasLocalData(): Promise<boolean> {
   const db = getDB();
   const counts = await Promise.all([db.sessions.count(), db.entries.count(), db.sleep.count(), db.metrics.count(), db.water.count()]);
@@ -194,4 +222,5 @@ export function startSync(): void {
     }
   });
   if (cfg && meta.dirty) schedule(3000);
+  void checkRemote();
 }
