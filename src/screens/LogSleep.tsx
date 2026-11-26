@@ -1,5 +1,5 @@
 import { ListInput, Page } from 'konsta/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseHealthImport, sleepFromTimes } from '../core/sleep';
 import { saveMetric, saveSleep, today } from '../core/store';
@@ -8,6 +8,14 @@ import { Btn, db, FitCard, Header, Row, Section, useSettings, useToast } from '.
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
 /** "8 hr 15 min", as Health writes durations. */
+
+/** A saved bedtime or wake-up as "HH:MM" on this phone's clock (ISO, or "HH:MM" in older entries). */
+const clockOf = (v?: string): string | null => {
+  if (!v) return null;
+  if (/^\d{1,2}:\d{2}$/.test(v)) return v.padStart(5, '0');
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -56,6 +64,24 @@ export function LogSleepScreen() {
   const toast = useToast();
   const [bed, setBed] = useState('23:30');
   const [wake, setWake] = useState('07:00');
+  // Logged last night already? Open on those times, to change them; otherwise 11:30 PM to 7:00 AM.
+  useEffect(() => {
+    let gone = false;
+    void db.sleep
+      .where('date')
+      .equals(today())
+      .first()
+      .then((e) => {
+        const b = clockOf(e?.bedtime);
+        const w = clockOf(e?.wakeTime);
+        if (gone || !b || !w) return;
+        setBed(b);
+        setWake(w);
+      });
+    return () => {
+      gone = true;
+    };
+  }, []);
   const settings = useSettings();
   const span = ((toMin(wake) - toMin(bed) + 1440) % 1440) || 1440;
   // Until you've set up the shortcut, the card offers only that; after, only Copy and Paste.
