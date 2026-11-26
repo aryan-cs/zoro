@@ -13,6 +13,7 @@ import {
   Toast,
 } from 'konsta/react';
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { InStack } from './nav';
@@ -584,6 +585,26 @@ export function GoalRing(props: { label: string; value: number; target: number; 
 }
 
 /**
+ * The top-right button on a card for something you log (weight, a measurement, sleep): a plus
+ * until today's is in, then a pencil to change it. Its tap doesn't open the card.
+ */
+export function LogBtn({ logged, what, onClick }: { logged: boolean; what: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="card-glyph-btn"
+      aria-label={logged ? `Edit ${what}` : `Add ${what}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <Sym name={logged ? 'pencil' : 'plus'} size={13} />
+    </button>
+  );
+}
+
+/**
  * A Fitness summary card: title top-left, an optional trailing control, then the content; the
  * whole card taps through when it has somewhere to go. Measured from Fitness (iOS 27):
  * 16pt padding, 17pt semibold title, 26pt corners, 12pt between cards.
@@ -1012,7 +1033,9 @@ export function NumberPrompt(props: {
       /* remembered for this session only */
     }
   };
-  return (
+  // Rendered at the app's root: inside a sliding box (History's pages, a tab mid-slide) a fixed
+  // dialog is placed relative to that box, which can put it off screen.
+  return createPortal(
     <Dialog
       opened={props.opened}
       title={props.title}
@@ -1074,7 +1097,8 @@ export function NumberPrompt(props: {
           </DialogButton>
         </>
       }
-    />
+    />,
+    document.querySelector('.k-app') ?? document.body,
   );
 }
 

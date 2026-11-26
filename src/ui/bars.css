@@ -1984,6 +1984,10 @@ button.water-oz:active {
 .card-glyph-btn:active {
   opacity: 0.5;
 }
+/* In a card's title row it hangs over the row's edges a little, so the row keeps its height. */
+.fit-card-head .card-glyph-btn {
+  margin: -4px 0;
+}
 
 /* A card title that's also a menu (History's lift): the name, then a small up-down chevron. */
 .lift-picker {

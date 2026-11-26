@@ -7,7 +7,7 @@ import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { hrMin } from '../core/say';
-import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useHoldInfo, useSettings, useToast } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, fmt, IconBtn, LogBtn, NumberPrompt, RING_GRADIENT, SingleRing, useHoldInfo, useSettings, useToast } from '../ui/kit';
 import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -226,17 +226,7 @@ export function TodayScreen() {
               // Top right: a plus to weigh in today, or a pencil to fix today's weigh-in. Under it,
               // the change since the weigh-in before.
               <span className="wt-head-side">
-                <button
-                  type="button"
-                  className="card-glyph-btn"
-                  aria-label={weighedToday ? 'Edit Today’s Weight' : 'Add Today’s Weight'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setWeighing(true);
-                  }}
-                >
-                  <Sym name={weighedToday ? 'pencil' : 'plus'} size={13} />
-                </button>
+                <LogBtn logged={weighedToday} what="Today’s Weight" onClick={() => setWeighing(true)} />
                 {change ? (
                   <span className={`wt-change ${changeTone(change, settings.phase)}`}>
                     <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />

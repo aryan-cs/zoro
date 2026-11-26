@@ -11,7 +11,7 @@ import { hrMin } from '../core/say';
 import { clockLabel, insightNote, nightStats, scoreNote, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets, trendNote } from '../core/sleepStats';
 import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, LogBtn, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { Box, Boxes, ShowHidden } from '../ui/boxes';
 import { Pager } from '../ui/pager';
@@ -318,6 +318,7 @@ function Measurements() {
             <Sym name="chevron.up.chevron.down" size={13} />
           </button>
         }
+        trailing={<LogBtn logged={latest?.date === today()} what={`Today’s ${size.label}`} onClick={() => setLogging(true)} />}
       >
         <StatGrid
           color={FITNESS.body}
@@ -366,7 +367,11 @@ function Measurements() {
 }
 
 function Body() {
+  const toast = useToast();
   const weights = useLiveQuery(() => metricsOf('weight', 365, db), []) ?? [];
+  const [weighing, setWeighing] = useState(false);
+  const latestWeight = weights.at(-1);
+  const weighedToday = latestWeight?.date === today();
   const trend = useMemo(() => weightTrend(weights), [weights]);
   const last = trend[trend.length - 1];
   const rate = weeklyRate(trend);
@@ -387,7 +392,7 @@ function Body() {
       <div className="fit-stack">
         <Boxes page="history-body">
         <Box id="weight">
-        <FitCard title="Weight">
+        <FitCard title="Weight" trailing={<LogBtn logged={weighedToday} what="Today’s Weight" onClick={() => setWeighing(true)} />}>
           <StatGrid
             color={FITNESS.body}
             info={WEIGHT_INFO}
@@ -412,6 +417,20 @@ function Body() {
 
 
       <ShowHidden page="history-body" />
+      <NumberPrompt
+        opened={weighing}
+        title="Morning Weight"
+        unit="lb"
+        initial={latestWeight ? fmt(latestWeight.value, 1) : undefined}
+        min={80}
+        max={400}
+        onCancel={() => setWeighing(false)}
+        onSave={async (v) => {
+          await saveMetric('weight', v, today(), db);
+          setWeighing(false);
+          toast('Weight saved');
+        }}
+      />
     </>
   );
 }
@@ -605,6 +624,7 @@ const dur = (m: number) => (m < 60 ? `${Math.round(m)}m` : formatMinutes(m));
  * your usual times and how steady they are) and how your days go with your nights.
  */
 function Sleep() {
+  const nav = useNav();
   const settings = useSettings();
   const toast = useToast();
   const [editingGoal, setEditingGoal] = useState(false);
@@ -670,7 +690,7 @@ function Sleep() {
       <div className="fit-stack">
         <Boxes page="history-sleep">
         <Box id="sleep">
-        <FitCard title="Sleep">
+        <FitCard title="Sleep" trailing={<LogBtn logged={!!lastNight} what="Last Night’s Sleep" onClick={() => nav.push({ name: 'logSleep' })} />}>
           <StatGrid
             color={FITNESS.sleep}
             info={info}
