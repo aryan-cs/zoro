@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
 import { useRef, useState } from 'react';
-import { addWater, today, waterFor } from '../core/store';
+import { addWater, removeWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
 import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, useSettings } from '../ui/kit';
 import { saveSettings } from '../core/db';
@@ -9,24 +9,32 @@ import { saveSettings } from '../core/db';
 const DEFAULT_PRESETS = [8, 16, 24, 32];
 const HOLD_MS = 450;
 
+/** How far (pt) a quick vertical swipe has to travel to count as a flick rather than a tap. */
+const FLICK = 18;
+
 /**
- * A quick-add amount. Tap adds it; touch and hold (the button sinks, then pops like a context
- * menu) opens an editor for its amount.
+ * A quick amount. Tap it, or flick it up toward the ring, to add it; flick it down, away from
+ * the ring, to take it back off. Touch and hold (the button sinks, then pops like a context menu)
+ * opens an editor for its amount.
  */
-function PresetButton({ oz, onAdd, onEdit }: { oz: number; onAdd: () => void; onEdit: () => void }) {
+function PresetButton({ oz, onAdd, onRemove, onEdit }: { oz: number; onAdd: () => void; onRemove: () => void; onEdit: () => void }) {
   const timer = useRef(0);
   const held = useRef(false);
-  const [state, setState] = useState<'' | 'pressing' | 'popped'>('');
-  const cancel = () => {
-    window.clearTimeout(timer.current);
-    setState('');
+  const startY = useRef<number | null>(null);
+  const [state, setState] = useState<'' | 'pressing' | 'popped' | 'up' | 'down'>('');
+  const nudge = (dir: 'up' | 'down') => {
+    setState(dir);
+    window.setTimeout(() => setState(''), 260);
   };
   return (
     <button
       type="button"
       className={`ios-btn is-md is-glass water-preset ${state ? `is-${state}` : ''}`}
-      onPointerDown={() => {
+      onPointerDown={(e) => {
+        // Keep getting the touch when a flick leaves the button.
+        e.currentTarget.setPointerCapture?.(e.pointerId);
         held.current = false;
+        startY.current = e.clientY;
         setState('pressing');
         timer.current = window.setTimeout(() => {
           held.current = true;
@@ -38,17 +46,29 @@ function PresetButton({ oz, onAdd, onEdit }: { oz: number; onAdd: () => void; on
           }, 180);
         }, HOLD_MS);
       }}
-      onPointerUp={() => {
+      onPointerMove={(e) => {
+        // Moving far enough means a flick is coming, not a hold.
+        if (startY.current !== null && Math.abs(e.clientY - startY.current) > FLICK / 2) window.clearTimeout(timer.current);
+      }}
+      onPointerUp={(e) => {
         window.clearTimeout(timer.current);
-        if (!held.current) setState('');
-      }}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={() => {
+        const dy = startY.current === null ? 0 : e.clientY - startY.current;
+        startY.current = null;
         if (held.current) return;
-        onAdd();
+        if (dy > FLICK) {
+          onRemove();
+          nudge('down');
+        } else {
+          onAdd();
+          nudge('up');
+        }
       }}
+      onPointerCancel={() => {
+        window.clearTimeout(timer.current);
+        startY.current = null;
+        setState('');
+      }}
+      onContextMenu={(e) => e.preventDefault()}
     >
       +{fmt(oz, oz % 1 ? 1 : 0)} oz
     </button>
@@ -70,6 +90,10 @@ export function WaterScreen() {
     if (!(oz > 0)) return;
     await addWater(oz, date, db);
   };
+  const remove = async (oz: number) => {
+    if (!(oz > 0)) return;
+    await removeWater(oz, date, db);
+  };
 
   return (
     <Page className="tab-safe">
@@ -88,7 +112,7 @@ export function WaterScreen() {
         </div>
         <div className="water-presets">
           {presets.map((oz, i) => (
-            <PresetButton key={i} oz={oz} onAdd={() => void add(oz)} onEdit={() => setEditing(i)} />
+            <PresetButton key={i} oz={oz} onAdd={() => void add(oz)} onRemove={() => void remove(oz)} onEdit={() => setEditing(i)} />
           ))}
         </div>
       </div>

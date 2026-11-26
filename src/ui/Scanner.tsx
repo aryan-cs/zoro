@@ -55,28 +55,6 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
       window.clearTimeout(stopPoll);
     };
   }, [opened]);
-  // TEMPORARY debug view to find iOS's black bands: red sheet, cyan camera outline, and a readout
-  // of the camera's reported size, the video element's box and the sheet's size, with the build.
-  const [debug, setDebug] = useState('');
-  useEffect(() => {
-    if (!opened) return;
-    const id = window.setInterval(() => {
-      const v = video.current;
-      if (!v) return;
-      const r = v.getBoundingClientRect();
-      const box = v.parentElement?.getBoundingClientRect();
-      const cs = getComputedStyle(v);
-      setDebug(
-        [
-          `build ${__BUILD__}`,
-          `camera ${v.videoWidth}×${v.videoHeight}`,
-          `video ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} fit:${cs.objectFit}`,
-          `sheet ${Math.round(box?.width ?? 0)}×${Math.round(box?.height ?? 0)} screen ${window.innerWidth}×${window.innerHeight}`,
-        ].join('\n'),
-      );
-    }, 500);
-    return () => window.clearInterval(id);
-  }, [opened]);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -138,9 +116,8 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
   };
 
   return (
-    <Popup opened={opened} onBackdropClick={onClose} className="scanner is-debug">
-      <video ref={video} playsInline muted autoPlay className={`scanner-video is-debug ${live ? '' : 'is-off'}`} />
-      {debug && <pre className="scanner-debug">{debug}</pre>}
+    <Popup opened={opened} onBackdropClick={onClose} className="scanner">
+      <video ref={video} playsInline muted autoPlay className={`scanner-video ${live ? '' : 'is-off'}`} />
 
       <div className="scanner-fade is-top" aria-hidden />
       <div className="scanner-fade is-bottom" aria-hidden />

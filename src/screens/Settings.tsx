@@ -248,6 +248,7 @@ export function SettingsScreen() {
       </Section>
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
       <p className="mx-8 mb-2 mt-6 text-center text-[13px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
+      <p className="mx-8 mb-2 text-center text-[13px] text-white/40">Build {__BUILD__}</p>
 
       <Dialog
         opened={pendingImport !== null}

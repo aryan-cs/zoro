@@ -35,3 +35,16 @@ describe('sample data stays out of real use', () => {
     expect((await loadHistory(db, 400, true)).length).toBeGreaterThan(25);
   });
 });
+
+describe('removeWater', () => {
+  it('takes ounces back off newest drinks first, never below zero', async () => {
+    const { addWater, removeWater, waterFor } = await import('./store');
+    await addWater(16, '2026-01-01', db);
+    await new Promise((r) => setTimeout(r, 2));
+    await addWater(8, '2026-01-01', db);
+    await removeWater(12, '2026-01-01', db);
+    expect((await waterFor('2026-01-01', db)).reduce((s, e) => s + e.oz, 0)).toBe(12);
+    await removeWater(50, '2026-01-01', db);
+    expect((await waterFor('2026-01-01', db)).reduce((s, e) => s + e.oz, 0)).toBe(0);
+  });
+});

@@ -243,6 +243,22 @@ export async function addWater(oz: number, date: ISODate = today(), db: ZoroDB =
   return (await db.water.add({ date, oz, at: Date.now() })) as number;
 }
 
+/** Takes `oz` back off the day's water, newest drinks first (never below zero). */
+export async function removeWater(oz: number, date: ISODate = today(), db: ZoroDB = getDB()): Promise<void> {
+  let left = oz;
+  const newest = (await db.water.where('date').equals(date).toArray()).sort((a, b) => b.at - a.at);
+  for (const e of newest) {
+    if (left <= 0 || e.id === undefined) break;
+    if (e.oz <= left) {
+      left -= e.oz;
+      await db.water.delete(e.id);
+    } else {
+      await db.water.update(e.id, { oz: e.oz - left });
+      left = 0;
+    }
+  }
+}
+
 export async function waterFor(date: ISODate, db: ZoroDB = getDB()): Promise<WaterEntry[]> {
   return db.water.where('date').equals(date).sortBy('at');
 }
