@@ -1302,7 +1302,21 @@ button.water-oz:active {
 }
 .scanner-fade.is-top {
   top: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  /* iOS keeps the status bar black over the camera, so the picture starts below a black band.
+   * Start this fade at that same black and ease it out, so the band melts into the picture
+   * instead of ending at a hard edge (an eased curve, not a straight ramp, which shows a line). */
+  background: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgba(0, 0, 0, 0.74) 16%,
+    rgba(0, 0, 0, 0.54) 30%,
+    rgba(0, 0, 0, 0.38) 43%,
+    rgba(0, 0, 0, 0.25) 56%,
+    rgba(0, 0, 0, 0.15) 68%,
+    rgba(0, 0, 0, 0.07) 80%,
+    rgba(0, 0, 0, 0.02) 91%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 .scanner-fade.is-bottom {
   bottom: 0;
