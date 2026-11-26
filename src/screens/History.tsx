@@ -13,7 +13,7 @@ import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
-import { Box, Boxes } from '../ui/boxes';
+import { Box, Boxes, ShowHidden } from '../ui/boxes';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -247,6 +247,7 @@ function Lifts() {
           })}
         </Section>
       )}
+      <ShowHidden page="history-lifts" />
     </>
   );
 }
@@ -409,6 +410,7 @@ function Body() {
 
 
 
+      <ShowHidden page="history-body" />
     </>
   );
 }
@@ -574,6 +576,7 @@ function Food() {
           ))}
         {!days.some((d) => d.value !== null) && <EmptyRow>No {n.label} Logged</EmptyRow>}
       </Section>
+      <ShowHidden page="history-food" />
     </>
   );
 }
@@ -829,6 +832,7 @@ function Sleep() {
           ))}
         {!entries.length && <EmptyRow>No Sleep Logs</EmptyRow>}
       </Section>
+      <ShowHidden page="history-sleep" />
     </>
   );
 }

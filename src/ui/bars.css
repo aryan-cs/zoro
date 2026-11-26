@@ -2182,11 +2182,27 @@ button.water-oz:active {
 .ctx-menu {
   min-width: 220px;
 }
-/* "Show Hidden Boxes": just text, in the system blue, centered under the page's boxes. */
+/* The held box's copy fades out with the blur as the real one returns. */
+.ctx-lift.is-closing {
+  animation: ctx-fade 0.22s ease-in reverse both;
+}
+/* A pinned box: a small gray pin in its top-right corner. */
+.hold-box {
+  position: relative;
+}
+.box-pin {
+  position: absolute;
+  top: 17px;
+  right: 16px;
+  display: flex;
+  color: #8d8d93;
+  pointer-events: none;
+}
+/* "Show Hidden Items": just text, in the system blue, centered at the bottom of the page. */
 .show-hidden {
-  align-self: center;
-  margin: 8px 0 4px;
-  padding: 6px 10px;
+  display: block;
+  margin: 20px auto 0;
+  padding: 8px 12px;
   font-size: 15px;
   line-height: 20px;
   color: var(--ios-blue);

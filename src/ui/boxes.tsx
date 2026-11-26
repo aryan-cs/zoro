@@ -1,4 +1,4 @@
-import { Children, isValidElement, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { saveSettings } from '../core/db';
 import { useSettings } from './kit';
@@ -6,9 +6,10 @@ import { MaskSym } from './Sym';
 
 /**
  * The boxes on a page (History's cards) can be rearranged like Home Screen apps: touch and hold
- * one and, as in iOS, it lifts over a blurred page with a menu to pin it to the top or hide it.
- * Hidden boxes come back from a "Show Hidden Boxes" link at the bottom of the page. The choices
- * are saved in Settings (so they're backed up), per page.
+ * one and, as in iOS, the page blurs behind it with a menu to pin it to the top or hide it.
+ * Pinning slides it up (a small pin marks it); hiding fades it away and the boxes below slide up
+ * into its place. "Show Hidden Items" at the bottom of the page brings hidden ones back. The
+ * choices are saved in Settings (so they're backed up), per page.
  */
 
 export function Box(props: { id: string; children: ReactNode }) {
@@ -19,55 +20,130 @@ export function Box(props: { id: string; children: ReactNode }) {
 const HOLD_MS = 500;
 /** Holds that start on these do their own thing (a stat explains itself, a chart scrubs, a control works). */
 const OWN_HOLD = '[data-info], .fit-chart, button, a, input, textarea, select, .ios-segmented, [role="button"]';
+/** How boxes slide to new places: UIKit's critically damped spring, as for push and pop. */
+const SLIDE = { duration: 420, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' };
 
-export function Boxes({ page, children }: { page: string; children: ReactNode }) {
+/** Asks a page's boxes to note where they are, just before something changes their order. */
+const CAPTURE = 'zoro:boxes-capture';
+
+function useBoxState(page: string) {
   const settings = useSettings();
   const state = settings.boxes?.[page] ?? { pinned: [], hidden: [] };
   const save = (pinned: string[], hidden: string[]) => void saveSettings({ boxes: { ...settings.boxes, [page]: { pinned, hidden } } });
+  return { state, save };
+}
 
+export function Boxes({ page, children }: { page: string; children: ReactNode }) {
+  const { state, save } = useBoxState(page);
   const boxes = Children.toArray(children).filter((c): c is ReactElement<{ id: string; children: ReactNode }> => isValidElement(c) && typeof (c.props as { id?: unknown }).id === 'string');
   const ids = boxes.map((b) => b.props.id);
   const pinned = state.pinned.filter((id) => ids.includes(id));
   const order = [...pinned, ...ids.filter((id) => !pinned.includes(id))].filter((id) => !state.hidden.includes(id));
-  const hiddenHere = state.hidden.filter((id) => ids.includes(id)).length;
 
   const [menu, setMenu] = useState<{ id: string; el: HTMLElement } | null>(null);
+
+  // FLIP: note where each box is just before a change, then after the change slide each one from
+  // its old place to its new one (and fade in any that are new, like boxes being shown again).
+  const els = useRef(new Map<string, HTMLDivElement>());
+  const before = useRef<{ tops: Map<string, number>; order: string; at: number } | null>(null);
+  const capture = () => {
+    before.current = {
+      tops: new Map([...els.current].filter(([, el]) => el.isConnected).map(([id, el]) => [id, el.getBoundingClientRect().top])),
+      order: order.join(),
+      at: Date.now(),
+    };
+  };
+  useEffect(() => {
+    const onCapture = (e: Event) => (e as CustomEvent<string>).detail === page && capture();
+    window.addEventListener(CAPTURE, onCapture);
+    return () => window.removeEventListener(CAPTURE, onCapture);
+  }, [page]);
+  useLayoutEffect(() => {
+    const snap = before.current;
+    if (!snap) return;
+    // Other renders can land before the change itself (the menu closing): wait for the new order.
+    if (snap.order === order.join() && Date.now() - snap.at < 2000) return;
+    before.current = null;
+    const was = snap.tops;
+    for (const id of order) {
+      const el = els.current.get(id);
+      if (!el) continue;
+      const old = was.get(id);
+      if (old === undefined) {
+        el.animate([{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], { duration: 340, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' });
+        continue;
+      }
+      const dy = old - el.getBoundingClientRect().top;
+      if (Math.abs(dy) > 0.5) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], SLIDE);
+    }
+  });
+
+  const pin = (id: string) => {
+    capture();
+    save(pinned.includes(id) ? state.pinned.filter((x) => x !== id) : [id, ...state.pinned.filter((x) => x !== id)], state.hidden);
+  };
+  const hide = (id: string) => {
+    const el = els.current.get(id);
+    const done = () => {
+      capture();
+      save(state.pinned.filter((x) => x !== id), [...state.hidden, id]);
+    };
+    // Fade and shrink away first; then the boxes below slide up into its place.
+    if (el) el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9)' }], { duration: 240, easing: 'ease-in', fill: 'forwards' }).finished.then(done, done);
+    else done();
+  };
 
   return (
     <>
       {order.map((id) => (
-        <HoldBox key={id} onHold={(el) => setMenu({ id, el })}>
+        <HoldBox
+          key={id}
+          pinned={pinned.includes(id)}
+          boxRef={(el) => {
+            if (el) els.current.set(id, el);
+            else els.current.delete(id);
+          }}
+          onHold={(el) => setMenu({ id, el })}
+        >
           {boxes.find((b) => b.props.id === id)!.props.children}
         </HoldBox>
       ))}
-      {hiddenHere > 0 && (
-        <button type="button" className="show-hidden" onClick={() => save(state.pinned, state.hidden.filter((id) => !ids.includes(id)))}>
-          Show {hiddenHere === 1 ? 'Hidden Box' : `${hiddenHere} Hidden Boxes`}
-        </button>
-      )}
-      {menu && (
-        <BoxMenu
-          el={menu.el}
-          pinned={pinned.includes(menu.id)}
-          onClose={() => setMenu(null)}
-          onPin={() => save(pinned.includes(menu.id) ? state.pinned.filter((x) => x !== menu.id) : [menu.id, ...state.pinned.filter((x) => x !== menu.id)], state.hidden)}
-          onHide={() => save(state.pinned.filter((x) => x !== menu.id), [...state.hidden, menu.id])}
-        />
-      )}
+      {menu && <BoxMenu el={menu.el} pinned={pinned.includes(menu.id)} onClose={() => setMenu(null)} onPin={() => pin(menu.id)} onHide={() => hide(menu.id)} />}
     </>
   );
 }
 
+/** "Show Hidden Items": just text, at the bottom of a page, when something on it is hidden. */
+export function ShowHidden({ page }: { page: string }) {
+  const { state, save } = useBoxState(page);
+  if (!state.hidden.length) return null;
+  return (
+    <button
+      type="button"
+      className="show-hidden"
+      onClick={() => {
+        window.dispatchEvent(new CustomEvent(CAPTURE, { detail: page }));
+        save(state.pinned, []);
+      }}
+    >
+      Show Hidden Items
+    </button>
+  );
+}
+
 /** A box you can touch and hold (anywhere but its own controls and stats) to open its menu. */
-function HoldBox({ children, onHold }: { children: ReactNode; onHold: (el: HTMLElement) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+function HoldBox({ children, onHold, pinned, boxRef }: { children: ReactNode; onHold: (el: HTMLElement) => void; pinned: boolean; boxRef: (el: HTMLDivElement | null) => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const from = useRef<[number, number] | null>(null);
   const fired = useRef(false);
   const cancel = () => window.clearTimeout(timer.current);
   return (
     <div
-      ref={ref}
+      ref={(el) => {
+        ref.current = el;
+        boxRef(el);
+      }}
       className="hold-box"
       onPointerDown={(e) => {
         fired.current = false;
@@ -95,6 +171,12 @@ function HoldBox({ children, onHold }: { children: ReactNode; onHold: (el: HTMLE
       onContextMenu={(e) => e.preventDefault()}
     >
       {children}
+      {/* Pinned: a small pin in the corner, as Notes marks pinned notes. */}
+      {pinned && (
+        <span className="box-pin" aria-label="Pinned">
+          <MaskSym name="pin.fill" size={13} />
+        </span>
+      )}
     </div>
   );
 }
@@ -136,10 +218,11 @@ function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void;
   const close = (then?: () => void) => {
     if (closing) return;
     setClosing(true);
-    window.setTimeout(() => {
-      props.onClose();
-      then?.();
-    }, CLOSE_MS);
+    // The real box comes back under the fading blur (the copy fades with it), and the action runs
+    // now, so a pinned box is already sliding up as the menu goes.
+    props.el.style.visibility = '';
+    then?.();
+    window.setTimeout(props.onClose, CLOSE_MS);
   };
 
   const MENU_H = 2 * 44 + 12;
