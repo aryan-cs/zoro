@@ -1,10 +1,12 @@
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { ISODate, Meal } from '../core/types';
+import type { ISODate, Meal, TemplateId } from '../core/types';
 
 export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
 
 export type Route =
   | { name: 'workout'; sessionId: number }
+  /** A day still to come: its workout as planned, to look at (nothing to tick yet). */
+  | { name: 'plannedWorkout'; templateId: TemplateId; date: ISODate }
   /** How to do an exercise: its photos and a few pointers (swipe a set to the left). */
   | { name: 'exercise'; exerciseId: string; lastSet?: boolean }
   | { name: 'addFood'; meal?: Meal; date: ISODate; barcode?: string }

@@ -51,12 +51,21 @@ export async function activeSession(): Promise<WorkoutSession | undefined> {
   return recent.filter((s) => !s.finishedAt).sort((a, b) => b.startedAt - a.startedAt)[0];
 }
 
-/** Resume an unfinished session of this workout, or start a new one. Returns its id. */
-export async function startWorkout(templateId: TemplateId): Promise<number> {
-  const open = await activeSession();
-  if (open?.id !== undefined && open.templateId === templateId) return open.id;
-  const plan = await buildPlan(templateId, today(), db);
-  return startSession(plan, today(), db);
+/**
+ * Resume an unfinished session of this workout, or start a new one. Returns its id. A past `date`
+ * logs it for that day (a workout you did but didn't log at the time).
+ */
+export async function startWorkout(templateId: TemplateId, date: string = today()): Promise<number> {
+  const sameDay = (await db.sessions.where('date').equals(date).toArray())
+    .filter((s) => s.templateId === templateId && !s.finishedAt)
+    .sort((a, b) => b.startedAt - a.startedAt)[0];
+  if (sameDay?.id !== undefined) return sameDay.id;
+  if (date === today()) {
+    const open = await activeSession();
+    if (open?.id !== undefined && open.templateId === templateId) return open.id;
+  }
+  const plan = await buildPlan(templateId, date, db);
+  return startSession(plan, date, db);
 }
 
 /** The Fitness workout glyph for each session. */

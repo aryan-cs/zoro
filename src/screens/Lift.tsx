@@ -103,7 +103,9 @@ export function LiftScreen() {
   const nav = useNav();
   const settings = useSettings();
   const date = today();
-  const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
+  // Sample workouts count too while sample data is on (so past days show what was done).
+  const withSample = settings.sampleData !== false;
+  const history = useLiveQuery(() => loadHistory(db, 120, withSample), [withSample]) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
   const [sel, setSel] = useState(date);
   const dayRef = useRef<HTMLDivElement>(null);
@@ -141,15 +143,18 @@ export function LiftScreen() {
       const s = history.filter((h) => h.date === sel && h.templateId === id && h.sets.length).at(-1);
       return s ? () => nav.push({ name: 'workout', sessionId: s.sessionId }) : undefined;
     }
-    return isToday ? () => void start(id) : undefined;
+    return play(id);
   };
+  // Play on any day: today and past days start (or pick up) that day's workout, so a missed one
+  // can be logged after the fact; a day still to come shows its workout as planned.
+  const play = (id: TemplateId) => (sel > date ? () => nav.push({ name: 'plannedWorkout', templateId: id, date: sel }) : () => void start(id));
 
   // A rest counting down in the workout you're doing: its card rings its play button with it.
   const running = useRunningRest(open?.id);
   const restFor = (id: TemplateId) => (isToday && open?.templateId === id ? running : null);
 
   const start = async (id: TemplateId) => {
-    const sessionId = await startWorkout(id);
+    const sessionId = await startWorkout(id, sel);
     nav.push({ name: 'workout', sessionId });
   };
   const doneDates = new Set(history.filter((h) => !TEMPLATES[h.templateId].secondary && h.sets.length).map((h) => h.date));
@@ -190,7 +195,7 @@ export function LiftScreen() {
             glyph={TEMPLATE_GLYPH[mainId]}
             color={FITNESS.exercise}
             done={doneOn(mainId)}
-            onPlay={isToday ? () => void start(mainId) : undefined}
+            onPlay={play(mainId)}
             onOpen={openCard(mainId)}
             rest={restFor(mainId)}
             progress={dayProgress(mainId)}
@@ -204,7 +209,7 @@ export function LiftScreen() {
             glyph={TEMPLATE_GLYPH[secondId]}
             color={FITNESS.steps}
             done={doneOn(secondId)}
-            onPlay={isToday ? () => void start(secondId) : undefined}
+            onPlay={play(secondId)}
             onOpen={openCard(secondId)}
             rest={restFor(secondId)}
             progress={dayProgress(secondId)}

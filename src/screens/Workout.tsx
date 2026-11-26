@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { parseSaid } from '../core/sayParse';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
-import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
+import type { ExercisePlan, ISODate, SetLog, SetTarget, TemplateId, WorkoutSession } from '../core/types';
 import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { restKey } from '../ui/workouts';
@@ -56,6 +56,8 @@ function SetStep(props: {
   clock?: { startedAt: number; endsAt: number } | null;
   /** Start a timed set's countdown (ticking a timed set starts it instead of logging it). */
   onStartClock?: () => void;
+  /** Only to look at (a day still to come): no circle to tick, nothing to change. */
+  readOnly?: boolean;
   /** Weight used on the previous set, when there's no target yet. */
   fallbackWeight?: number;
   onLog: (weight: number, reps: number) => void;
@@ -144,6 +146,7 @@ function SetStep(props: {
         if ((e.target as Element).closest('.step-check')) return;
         swipe.current = { x: e.clientX, y: e.clientY, mode: 'undecided', off: 0, v: 0, t: e.timeStamp, lx: e.clientX };
         hold.current = { x: e.clientX, y: e.clientY, fired: false };
+        if (props.readOnly) return;
         hold.current.timer = window.setTimeout(() => {
           hold.current.fired = true;
           setPrompt('both');
@@ -198,19 +201,19 @@ function SetStep(props: {
             {`${props.ex.name}, Set ${props.index + 1} of ${props.ex.sets.length}`}
           </FitText>
         </h3>
-        <button
+        {!props.readOnly && <button
           type="button"
           className={`step-check ${done ? 'is-done' : ''} ${running ? 'is-running' : ''}`}
           onClick={toggle}
           aria-label={`${done ? 'Undo' : running ? 'Stop' : props.onStartClock ? 'Start' : 'Log'} ${def.name}`}
         >
           {done && <Sym name="checkmark" size={13} />}
-        </button>
+        </button>}
       </div>
       <div className="step-presc">
         {!noLoad && (
           <>
-            <button type="button" className="step-num" onClick={() => setPrompt('w')} aria-label="Change weight">
+            <button type="button" className="step-num" onClick={() => !props.readOnly && setPrompt('w')} aria-label="Change weight">
               {weight === undefined ? (
                 <span className="step-pick">Pick weight</span>
               ) : (
@@ -223,7 +226,7 @@ function SetStep(props: {
             <span className="step-times">×</span>
           </>
         )}
-        <button type="button" className="step-num" onClick={() => setPrompt('r')} aria-label={`Change ${repUnit}`}>
+        <button type="button" className="step-num" onClick={() => !props.readOnly && setPrompt('r')} aria-label={`Change ${repUnit}`}>
           {clockLeft}
           <small>{def.timed ? 'SEC' : def.perSide ? 'REPS EACH' : 'REPS'}</small>
         </button>
@@ -372,11 +375,14 @@ function RestStep({ sec, state, endsAt, startedAt, onAdd, onSkip, stepId }: { se
   );
 }
 
-export function WorkoutScreen({ sessionId }: { sessionId: number }) {
+export function WorkoutScreen({ sessionId, planned }: { sessionId: number; planned?: { templateId: TemplateId; date: ISODate } }) {
   const nav = useNav();
   const toast = useToast();
   const settings = useSettings();
-  const session = useLiveQuery(() => db.sessions.get(sessionId), [sessionId]) as WorkoutSession | undefined;
+  // A day still to come has no session yet: its workout is shown as planned for that day.
+  const stored = useLiveQuery(() => (planned ? undefined : db.sessions.get(sessionId)), [sessionId, !!planned]) as WorkoutSession | undefined;
+  const plannedSession = useMemo(() => (planned ? ({ templateId: planned.templateId, date: planned.date, startedAt: 0 } as WorkoutSession) : undefined), [planned?.templateId, planned?.date]);
+  const session = plannedSession ?? stored;
   const logged = useLiveQuery(() => db.sets.where({ sessionId }).toArray(), [sessionId]) ?? [];
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   // The rest running now: which set it follows, and when it ends. Saved for the session, so
@@ -436,7 +442,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   const activeStep = useRef('');
   const scrolledOnce = useRef(false);
   const restChecked = useRef(false);
-  useWakeLock(!!session && !finished);
+  useWakeLock(!!session && !finished && !planned);
 
   const byKey = useMemo(() => {
     const m = new Map<string, SetLog>();
@@ -558,11 +564,18 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         title={TEMPLATES[session.templateId].name}
         onBack={nav.pop}
         right={
-          <IconBtn label="Say what you did" onClick={() => setSaying(true)}>
-            <Sym name="mic.fill" size={17} />
-          </IconBtn>
+          !planned && (
+            <IconBtn label="Say what you did" onClick={() => setSaying(true)}>
+              <Sym name="mic.fill" size={17} />
+            </IconBtn>
+          )
         }
       />
+      {planned && (
+        <p className="wk-planned-note">
+          Planned for {new Date(`${planned.date}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}. Start it on the day to log it.
+        </p>
+      )}
       <SayPrompt
         opened={saying}
         onCancel={() => setSaying(false)}
@@ -620,6 +633,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
               stepId={`s${key}`}
               index={i}
               last={i === ex.sets.length - 1}
+              readOnly={!!planned}
               target={t}
               ex={ex}
               current={key === currentKey}
@@ -645,7 +659,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         })}
       </div>
 
-      <div className="mx-4 mt-6 space-y-2">
+      {!planned && <div className="mx-4 mt-6 space-y-2">
         {!finished ? (
           <>
             <Btn kind="tint" size="lg" onClick={() => void finish()}>
@@ -660,7 +674,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             Delete Workout
           </Btn>
         )}
-      </div>
+      </div>}
 
 
       <Dialog

@@ -2666,3 +2666,10 @@ button.water-oz:active {
   border-radius: 2px;
   background: var(--ios-label);
 }
+/* A day still to come: a gray line under the title saying it's the plan. */
+.wk-planned-note {
+  margin: 4px 20px 14px;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+}

@@ -30,6 +30,8 @@ function RouteScreen({ route }: { route: Route }) {
   switch (route.name) {
     case 'workout':
       return <WorkoutScreen key={route.sessionId} sessionId={route.sessionId} />;
+    case 'plannedWorkout':
+      return <WorkoutScreen key={`${route.templateId}${route.date}`} sessionId={-1} planned={{ templateId: route.templateId, date: route.date }} />;
     case 'exercise':
       return <ExerciseScreen exerciseId={route.exerciseId} lastSet={route.lastSet} />;
     case 'addFood':
