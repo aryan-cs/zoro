@@ -2365,6 +2365,10 @@ button.water-oz:active {
 .wk-progress-dock > * {
   flex: 1;
 }
+/* Ticking a set glides the bar along instead of snapping it (Konsta's own 0.2s reads as a jump). */
+.wk-progress-dock .k-progressbar > span {
+  transition: transform 0.6s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
 /* A page with that capsule scrolls far enough for its last sets to clear it. */
 .k-page.tab-safe.has-dock {
   padding-bottom: calc(var(--tabbar-bottom) + 98px + 40px);
@@ -2377,7 +2381,7 @@ button.water-oz:active {
   gap: 10px;
 }
 .step-card {
-  padding: 14px 16px 7px; /* the numbers' baseline sits as far from the bottom as the name sits from the top */
+  padding: 18px 16px 11px; /* the numbers' baseline sits as far from the bottom as the name sits from the top */
   border-radius: 26px; /* the list groups' corners (Settings): one row reads as a single rounded row */
   background: var(--ios-cell);
   transition: opacity 0.25s;
@@ -2458,7 +2462,7 @@ button.water-oz:active {
   align-items: baseline;
   justify-content: flex-end; /* bottom right, under the tick */
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 10px;
 }
 .step-num {
   display: inline-flex;

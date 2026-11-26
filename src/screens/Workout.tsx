@@ -226,7 +226,8 @@ function ScrollToActive({ active, first }: { active: string; first: RefObject<bo
     const el = active ? root?.querySelector<HTMLElement>(`[data-step="${CSS.escape(active)}"]`) : null;
     if (!page || !el) return;
     const bar = page.querySelector('.ios-navbar')?.getBoundingClientRect().bottom ?? 0;
-    const top = page.scrollTop + el.getBoundingClientRect().top - bar - 12;
+    // Just clear of the bar's scroll edge (the 24pt fade and blur under it), so the step stays sharp.
+    const top = page.scrollTop + el.getBoundingClientRect().top - bar - 24;
     // Opening a workout partway through lands on your step; after that, it glides there.
     page.scrollTo({ top: Math.max(0, top), behavior: first.current ? 'smooth' : 'auto' });
     first.current = true;
