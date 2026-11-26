@@ -1176,10 +1176,14 @@ button.meal-row:not(:disabled):active {
   background: #000 !important;
 }
 .scanner-video {
+  /* Sized and centered by Scanner.tsx to cover the screen; these are the fallbacks. */
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
 }
 .scanner-video.is-off {

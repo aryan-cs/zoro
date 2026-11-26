@@ -22,6 +22,30 @@ function detector(): BarcodeDetector {
  */
 export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose: () => void; onCode: (code: string) => void }) {
   const video = useRef<HTMLVideoElement>(null);
+
+  // Fill the whole screen with the camera, cropping the edges (like object-fit: cover, which iOS
+  // ignores for a live camera video in this sheet, leaving black bands above and below).
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    const cover = () => {
+      const box = v.parentElement;
+      if (!box || !v.videoWidth || !v.videoHeight) return;
+      const { clientWidth: w, clientHeight: h } = box;
+      const k = Math.max(w / v.videoWidth, h / v.videoHeight);
+      const vw = v.videoWidth * k;
+      const vh = v.videoHeight * k;
+      Object.assign(v.style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` });
+    };
+    v.addEventListener('loadedmetadata', cover);
+    v.addEventListener('resize', cover);
+    window.addEventListener('resize', cover);
+    return () => {
+      v.removeEventListener('loadedmetadata', cover);
+      v.removeEventListener('resize', cover);
+      window.removeEventListener('resize', cover);
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [typing, setTyping] = useState(false);
