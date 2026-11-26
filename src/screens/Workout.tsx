@@ -5,9 +5,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject }
 import { warmVideos } from '../core/guide';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
+import { parseSaid } from '../core/sayParse';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Bar, Btn, db, FitText, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { restKey } from '../ui/workouts';
 
@@ -417,6 +418,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
     }
   };
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [saying, setSaying] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -491,6 +493,50 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   activeStep.current = rest ? `r${rest.after}` : currentKey ? `s${currentKey}` : '';
   const doneSets = logged.length;
 
+  // Say (or type) what you did, "200 on bench for 3": it's logged to that exercise's next sets
+  // (the one you're on, if you don't name one), each set's target filling in what you didn't say.
+  const logSaid = async (text: string) => {
+    const current = firstOpen?.ex.exerciseId ?? plan.exercises[0]?.exerciseId;
+    const at = Math.max(0, plan.exercises.findIndex((e) => e.exerciseId === current));
+    const ordered = [...plan.exercises.slice(at), ...plan.exercises.slice(0, at)];
+    const noLoadOf = (id?: string) => {
+      const d = id ? EXERCISES[id] : undefined;
+      return !!d && ((d.kind === 'bodyweight' && !d.addedLoad) || !!d.timed || d.increment === 0);
+    };
+    const said = parseSaid(
+      text,
+      ordered.map((e) => ({ id: e.exerciseId, name: e.name })),
+      Object.values(EXERCISES).map((e) => ({ id: e.id, name: e.name })),
+      (id) => noLoadOf(id ?? current),
+    );
+    if (!said?.sets.length) return toast('Couldn’t tell what you did');
+    if (!said.exerciseId && said.elsewhere) return toast(`${EXERCISES[said.elsewhere].name} isn’t in this workout`);
+    const ex = plan.exercises.find((e) => e.exerciseId === (said.exerciseId ?? current));
+    if (!ex) return toast('Couldn’t tell which exercise');
+    const open = ex.sets.map((_, i) => i).filter((i) => !byKey.get(`${ex.exerciseId}:${i}`));
+    if (!open.length) return toast(`${ex.name} is done`);
+    const noLoad = noLoadOf(ex.exerciseId);
+    const done: { i: number; weight: number; reps: number }[] = [];
+    let lastWeight = [...logged].filter((x) => x.exerciseId === ex.exerciseId).sort((a, b) => b.setIndex - a.setIndex)[0]?.weight;
+    for (const [k, s] of said.sets.slice(0, open.length).entries()) {
+      const i = open[k];
+      const t = ex.sets[i];
+      const weight = noLoad ? (s.weight ?? 0) : (s.weight ?? t.weight ?? lastWeight);
+      if (weight === undefined) return toast(`Say the weight for ${ex.name} too`);
+      lastWeight = weight;
+      const reps = s.reps ?? t.reps;
+      done.push({ i, weight, reps });
+      await logSet({ sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps }, db);
+    }
+    // The rest after the last set you said, as if you'd ticked it.
+    const last = done[done.length - 1];
+    const step = steps.find((x) => x.kind === 'set' && x.ex.exerciseId === ex.exerciseId && x.i === last.i) as SetStepT | undefined;
+    if (step?.restAfter) setRest({ after: `${ex.exerciseId}:${last.i}`, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000 });
+    if (clock && done.some((d) => clock.key === `${ex.exerciseId}:${d.i}`)) setClock(null);
+    const what = (d: { weight: number; reps: number }) => `${noLoad || !d.weight ? '' : `${fmtLb(d.weight)} lb × `}${d.reps}${EXERCISES[ex.exerciseId].timed ? ' sec' : ''}`;
+    toast(done.length === 1 ? `${ex.name}, Set ${last.i + 1}: ${what(last)}` : `${ex.name}: ${done.map(what).join(', ')}`);
+  };
+
   const finish = async () => {
     setRest(null);
     setClock(null);
@@ -511,6 +557,19 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
       <Header
         title={TEMPLATES[session.templateId].name}
         onBack={nav.pop}
+        right={
+          <IconBtn label="Say what you did" onClick={() => setSaying(true)}>
+            <Sym name="mic.fill" size={17} />
+          </IconBtn>
+        }
+      />
+      <SayPrompt
+        opened={saying}
+        onCancel={() => setSaying(false)}
+        onSave={(text) => {
+          setSaying(false);
+          void logSaid(text);
+        }}
       />
 
       {/* How far through the workout (sets done of all of them): a glass bar held just above the
@@ -621,3 +680,52 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   );
 }
 
+/**
+ * "What did you do?": one line to say it (the keyboard's mic dictates) or type it, like "200 on
+ * bench for 3", "3 sets of 8 at 135" or "plank 45 seconds".
+ */
+function SayPrompt(props: { opened: boolean; onCancel: () => void; onSave: (text: string) => void }) {
+  const [text, setText] = useState('');
+  const save = () => {
+    const t = text.trim();
+    setText('');
+    if (t) props.onSave(t);
+    else props.onCancel();
+  };
+  return (
+    <Dialog
+      opened={props.opened}
+      title="What Did You Do?"
+      content={
+        <div className="space-y-3">
+          <div>Say it with the keyboard’s mic, or type it.</div>
+          <input
+            key={String(props.opened)}
+            autoFocus
+            value={text}
+            placeholder="200 lb on bench for 3"
+            enterKeyHint="done"
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            className="w-full rounded-xl bg-[rgba(118,118,128,0.24)] px-3 py-2.5 text-[17px] text-white outline-none placeholder:text-[rgba(235,235,245,0.3)]"
+          />
+        </div>
+      }
+      buttons={
+        <>
+          <DialogButton
+            onClick={() => {
+              setText('');
+              props.onCancel();
+            }}
+          >
+            Cancel
+          </DialogButton>
+          <DialogButton strong onClick={save}>
+            Log
+          </DialogButton>
+        </>
+      }
+    />
+  );
+}
