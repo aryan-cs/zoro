@@ -2275,3 +2275,60 @@ button.water-oz:active {
     opacity: 0;
   }
 }
+
+/* Workouts: "Today's Workout" over the day's cards, like Fitness's section headings. */
+.lift-heading {
+  margin: 4px 4px 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--ios-label);
+}
+/* Under a workout's title: how many exercises, or how far you've got. */
+.wk-sub {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+}
+/* A workout's exercises inside its card: name, then sets × reps (and weight) on the right. */
+.wk-exercises {
+  margin: 14px -20px -20px;
+  padding: 0 0 4px;
+  list-style: none;
+  background: rgba(0, 0, 0, 0.28);
+}
+.wk-exercises li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-left: 20px;
+  padding: 10px 20px 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 16px;
+  line-height: 20px;
+}
+.wk-exercises li:last-child {
+  border-bottom: 0;
+}
+.wk-ex-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.wk-ex-detail {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: #8d8d93;
+  font-variant-numeric: tabular-nums;
+}
+/* Exercises already done in a workout you're partway through: checked and dimmed. */
+.wk-exercises li.is-done {
+  color: #8d8d93;
+}
+.wk-exercises li.is-done svg {
+  color: var(--tint);
+}

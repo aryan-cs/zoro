@@ -624,6 +624,10 @@ export function WorkoutCard(props: {
   onPlay?: () => void;
   done?: boolean;
   onOpen?: () => void;
+  /** A short line under the title (how many exercises, or how far you've got). */
+  sub?: string;
+  /** The workout's exercises, listed in the card: name, sets × reps (and weight), done or not. */
+  exercises?: { name: string; detail: string; done?: boolean }[];
 }) {
   const style = { '--tint': props.color } as CSSProperties;
   return (
@@ -653,6 +657,7 @@ export function WorkoutCard(props: {
         )}
       </div>
       <h2 className="wk-title">{props.title}</h2>
+      {props.sub && <div className="wk-sub">{props.sub}</div>}
       {props.tiles && props.tiles.length > 0 && (
         <div className="wk-tiles" style={{ gridTemplateColumns: `repeat(${props.tiles.length}, minmax(0, 1fr))` }}>
           {props.tiles.map((t) => (
@@ -662,6 +667,19 @@ export function WorkoutCard(props: {
             </span>
           ))}
         </div>
+      )}
+      {props.exercises && props.exercises.length > 0 && (
+        <ul className="wk-exercises">
+          {props.exercises.map((e, i) => (
+            <li key={`${e.name}${i}`} className={e.done ? 'is-done' : ''}>
+              <span className="wk-ex-name">
+                {e.done && <Sym name="checkmark" size={13} />}
+                {e.name}
+              </span>
+              <span className="wk-ex-detail">{e.detail}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

@@ -2,10 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, nextMonday, programWeek } from '../core/calc';
-import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekday } from '../core/program';
+import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { db, FITNESS, fmtLb, Header, IconBtn, Menu, NavText, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, fmtLb, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -124,6 +124,19 @@ export function LiftScreen() {
     () => (mainId ? buildPlan(mainId, sel, db, mainSession?.sessionId) : undefined),
     [mainId, sel, settings.daysPerWeek, mainSession?.sessionId],
   );
+  // Each workout's exercises, for its card: sets × reps, and the weight when the plan knows it.
+  const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
+  const mainList = (plan?.exercises ?? []).map((e) => {
+    const def = EXERCISES[e.exerciseId];
+    const s0 = e.sets[0];
+    return { name: def.name, detail: `${reps(e.sets.length, s0.reps, s0.repMax, def.timed)}${s0.weight ? ` @ ${fmtLb(s0.weight)}` : ''}` };
+  });
+  const fromTemplate = (id: TemplateId | undefined | null) =>
+    id ? templateFor(id, settings.daysPerWeek).exercises.map((e) => ({ id: e.exerciseId, name: EXERCISES[e.exerciseId].name, detail: reps(e.sets, e.repMin, e.repMax, EXERCISES[e.exerciseId].timed) })) : [];
+  const secondList = fromTemplate(secondId);
+  // The unfinished workout: which of its exercises already have sets logged.
+  const openSets = useLiveQuery(async () => (open?.id !== undefined ? new Set((await db.sets.where('sessionId').equals(open.id).toArray()).map((x) => x.exerciseId)) : new Set<string>()), [open?.id]) ?? new Set<string>();
+  const openList = fromTemplate(open?.templateId).map((e) => ({ ...e, done: openSets.has(e.id) }));
   const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
 
   const start = async (id: TemplateId) => {
@@ -150,11 +163,14 @@ export function LiftScreen() {
       <div className="slide-clip">
       <div ref={dayRef}>
       <div className="fit-stack lift-day-cards">
+        <h2 className="lift-heading">{isToday ? 'Today’s Workout' : `${new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}’s Workout`}</h2>
         {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && (
           <WorkoutCard
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
             color={FITNESS.exercise}
+            sub={`In progress · ${openList.filter((e) => e.done).length} of ${openList.length} done`}
+            exercises={openList}
             onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
           />
@@ -166,6 +182,8 @@ export function LiftScreen() {
             color={FITNESS.exercise}
             done={doneOn(mainId)}
             onPlay={isToday ? () => void start(mainId) : undefined}
+            sub={plan ? `${plan.exercises.length} exercises` : undefined}
+            exercises={mainList}
           />
         ) : (
           <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
@@ -177,25 +195,12 @@ export function LiftScreen() {
             color={FITNESS.steps}
             done={doneOn(secondId)}
             onPlay={isToday ? () => void start(secondId) : undefined}
+            sub={`Add-on · ${secondList.length} exercises`}
+            exercises={secondList}
           />
         )}
       </div>
 
-      {mainId && plan && (
-        <Section title="Exercises">
-          {plan.exercises.map((e) => {
-            const def = EXERCISES[e.exerciseId];
-            const s = e.sets[0];
-            return (
-              <Row
-                key={e.exerciseId}
-                title={<span className="block">{def.name}</span>}
-                right={`${e.sets.length} × ${s.reps}${s.repMax && s.repMax > s.reps ? `–${s.repMax}` : ''}${def.timed ? 's' : ''}${s.weight ? ` @ ${fmtLb(s.weight)}` : ''}`}
-              />
-            );
-          })}
-        </Section>
-      )}
       </div>
       </div>
 
