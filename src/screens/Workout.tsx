@@ -565,8 +565,8 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
         onBack={nav.pop}
         right={
           !planned && (
-            <IconBtn label="Say what you did" onClick={() => setSaying(true)}>
-              <Sym name="mic.fill" size={17} />
+            <IconBtn label="Write what you did" onClick={() => setSaying(true)}>
+              <Sym name="pencil.line" size={18} />
             </IconBtn>
           )
         }
