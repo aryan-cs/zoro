@@ -89,10 +89,22 @@ function useDayOfMonth() {
   return day;
 }
 
+/** Today's tab shows the day like Calendar's icon: the weekday in red over the date. */
+function DayIcon({ day }: { day: number }) {
+  // `day` changes at midnight, which re-renders this with the new weekday.
+  const weekday = new Date().toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+  return (
+    <span className="day-icon" aria-hidden data-day={day}>
+      <span className="day-icon-weekday">{weekday}</span>
+      <span className="day-icon-date">{day}</span>
+    </span>
+  );
+}
+
 function Tabs() {
   const { tab } = useNavState();
   const { setTab } = useNav();
-  // Today shows the date, like Calendar's icon: 25.calendar on the 25th.
+  // Today shows the date, like Calendar's icon: WED over 25.
   const day = useDayOfMonth();
   return (
     <Tabbar icons className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
@@ -103,7 +115,7 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={<Sym name={t.id === 'today' ? (`${day}.calendar` as SFName) : t.icon} size={17} />}
+            icon={t.id === 'today' ? <DayIcon day={day} /> : <Sym name={t.icon} size={17} />}
           />
         ))}
       </ToolbarPane>
