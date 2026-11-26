@@ -65,14 +65,15 @@ body {
   }
 }
 /* Where content starts below the status bar. From the Home Screen, iOS 26 and later also blurs
- * a band about 40pt deep under the status bar (its scroll edge effect, which nothing turns off),
- * so there content starts below that band and titles stay sharp; the band shows only black. */
+ * a band under the status bar (its scroll edge effect; the web page can't turn it off, see
+ * WKWebView _shouldHideTopScrollPocket). Measured in the iOS 27 Simulator, text is sharp from
+ * about 24pt below the status bar, so there content starts that much lower; the band shows black. */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
 }
 @media (display-mode: standalone) {
   :root {
-    --safe-top: calc(env(safe-area-inset-top, 0px) + 40px);
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 24px);
   }
 }
 .k-page {
