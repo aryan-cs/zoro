@@ -1,5 +1,5 @@
 import { minutesBetween, toISODate } from './calc';
-import type { SleepEntry, SleepStage, StageSpan } from './types';
+import type { ISODate, SleepEntry, SleepStage, StageSpan } from './types';
 
 /**
  * Parse sleep data copied by the iPhone Shortcut. Accepts either JSON
@@ -115,6 +115,48 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
   const stages = stagesFor(all, bed, wake);
   if (stages) entry.stages = stages;
   return entry;
+}
+
+/** A day's steps from Apple Health. */
+export interface DaySteps {
+  date: ISODate;
+  steps: number;
+}
+
+/**
+ * Steps from the shortcut's sample lists (start dates, counts, sources), added up per day. Health
+ * keeps the iPhone's and the Watch's samples separately and they overlap, so each day counts the
+ * source with the most steps rather than adding them together (close to what Health shows).
+ */
+export function stepsFromSamples(starts: string[], counts: string[], sources: string[]): DaySteps[] {
+  const byDay = new Map<ISODate, Map<string, number>>();
+  starts.forEach((start, i) => {
+    const d = new Date(start);
+    const n = parseFloat((counts[i] ?? '').replace(/,/g, ''));
+    if (Number.isNaN(d.getTime()) || !Number.isFinite(n) || n <= 0) return;
+    const day = toISODate(d);
+    const src = sources[i]?.trim() || 'Health';
+    const m = byDay.get(day) ?? new Map<string, number>();
+    m.set(src, (m.get(src) ?? 0) + n);
+    byDay.set(day, m);
+  });
+  return [...byDay].map(([date, m]) => ({ date, steps: Math.round(Math.max(...m.values())) })).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * What the Zoro Health shortcut copies: last night's sleep and the last two days' steps, as
+ *   ZORO-HEALTH1
+ *   <sleep starts> --- <sleep ends> --- <sleep values> --- <step starts> --- <step counts> --- <step sources>
+ * (each list one item per line). The older Zoro Sleep shortcut's text still reads as sleep only.
+ */
+export function parseHealthImport(text: string): { sleep: SleepEntry | null; steps: DaySteps[] } {
+  const health = text.trim().match(/^ZORO-HEALTH1\s*\n([\s\S]*)$/i);
+  if (!health) return { sleep: parseSleepImport(text), steps: [] };
+  const lines = (block = '') => block.split('\n').map((l) => l.trim()).filter(Boolean);
+  const [sStarts, sEnds, sValues, stStarts, stCounts, stSources] = health[1].split(/\n?\s*---\s*\n?/).map(lines);
+  const st = sStarts ?? [];
+  const sleep = st.length ? nightFromSamples(st.map((start, i) => ({ start, end: (sEnds ?? [])[i], value: (sValues ?? [])[i] }))) : null;
+  return { sleep, steps: stepsFromSamples(stStarts ?? [], stCounts ?? [], stSources ?? []) };
 }
 
 export function parseSleepImport(text: string): SleepEntry | null {

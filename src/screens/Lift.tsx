@@ -16,6 +16,8 @@ const SECONDARY: TemplateId[] = ['pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const SPAN = 26; // weeks you can swipe back and ahead
+/** Steps' color: Activity's orange. */
+const STEPS_ORANGE = '#ff9f0a';
 
 /**
  * Calendar-style week strip: swipe sideways (or drag with a mouse) to page a week at a time;
@@ -159,6 +161,9 @@ export function LiftScreen() {
   // can be logged after the fact; a day still to come shows its workout as planned.
   const play = (id: TemplateId) => (sel > date ? () => nav.push({ name: 'plannedWorkout', templateId: id, date: sel }) : () => void start(id));
 
+  // The day's steps (brought in from Apple Health with sleep).
+  const steps = useLiveQuery(async () => (await db.metrics.where('[type+date]').equals(['steps', sel]).first())?.value, [sel]);
+
   // A rest counting down in the workout you're doing: its card rings its play button with it.
   const running = useRunningRest(open?.id);
   const restFor = (id: TemplateId) => (isToday && open?.templateId === id ? running : null);
@@ -233,6 +238,14 @@ export function LiftScreen() {
             progress={dayProgress(secondId)}
           />
         )}
+        {/* Steps, every day: from Apple Health (the Zoro Health shortcut), against the daily goal. */}
+        <WorkoutCard
+          title="Steps"
+          glyph="figure.walk"
+          color={STEPS_ORANGE}
+          sub={`${(steps ?? 0).toLocaleString()} of ${settings.stepsTarget.toLocaleString()}`}
+          progress={Math.min(1, (steps ?? 0) / Math.max(1, settings.stepsTarget))}
+        />
       </div>
 
       </div>

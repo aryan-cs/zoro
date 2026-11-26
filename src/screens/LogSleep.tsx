@@ -1,8 +1,8 @@
 import { ListInput, Page } from 'konsta/react';
 import { useState } from 'react';
 import { formatMinutes } from '../core/calc';
-import { parseSleepImport, sleepFromTimes } from '../core/sleep';
-import { saveSleep, today } from '../core/store';
+import { parseHealthImport, sleepFromTimes } from '../core/sleep';
+import { saveMetric, saveSleep, today } from '../core/store';
 import { hrMin } from '../core/say';
 import { Btn, db, FitCard, Header, Row, Section, useSettings, useToast } from '../ui/kit';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
@@ -15,8 +15,8 @@ const toMin = (hhmm: string) => {
 };
 import { useNav } from '../ui/nav';
 
-const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Sleep';
-const INSTALLED_KEY = 'zoro.sleepShortcut';
+const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Health';
+const INSTALLED_KEY = 'zoro.healthShortcut'; // new name: the old sleep-only shortcut has to be swapped
 
 /** 'tried' once you've been sent to add it, 'ok' once a paste from it worked. */
 function shortcutState(): 'none' | 'tried' | 'ok' {
@@ -37,14 +37,14 @@ function setShortcutState(v: 'tried' | 'ok') {
 export const shortcutInstalled = () => shortcutState() === 'ok';
 
 /**
- * Where Zoro Sleep installs from. The signed copy this app serves (scripts/make-sleep-shortcut.py)
+ * Where Zoro Health installs from (it brings in sleep and steps). The signed copy this app serves (scripts/make-health-shortcut.py)
  * is the working one: the old iCloud link (323631b5…) has the Type filter as plain text, so
  * Shortcuts shows it as "Choose" and finds nothing. Swap in a fresh iCloud link here once one is
  * shared from the working copy; iCloud links open Shortcuts' Add Shortcut screen directly.
  */
-const SHORTCUT_URL = new URL(`${import.meta.env.BASE_URL}ZoroSleep.shortcut`, location.origin).href;
+const SHORTCUT_URL = new URL(`${import.meta.env.BASE_URL}ZoroHealth.shortcut`, location.origin).href;
 
-/** Open Zoro Sleep in Shortcuts to add it. */
+/** Open Zoro Health in Shortcuts to add it. */
 export function addSleepShortcut() {
   setShortcutState('tried');
   // A new window leaves the Home Screen app, so iOS hands the file to Safari and then Shortcuts.
@@ -63,17 +63,27 @@ export function LogSleepScreen() {
   const [manualPaste, setManualPaste] = useState(false);
   const [paste, setPaste] = useState('');
 
+  // One paste brings in last night's sleep and the last two days' steps.
   const importText = async (text: string) => {
-    const s = parseSleepImport(text);
+    const { sleep: s, steps } = parseHealthImport(text);
+    for (const d of steps) await saveMetric('steps', d.steps, d.date, db);
+    const todaySteps = steps.find((d) => d.date === today())?.steps;
+    const stepsNote = todaySteps !== undefined ? `${todaySteps.toLocaleString()} steps` : '';
     if (!s) {
-      // The shortcut ran but Health had nothing from last night (no watch, or no sleep schedule).
-      if (/^\s*ZORO-SLEEP2/i.test(text) && !/\d{4}-\d{2}-\d{2}/.test(text)) return toast('No sleep in Apple Health yet');
-      return toast(/ZORO-SLEEP/i.test(text) ? 'Couldn’t read last night' : 'Run the shortcut first');
+      if (steps.length) {
+        setShortcutState('ok');
+        setPaste('');
+        toast(`${stepsNote || 'Steps saved'}; no sleep in Apple Health yet`);
+        return nav.pop();
+      }
+      // The shortcut ran but Health had nothing (no watch, or no sleep schedule).
+      if (/^\s*ZORO-(SLEEP2|HEALTH1)/i.test(text) && !/\d{4}-\d{2}-\d{2}/.test(text)) return toast('Nothing in Apple Health yet');
+      return toast(/ZORO-(SLEEP|HEALTH)/i.test(text) ? 'Couldn’t read last night' : 'Run the shortcut first');
     }
     await saveSleep(s, db);
     setShortcutState('ok');
     setPaste('');
-    toast(`Saved ${formatMinutes(s.minutes)}`);
+    toast(`Saved ${formatMinutes(s.minutes)}${stepsNote ? ` and ${stepsNote}` : ''}`);
     nav.pop();
   };
   const pasteFromClipboard = async () => {

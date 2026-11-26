@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { barcodeVariants, parseFdcFood, parseOffProduct } from './food';
-import { parseSleepImport, sleepFromTimes } from './sleep';
+import { parseHealthImport, parseSleepImport, sleepFromTimes, stepsFromSamples } from './sleep';
 
 describe('Open Food Facts parsing', () => {
   it('reads per-100 g and per-serving macros', () => {
@@ -174,5 +174,28 @@ describe('better food data', () => {
     })!;
     expect(f.serving).toBeUndefined();
     expect(f.per100g?.kcal).toBe(539);
+  });
+});
+
+describe('steps from the Health shortcut', () => {
+  it('adds up each day, counting the source with the most steps', () => {
+    const starts = ['2026-11-25T09:00:00-06:00', '2026-11-25T12:00:00-06:00', '2026-11-25T09:05:00-06:00', '2026-11-26T08:00:00-06:00'];
+    const counts = ['1200', '800', '1500', '300'];
+    const sources = ['iPhone', 'iPhone', 'Apple Watch', 'iPhone'];
+    const out = stepsFromSamples(starts, counts, sources);
+    expect(out.find((d) => d.date === '2026-11-26')?.steps).toBe(300);
+    // iPhone 2,000 vs Watch 1,500 on the 25th: the larger, not both.
+    const d25 = out.find((d) => d.date === '2026-11-25');
+    expect(d25?.steps).toBe(2000);
+  });
+
+  it('reads sleep and steps from one paste, and old sleep-only pastes still work', () => {
+    const text = ['ZORO-HEALTH1', '2026-11-25T23:30:00-06:00', '---', '2026-11-26T07:00:00-06:00', '---', 'Asleep Core', '---', '2026-11-26T08:00:00-06:00', '2026-11-26T09:00:00-06:00', '---', '1,250', '640', '---', 'iPhone', 'iPhone'].join('\n');
+    const r = parseHealthImport(text);
+    expect(r.sleep?.minutes).toBe(450);
+    expect(r.steps).toEqual([{ date: '2026-11-26', steps: 1890 }]);
+    const old = parseHealthImport('ZORO-SLEEP2\n2026-11-25T23:30:00-06:00\n---\n2026-11-26T07:00:00-06:00\n---\nAsleep Core');
+    expect(old.sleep?.minutes).toBe(450);
+    expect(old.steps).toEqual([]);
   });
 });

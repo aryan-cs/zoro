@@ -3,7 +3,7 @@ import { Cell, Header, Section } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 const STEPS: [string, string][] = [
-  ['Open Shortcuts', 'Tap +. Name the shortcut “Zoro Sleep”.'],
+  ['Open Shortcuts', 'Tap +. Name the shortcut “Zoro Health”.'],
   ['Find Health Samples', 'Add “Find Health Samples”: Type = Sleep; Start Date = “is in the last” 1 day; sort by Start Date, oldest first.'],
   [
     'Repeat with Each',
