@@ -5,7 +5,7 @@ import { addDays, nextMonday, programWeek } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
-import { db, FITNESS, fmtLb, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
+import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -124,13 +124,8 @@ export function LiftScreen() {
     () => (mainId ? buildPlan(mainId, sel, db, mainSession?.sessionId) : undefined),
     [mainId, sel, settings.daysPerWeek, mainSession?.sessionId],
   );
-  // Each workout's exercises, for its card: sets × reps, and the weight when the plan knows it.
+  // Each workout's exercises (counted on its card; listed on the workout's own screen).
   const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
-  const mainList = (plan?.exercises ?? []).map((e) => {
-    const def = EXERCISES[e.exerciseId];
-    const s0 = e.sets[0];
-    return { name: def.name, detail: `${reps(e.sets.length, s0.reps, s0.repMax, def.timed)}${s0.weight ? ` @ ${fmtLb(s0.weight)}` : ''}` };
-  });
   const fromTemplate = (id: TemplateId | undefined | null) =>
     id ? templateFor(id, settings.daysPerWeek).exercises.map((e) => ({ id: e.exerciseId, name: EXERCISES[e.exerciseId].name, detail: reps(e.sets, e.repMin, e.repMax, EXERCISES[e.exerciseId].timed) })) : [];
   const secondList = fromTemplate(secondId);
@@ -170,7 +165,6 @@ export function LiftScreen() {
             glyph={TEMPLATE_GLYPH[open.templateId]}
             color={FITNESS.exercise}
             sub={`In progress · ${openList.filter((e) => e.done).length} of ${openList.length} done`}
-            exercises={openList}
             onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
           />
@@ -183,7 +177,6 @@ export function LiftScreen() {
             done={doneOn(mainId)}
             onPlay={isToday ? () => void start(mainId) : undefined}
             sub={plan ? `${plan.exercises.length} exercises` : undefined}
-            exercises={mainList}
           />
         ) : (
           <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
@@ -196,7 +189,6 @@ export function LiftScreen() {
             done={doneOn(secondId)}
             onPlay={isToday ? () => void start(secondId) : undefined}
             sub={`Add-on · ${secondList.length} exercises`}
-            exercises={secondList}
           />
         )}
       </div>
