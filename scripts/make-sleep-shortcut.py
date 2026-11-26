@@ -53,7 +53,8 @@ actions = [
                     'WFActionParameterFilterPrefix': 1,
                     'WFContentPredicateBoundedDate': False,
                     'WFActionParameterFilterTemplates': [
-                        {'Bounded': True, 'Operator': 4, 'Property': 'Type', 'Removable': False, 'Values': {'Enumeration': 'Sleep Analysis'}},
+                        # iOS 27 saves the type as a substitutable "Sleep" (a plain 'Sleep Analysis' string shows as "Choose").
+                        {'Bounded': True, 'Operator': 4, 'Property': 'Type', 'Removable': False, 'Values': {'Enumeration': {'Value': 'Sleep', 'WFSerializationType': 'WFStringSubstitutableState'}}},
                         {'Bounded': True, 'Operator': 1002, 'Property': 'Start Date', 'Removable': True, 'Values': {'Number': 1, 'Unit': 16}},
                     ],
                 },

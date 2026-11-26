@@ -231,12 +231,12 @@
 
 /* ---------- Segmented control ---------- */
 .ios-segmented {
-  /* Liquid Glass track: 36pt tall (taller than Health's 30pt D/W/M control, as asked), thumb
+  /* Liquid Glass track: 40pt tall (taller than Health's 30pt D/W/M control, as asked), thumb
    * inset 3pt, 15pt medium labels that keep their weight when selected. */
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--count), minmax(0, 1fr));
-  height: 36px;
+  height: 40px;
   padding: 3px;
   border-radius: 999px;
   /* Liquid Glass track, matching the tab bar and buttons. */
@@ -1773,4 +1773,55 @@ button.meal-row:not(:disabled):active {
 }
 .fit-stat-edit:active {
   opacity: 0.5;
+}
+
+/* Chart reading, as in Health: a small rounded callout at the top of the chart, over the
+ * vertical rule, with the series name in gray caps, the value, and the date. */
+.chart-wrap {
+  position: relative;
+}
+.chart-callout {
+  position: absolute;
+  top: -4px;
+  z-index: 1;
+  padding: 6px 10px 7px;
+  border-radius: 10px;
+  background: #3a3a3c;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.chart-callout-label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(235, 235, 245, 0.6);
+}
+.chart-callout-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-callout-other {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 17px;
+  color: rgba(235, 235, 245, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.chart-callout-other span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+.chart-callout-date {
+  font-size: 13px;
+  line-height: 17px;
+  color: rgba(235, 235, 245, 0.6);
 }
