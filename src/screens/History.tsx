@@ -24,12 +24,19 @@ function emptyDays(n: number) {
   return Array.from({ length: n }, (_, i) => short(addDays(today(), i - n + 1)));
 }
 
-function StatGrid({ items, color }: { items: [string, string | null, string?][]; color: string }) {
+/** Up to three stats in a row; one with an edit handler (a target or goal) is tappable. */
+function StatGrid({ items, color }: { items: [string, string | null, string?, (() => void)?][]; color: string }) {
   return (
     <div className="fit-grid3">
-      {items.map(([label, value, unit]) => (
-        <FitStat key={label} label={label} value={value} unit={unit} color={color} small />
-      ))}
+      {items.map(([label, value, unit, onEdit]) =>
+        onEdit ? (
+          <button key={label} type="button" className="fit-stat-edit" onClick={onEdit} aria-label={`${label}: ${value ?? 'none'}${unit ? ` ${unit.toLowerCase()}` : ''}. Edit`}>
+            <FitStat label={label} value={value} unit={unit} color={color} small />
+          </button>
+        ) : (
+          <FitStat key={label} label={label} value={value} unit={unit} color={color} small />
+        ),
+      )}
     </div>
   );
 }
@@ -75,6 +82,10 @@ function Lifts() {
     }
   });
   const [menu, setMenu] = useState<DOMRect | null>(null);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const settings = useSettings();
+  const toast = useToast();
+  const goal = settings.benchGoal ?? 225;
   const points = useMemo(() => best[lift] ?? [], [best, lift]);
   const isBench = lift === 'bench';
   const labels = useMemo(() => (points.length ? points.map((b) => short(b.date)) : emptyDays(30)), [points]);
@@ -83,17 +94,16 @@ function Lifts() {
       points.length
         ? [
             { label: 'Estimated max', data: points.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-            ...(isBench ? [{ label: 'Goal', data: points.map(() => 225), color: 'rgba(255,255,255,0.3)' }] : []),
+            ...(isBench ? [{ label: 'Goal', data: points.map(() => goal), color: 'rgba(255,255,255,0.3)' }] : []),
           ]
         : [],
-    [points, isBench],
+    [points, isBench, goal],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
   const top = points.length ? Math.max(...points.map((b) => b.e1rm)) : null;
   const latest = points.at(-1)?.e1rm ?? null;
   const change = points.length > 1 ? Math.round(points.at(-1)!.e1rm - points[0].e1rm) : null;
 
-  const settings = useSettings();
   // The max your bench weights come from (it steps up as you finish 12-step blocks).
   const trainingMax = benchProgress(settings, history.filter((h) => !h.sample)).newMax ?? settings.benchMax;
   return (
@@ -119,7 +129,7 @@ function Lifts() {
                 ? [
                     ['Training Max', fmt(trainingMax), 'LB'],
                     ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
-                    ['Goal', '225', 'LB'],
+                    ['Goal', fmt(goal), 'LB', () => setEditingGoal(true)],
                   ]
                 : [
                     ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
@@ -128,12 +138,26 @@ function Lifts() {
                   ]
             }
           />
-          {isBench && <Bar value={top ?? trainingMax} target={225} color={FITNESS.exercise} className="mt-4" />}
+          {isBench && <Bar value={top ?? trainingMax} target={goal} color={FITNESS.exercise} className="mt-4" />}
           <div className="fit-chart">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </div>
         </FitCard>
       </div>
+      <NumberPrompt
+        opened={editingGoal}
+        title="Bench Goal"
+        unit="lb"
+        initial={String(goal)}
+        min={45}
+        max={1000}
+        onCancel={() => setEditingGoal(false)}
+        onSave={async (n) => {
+          await saveSettings({ benchGoal: Math.round(n) });
+          setEditingGoal(false);
+          toast(`Goal set to ${fmt(Math.round(n))} lb`);
+        }}
+      />
       <Menu
         anchor={menu}
         onClose={() => setMenu(null)}
@@ -217,6 +241,7 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
 function Body() {
   const toast = useToast();
   const settings = useSettings();
+  const [editing, setEditing] = useState<'kcal' | null>(null);
   const weights = useLiveQuery(() => metricsOf('weight', 365, db), []) ?? [];
   const intake = useLiveQuery(() => dailyIntake(35, db), []) ?? [];
   const trend = useMemo(() => weightTrend(weights), [weights]);
@@ -270,7 +295,7 @@ function Body() {
             items={[
               ['Burn', energy ? fmt(energy.tdee) : null, energy ? 'KCAL' : undefined],
               ['Intake', energy ? fmt(energy.avgIntake) : null, energy ? 'KCAL' : undefined],
-              ['Target', energy ? fmt(energy.recommended) : null, energy ? 'KCAL' : undefined],
+              ['Target', fmt(settings.kcalTarget), 'KCAL', () => setEditing('kcal')],
             ]}
           />
           <div className="fit-chart">
@@ -290,6 +315,21 @@ function Body() {
           )}
         </FitCard>
       </div>
+
+      <NumberPrompt
+        opened={editing === 'kcal'}
+        title="Daily Calories"
+        unit="kcal"
+        initial={String(settings.kcalTarget)}
+        min={800}
+        max={6000}
+        onCancel={() => setEditing(null)}
+        onSave={async (n) => {
+          await saveSettings({ kcalTarget: Math.round(n) });
+          setEditing(null);
+          toast(`Target set to ${fmt(Math.round(n))} kcal`);
+        }}
+      />
 
       <Section title="Measurements">
         {SIZES.map((s) => (
@@ -355,6 +395,8 @@ function Food() {
 
 function Sleep() {
   const settings = useSettings();
+  const toast = useToast();
+  const [editingGoal, setEditingGoal] = useState(false);
   const entries = useLiveQuery(() => db.sleep.where('date').aboveOrEqual(addDays(today(), -60)).sortBy('date'), []) ?? [];
   const lastNight = entries.find((e) => e.date === today());
   const avg = averageSleep(entries, today());
@@ -371,7 +413,7 @@ function Sleep() {
             items={[
               ['Last Night', lastNight ? formatMinutes(lastNight.minutes) : null],
               ['7-Night Avg', avg ? formatMinutes(avg) : null],
-              ['Goal', formatMinutes(settings.sleepTargetMin)],
+              ['Goal', formatMinutes(settings.sleepTargetMin), undefined, () => setEditingGoal(true)],
             ]}
           />
           <div className="fit-chart">
@@ -379,6 +421,21 @@ function Sleep() {
           </div>
         </FitCard>
       </div>
+      <NumberPrompt
+        opened={editingGoal}
+        title="Sleep Goal"
+        unit="hr"
+        initial={String(roundTo(settings.sleepTargetMin / 60, 0.25))}
+        min={3}
+        max={14}
+        onCancel={() => setEditingGoal(false)}
+        onSave={async (n) => {
+          const min = Math.round((n * 60) / 5) * 5;
+          await saveSettings({ sleepTargetMin: min });
+          setEditingGoal(false);
+          toast(`Goal set to ${formatMinutes(min)}`);
+        }}
+      />
       <Section title="Nights">
         {[...entries]
           .reverse()

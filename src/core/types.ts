@@ -210,6 +210,8 @@ export interface Settings {
   name?: string;
   /** Fill every screen with sample data (Settings › Testing). On unless turned off. */
   sampleData?: boolean;
+  /** The bench number you're working toward (History's Bench card); 225 until changed. */
+  benchGoal?: number;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

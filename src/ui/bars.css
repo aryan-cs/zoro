@@ -688,16 +688,22 @@ button.meal-row:not(:disabled):active {
   background: var(--ios-cell);
   -webkit-tap-highlight-color: transparent;
 }
-/* Press, as Fitness (iOS 27): the card grows about its center while held, ~4% by 165 ms and
- * 7.5% by half a second, with no color change; on release it snaps back in one frame. */
+/* Press, as Fitness (iOS 27): the card grows about its center while held, with no color change,
+ * and snaps back in one frame on release. Fitness's half-width cards grow 7.5% (about 6.5pt a
+ * side); full-width cards grow the same few points, not the same percent, so they stay inside
+ * the screen's 16pt margins. */
 .fit-card.is-link,
 .wk-card.is-link {
   transition: none;
 }
 .fit-card.is-link:active,
 .wk-card.is-link:active {
-  transform: scale(1.075);
+  transform: scale(1.035);
   transition: transform 0.9s cubic-bezier(0.15, 0.55, 0.3, 1);
+}
+.fit-grid > .fit-card.is-link:active,
+.fit-grid > .wk-card.is-link:active {
+  transform: scale(1.075);
 }
 .fit-card-head {
   display: flex;
@@ -1752,5 +1758,15 @@ button.meal-row:not(:disabled):active {
   color: #8d8d93;
 }
 .lift-picker:active {
+  opacity: 0.5;
+}
+
+/* A stat you can change (a target or goal): tap it for a number prompt. */
+.fit-stat-edit {
+  min-width: 0;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.fit-stat-edit:active {
   opacity: 0.5;
 }
