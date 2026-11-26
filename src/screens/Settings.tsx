@@ -435,11 +435,11 @@ export function SettingsScreen() {
       {/* Connections: food search and Apple Health. */}
       <Section
         title="Connections"
-        footer="Add a free USDA key to search generic foods too. Photo Logging reads receipts, orders and plates with your free Gemini key. The Apple Health automation sends your sleep and steps to Zoro on its own."
+        footer="A free USDA key adds generic foods to search. A free Gemini key lets Zoro read receipts, orders and plates from a photo. Apple Health sends your sleep and steps to Zoro on its own."
       >
-        <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
-        <Row title="Photo Logging" right={gemini ? 'On' : 'Off'} chevron onClick={() => setPhotoSheet(true)} />
-        <Row title="Apple Health Automation" right={healthSyncedAt ? 'On' : 'Off'} chevron onClick={() => nav.push({ name: 'healthSetup' })} />
+        <Field label="Connect to USDA" placeholder="Key" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+        <Row title="Connect to Gemini" right={gemini ? 'On' : 'Off'} chevron onClick={() => setPhotoSheet(true)} />
+        <Row title="Connect to Apple Health" right={healthSyncedAt ? 'On' : 'Off'} chevron onClick={() => nav.push({ name: 'healthSetup' })} />
       </Section>
       <PhotoLoggingSheet opened={photoSheet} onClose={() => setPhotoSheet(false)} />
 
