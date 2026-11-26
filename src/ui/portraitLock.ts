@@ -120,8 +120,9 @@ export function lockPortrait(): void {
       root.style.setProperty('--turn-w', `${h}px`);
       root.style.setProperty('--turn-h', `${w}px`);
       root.style.setProperty('--turn', next === -90 ? `translateY(${h}px) rotate(-90deg)` : `translateX(${w}px) rotate(90deg)`);
-      // The page's top now runs along the side with the Dynamic Island.
-      root.style.setProperty('--turn-safe-top', `${next === -90 ? inset('left') : inset('right')}px`);
+      // The page's top now runs along the side with the Dynamic Island. iOS reports the same
+      // inset on both sides in landscape, so the larger one is the island's.
+      root.style.setProperty('--turn-safe-top', `${Math.max(inset('left'), inset('right'))}px`);
     }
     turn = next;
   };
