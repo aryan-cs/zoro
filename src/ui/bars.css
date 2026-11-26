@@ -2264,3 +2264,14 @@ button.water-oz:active {
 .tab-panes.is-paging > * {
   will-change: transform;
 }
+
+/* A ring's filled part fading in when it first appears (its value going up from zero): the value
+ * passes the first few percent too fast for that alone to read as a fade. */
+.ring-fill {
+  animation: ring-fill-in 0.45s ease-out;
+}
+@keyframes ring-fill-in {
+  from {
+    opacity: 0;
+  }
+}

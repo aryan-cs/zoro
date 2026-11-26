@@ -495,7 +495,9 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
     <g>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={colors[0]} strokeOpacity="0.15" strokeWidth={w} />
       {p > 0 && (
-        <g opacity={shown}>
+        // Fades in over a moment when it appears (from zero), and out over the last 3% on the
+        // way back to zero.
+        <g opacity={shown} className="ring-fill">
           {lap(0, end, 'a')}
           {/* The start's round cap, only under the goal: once the ring has come all the way round,
               the first lap's end is behind it, and a start-colored disc there would show as a flat-
