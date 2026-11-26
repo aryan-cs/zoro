@@ -122,13 +122,18 @@ function SetStep(props: {
 
   const log = (w: number | undefined, r: number) => props.onLog(noLoad ? 0 : (w ?? 0), r);
   finishClock.current = () => log(weight, reps);
-  const clockLeft = running && props.clock ? Math.max(0, Math.ceil((props.clock.endsAt - now) / 1000)) : reps;
+  // A hold done on each side (a side plank, a stretch) runs once per side, back to back.
+  const sides = def.timed && def.perSide ? 2 : 1;
+  const sideLen = props.clock ? (props.clock.endsAt - props.clock.startedAt) / sides : 0;
+  const side = running && props.clock && sides === 2 && now - props.clock.startedAt >= sideLen ? 2 : 1;
+  const sideEnd = props.clock ? props.clock.startedAt + sideLen * side : 0;
+  const clockLeft = running && props.clock ? Math.max(0, Math.ceil((sideEnd - now) / 1000)) : reps;
   const clockPassed = running && props.clock ? Math.min(1, Math.max(0, (now - props.clock.startedAt) / Math.max(1, props.clock.endsAt - props.clock.startedAt))) : 0;
   const toggle = () => {
     if (done) return props.onUnlog();
     if (props.onStartClock) {
       // Stopped early: log the seconds held.
-      if (running && props.clock) return log(weight, Math.max(1, Math.min(reps, Math.round((Date.now() - props.clock.startedAt) / 1000))));
+      if (running && props.clock) return log(weight, Math.max(1, Math.min(reps, Math.round((Date.now() - props.clock.startedAt) / 1000 / sides))));
       return props.onStartClock();
     }
     if (!noLoad && weight === undefined) return setPrompt('w');
@@ -232,10 +237,11 @@ function SetStep(props: {
         <button type="button" className="step-num" onClick={() => !props.readOnly && setPrompt('r')} aria-label={`Change ${repUnit}`}>
           {def.timed ? (
             // A long hold or walk reads in minutes: 20 MIN, then 19 MIN 43 SEC as it counts down.
-            durationParts(clockLeft).map(([n, unit], i) => (
+            // Each side: 45 SEC EACH, then SIDE 1 and SIDE 2 as it counts down.
+            durationParts(clockLeft).map(([n, unit], i, all) => (
               <span key={unit} className={`step-dur ${i ? 'is-more' : ''}`}>
                 {n}
-                <small>{unit}</small>
+                <small>{sides === 2 && i === all.length - 1 ? `${unit} ${running ? `· SIDE ${side}` : 'EACH'}` : unit}</small>
               </span>
             ))
           ) : (
@@ -681,7 +687,9 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
                 EXERCISES[ex.exerciseId].timed
                   ? () => {
                       setRest(null);
-                      setClock({ key, startedAt: Date.now(), endsAt: Date.now() + t.reps * 1000 });
+                      // Holds done on each side run twice: one side, then the other.
+                      const sides = EXERCISES[ex.exerciseId].perSide ? 2 : 1;
+                      setClock({ key, startedAt: Date.now(), endsAt: Date.now() + t.reps * 1000 * sides });
                     }
                   : undefined
               }

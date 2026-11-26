@@ -82,7 +82,14 @@ export const EXERCISES: Record<string, ExerciseDef> = Object.fromEntries(
     ex('plank', 'Plank', 'bodyweight', 0, ['abs'], { timed: true }),
     // Cardio
     ex('inclineWalk', 'Incline Walk or StairMaster', 'machine', 0, ['cardio'], { timed: true }),
-    // Rest days: about ten minutes for the posture (forward head, rounded upper back, pelvic tilt).
+    // Posture, on rest days: tight hip flexors (pelvic tilt), a rounded upper back and chest, a
+    // forward head, then core control. About ten minutes in all.
+    ex('hipFlexorStretch', 'Kneeling Hip-Flexor Stretch', 'bodyweight', 0, ['hip flexors'], { timed: true, perSide: true }),
+    ex('thoracicExtension', 'Ball Thoracic Extension', 'bodyweight', 0, ['upper back']),
+    ex('doorwayChestStretch', 'Doorway Chest Stretch', 'bodyweight', 0, ['chest', 'shoulders'], { timed: true, perSide: true }),
+    ex('chinTuck', 'Chin Tucks', 'bodyweight', 0, ['neck']),
+    ex('deadBug', 'Dead Bug', 'bodyweight', 0, ['abs'], { perSide: true }),
+    // Earlier versions' rest-day block (the moves above in one), kept so old workouts still show.
     ex('postureMobility', 'Posture and Mobility', 'bodyweight', 0, ['posture'], { timed: true }),
   ].map((e) => [e.id, e]),
 );
@@ -192,7 +199,14 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Walk and Posture',
     short: 'Rest day, optional and easy',
     secondary: true,
-    exercises: [p('inclineWalk', 1, 1200, 1800, 0), p('postureMobility', 1, 600, 600, 0)],
+    exercises: [
+      p('inclineWalk', 1, 1200, 1800, 0),
+      p('hipFlexorStretch', 2, 45, 45, 15),
+      p('thoracicExtension', 2, 10, 10, 30),
+      p('doorwayChestStretch', 2, 30, 30, 15),
+      p('chinTuck', 2, 10, 10, 30),
+      p('deadBug', 2, 8, 8, 30),
+    ],
   },
   // Earlier versions' second sessions, kept so old workouts still show their names.
   pmForearms: {

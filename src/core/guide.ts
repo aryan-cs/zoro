@@ -376,6 +376,43 @@ export const GUIDE: Record<string, Guide> = {
     photo: 'plank',
     tips: ['Elbows under your shoulders, body straight from head to heels.', 'Squeeze your glutes and brace your abs so your hips don’t sag or pike up.'],
   },
+  hipFlexorStretch: {
+    photo: 'kneeling-hip-flexor',
+    tips: [
+      'Back knee on a pad, front foot flat. Tuck your pelvis under and squeeze the glute of the back leg; that’s where the stretch comes from.',
+      'Ease your hips forward a little without arching your lower back. Breathe slowly and hold for the full time on each side.',
+    ],
+  },
+  thoracicExtension: {
+    photo: 'ball-thoracic-extension',
+    tips: [
+      'Sit on the ball and walk your feet out until your upper back rests on it, hands behind your head.',
+      'Let your upper back arch back over the ball, then curl up a few inches. Keep your hips still: the movement is in your upper back, not your lower back.',
+    ],
+  },
+  doorwayChestStretch: {
+    photo: 'doorway-chest-stretch',
+    still: true,
+    tips: [
+      'Forearm on the door frame (or a wall), elbow at shoulder height, then step through and turn your chest away until you feel it across your chest.',
+      'Keep your shoulder down and back, away from your ear. Hold for the full time on each side.',
+    ],
+  },
+  chinTuck: {
+    photo: 'chin-tuck',
+    still: true,
+    tips: [
+      'Stand tall and pull your chin straight back, making a double chin, without tipping your head down. Hold 5 seconds.',
+      'Hands behind your head, press it gently back into them as you tuck. It strengthens the muscles that hold your head over your shoulders.',
+    ],
+  },
+  deadBug: {
+    photo: 'dead-bug',
+    tips: [
+      'On your back, arms up, knees over hips. Breathe out hard and press your lower back flat into the floor.',
+      'Lower one arm and the opposite leg slowly, stopping before your back lifts, then switch sides. Eight each side.',
+    ],
+  },
   postureMobility: {
     photo: 'kneeling-hip-flexor',
     tips: [
