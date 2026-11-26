@@ -146,6 +146,8 @@ export interface FoodEntry {
   /** Position within its meal once you've dragged it (lists sort by this, else by loggedAt). */
   order?: number;
   liquid?: boolean;
+  /** Added from the backup repo's inbox (that file's name), so it's never added twice. */
+  inboxId?: string;
   /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }

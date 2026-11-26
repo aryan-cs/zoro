@@ -8,6 +8,7 @@ import {
   finishSession,
   importAll,
   logFood,
+  logInboxFood,
   mergeBackup,
   saveHealthImport,
   logSet,
@@ -123,4 +124,23 @@ describe('store', () => {
     await saveHealthImport(text('2026-11-25T22:00:00', '2026-11-26T07:00:00'), db);
     expect((await db.sleep.toArray())[0].minutes).toBe(400);
   });
+
+  it('logs an inbox food once, and turns away anything else', async () => {
+    const item = {
+      kind: 'food',
+      date: today(),
+      meal: 'lunch',
+      quantity: 2,
+      food: { name: 'Teriyaki Chicken Bowl, Fried Rice', brand: 'Blaze Teriyaki', serving: { label: '1 bowl', macros: { kcal: 1047, protein: 57, carbs: 103, fat: 46, fiber: 3 } } },
+    };
+    expect(await logInboxFood('a.json', item, db)).toBe(true);
+    expect(await logInboxFood('a.json', item, db)).toBe(false);
+    const entries = await db.entries.toArray();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ meal: 'lunch', quantity: 2, name: 'Teriyaki Chicken Bowl, Fried Rice (Blaze Teriyaki)', inboxId: 'a.json' });
+    expect(entries[0].macros).toMatchObject({ kcal: 2094, protein: 114, carbs: 206, fat: 92 });
+    await expect(logInboxFood('b.json', { ...item, meal: 'brunch' }, db)).rejects.toThrow();
+    await expect(logInboxFood('c.json', { kind: 'note' }, db)).rejects.toThrow();
+  });
 });
+

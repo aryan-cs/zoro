@@ -150,6 +150,33 @@ export async function logFood(
   return (await db.entries.add(entry)) as number;
 }
 
+/** A food sent to the backup repo's inbox to log (as Claude does when you ask it to). */
+export interface InboxFood {
+  kind: 'food';
+  date: ISODate;
+  meal: Meal;
+  /** How many servings. */
+  quantity: number;
+  food: { name: string; brand?: string; serving: { label: string; grams?: number; macros: Macros } };
+}
+
+/**
+ * Log a food from the inbox, once: `id` (the file's name) is kept on the entry, so a file seen
+ * again adds nothing. Returns whether it added it; throws if it isn't an inbox food.
+ */
+export async function logInboxFood(id: string, item: unknown, db: ZoroDB = getDB()): Promise<boolean> {
+  const f = item as InboxFood;
+  const m = f?.food?.serving?.macros;
+  const meals: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+  if (f?.kind !== 'food' || !/^\d{4}-\d{2}-\d{2}$/.test(f.date) || !meals.includes(f.meal) || !(f.quantity > 0) || !f.food.name || !m || ![m.kcal, m.protein, m.carbs, m.fat].every((n) => Number.isFinite(n) && n >= 0)) {
+    throw new Error('Not an inbox food.');
+  }
+  if (await db.entries.filter((e) => e.inboxId === id).first()) return false;
+  const entryId = await logFood({ food: { name: f.food.name, brand: f.food.brand, serving: f.food.serving, source: 'custom', updatedAt: Date.now() }, quantity: f.quantity, unit: 'serving', meal: f.meal, date: f.date }, db);
+  await db.entries.update(entryId, { inboxId: id });
+  return true;
+}
+
 export async function quickAdd(name: string, macros: Macros, meal: Meal, date: ISODate = today(), db: ZoroDB = getDB()): Promise<number> {
   return (await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros, loggedAt: Date.now() })) as number;
 }

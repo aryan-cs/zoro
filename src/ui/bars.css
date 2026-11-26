@@ -417,12 +417,12 @@ button.meal-row:not(:disabled):active {
   min-height: 44px;
   color: #8d8d93;
 }
+/* A long food name wraps onto more lines (never cut off); one line still makes a 52pt row. */
 .meal-row-name {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  padding: 15px 0;
+  overflow-wrap: anywhere;
 }
 .meal-row-text {
   display: flex;
@@ -1130,9 +1130,8 @@ button.meal-row:not(:disabled):active {
 .food-row-name {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  padding: 15px 0;
+  overflow-wrap: anywhere;
 }
 .food-row-kcal {
   flex-shrink: 0;
