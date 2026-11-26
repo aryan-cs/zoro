@@ -5,11 +5,14 @@ import { requestPersistence } from './core/db';
 import { purgeSampleData } from './core/store';
 import './index.css';
 import { DesktopNotice, isMobileDevice } from './ui/DesktopNotice';
+import { lockPortrait } from './ui/portraitLock';
 import { startHealthSync } from './ui/healthSync';
 import { startSync } from './ui/sync';
 
 // Zoro always uses the dark theme.
 document.documentElement.classList.add('dark');
+// Portrait only: turned sideways, the app turns itself back.
+lockPortrait();
 
 void requestPersistence();
 

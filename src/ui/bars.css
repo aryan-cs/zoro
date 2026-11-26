@@ -163,7 +163,7 @@
 }
 .ios-navbar-title {
   margin: 0;
-  max-width: 62vw;
+  max-width: calc(var(--app-w, 100vw) * 0.62);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1231,7 +1231,7 @@ button.meal-row:not(:disabled):active {
   display: flex;
   flex-direction: column;
   /* Exactly the space between the bar and the tab bar. */
-  height: calc(100dvh - var(--safe-top) - 44px - var(--tabbar-bottom) - 74px);
+  height: calc(var(--app-h, 100dvh) - var(--safe-top) - 44px - var(--tabbar-bottom) - 74px);
 }
 body:has([aria-hidden='false'] > .stack-layer:not(.is-covered) .water-page) .ios-bottom-edge {
   opacity: 0;
@@ -1245,8 +1245,8 @@ body:has([aria-hidden='false'] > .stack-layer:not(.is-covered) .water-page) .ios
   padding: 12px 16px;
 }
 .big-ring {
-  width: min(74vw, 290px);
-  height: min(74vw, 290px);
+  width: min(calc(var(--app-w, 100vw) * 0.74), 290px);
+  height: min(calc(var(--app-w, 100vw) * 0.74), 290px);
 }
 /* The percentage sits in the ring's hole. */
 .water-ring {

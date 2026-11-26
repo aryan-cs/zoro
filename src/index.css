@@ -69,6 +69,30 @@ body {
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
 }
+/* Turned sideways, the app lays itself out at portrait size and turns back a quarter turn
+ * (portraitLock.ts), so it looks exactly as it does upright: the status bar's room at the top
+ * (along the Dynamic Island) and the tab bar where it always sits. */
+html.turned {
+  --safe-top: var(--turn-safe-top, 0px);
+  --tabbar-bottom: 30px;
+  --app-w: var(--turn-w);
+  --app-h: var(--turn-h);
+}
+html.turned body {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: var(--turn-w);
+  height: var(--turn-h);
+  transform-origin: 0 0;
+  transform: var(--turn);
+}
+html.turned .safe-areas {
+  --k-safe-area-top: var(--turn-safe-top, 0px);
+  --k-safe-area-bottom: 34px;
+  --k-safe-area-left: 0px;
+  --k-safe-area-right: 0px;
+}
 /* iOS 26 and later blur the top of a Home Screen app (the status bar and a band under it, the
  * "scroll edge effect") unless the page has a fixed, opaque, full-width box over 10px tall at its
  * top edge; with one, iOS fills the status bar with that box's color instead and leaves the page
