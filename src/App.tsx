@@ -15,7 +15,7 @@ import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { DIM, InStack, NavProvider, PARALLAX, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { DIM, InStack, NavProvider, PARALLAX, SLIDE_MS, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -239,7 +239,13 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
  * stays on screen while the new one paints (visibility:hidden kept its layers around on iOS).
  * display:none resets scroll positions, so they're remembered and put back on return.
  */
-function TabPane({ active, children }: { active: boolean; children: ReactNode }) {
+/**
+ * A tab's screen. The tabs sit side by side in tab-bar order and slide like pages when you switch:
+ * Water to Today slides Water off to the left, Nutrition passes, and Today lands, on UIKit's push
+ * timing. At rest only the current tab is shown.
+ */
+function TabPane({ offset, moving, children }: { offset: number; moving: boolean; children: ReactNode }) {
+  const active = offset === 0;
   const el = useRef<HTMLDivElement>(null);
   const scrolls = useRef(new WeakMap<Element, number>());
   useEffect(() => {
@@ -259,7 +265,17 @@ function TabPane({ active, children }: { active: boolean; children: ReactNode })
     }
   }, [active]);
   return (
-    <div ref={el} className="absolute inset-0" style={active ? undefined : { display: 'none' }} aria-hidden={!active}>
+    <div
+      ref={el}
+      className="absolute inset-0"
+      style={{
+        // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
+        transform: active && !moving ? undefined : `translateX(${offset * 100}%)`,
+        transition: moving ? 'transform var(--push-ms) var(--push-ease)' : 'none',
+        visibility: active || moving ? 'visible' : 'hidden',
+      }}
+      aria-hidden={!active}
+    >
       {children}
     </div>
   );
@@ -268,11 +284,22 @@ function TabPane({ active, children }: { active: boolean; children: ReactNode })
 function Shell() {
   const { tab, stacks } = useNavState();
   useAutoTargets(); // keep the daily targets on the profile's recommendation
+  // While tabs slide, every tab is shown (the ones between pass by); then only the current one.
+  const [moving, setMoving] = useState(false);
+  const shown = useRef(tab);
+  useLayoutEffect(() => {
+    if (shown.current === tab) return;
+    shown.current = tab;
+    setMoving(true);
+    const t = window.setTimeout(() => setMoving(false), SLIDE_MS + 40);
+    return () => window.clearTimeout(t);
+  }, [tab]);
+  const current = TABS.findIndex((t) => t.id === tab);
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
-      {TABS.map((t) => (
-        <TabPane key={t.id} active={t.id === tab}>
+      {TABS.map((t, i) => (
+        <TabPane key={t.id} offset={i - current} moving={moving}>
           {/* Each screen knows whether a pushed screen is on top of it (then it sits back). */}
           <div className={`stack-layer absolute inset-0 ${stacks[t.id].some((e) => !e.leaving) ? 'is-covered' : ''}`}>
             <TabRoot tab={t.id} />

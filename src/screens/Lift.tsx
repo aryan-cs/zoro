@@ -6,6 +6,7 @@ import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateForWeekday } from '..
 import { buildPlan, loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
 import { db, FITNESS, fmtLb, Header, IconBtn, Menu, NavText, Row, Section, useSettings, WorkoutCard } from '../ui/kit';
+import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
@@ -105,6 +106,13 @@ export function LiftScreen() {
   const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
   const [sel, setSel] = useState(date);
+  const dayRef = useRef<HTMLDivElement>(null);
+  const slideDay = useSlideSwap(dayRef, sel);
+  const pick = (d: string) => {
+    if (d === sel) return;
+    slideDay(d > sel ? 1 : -1);
+    setSel(d);
+  };
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const isToday = sel === date;
   const weekday = new Date(`${sel}T12:00`).getDay();
@@ -129,15 +137,18 @@ export function LiftScreen() {
     <Page className="tab-safe">
       <Header
         title="Lift"
-        left={!isToday ? <NavText onClick={() => setSel(date)}>Today</NavText> : undefined}
+        left={!isToday ? <NavText onClick={() => pick(date)}>Today</NavText> : undefined}
         right={
           <IconBtn label="Start another workout" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
             <Sym name="plus" size={18.3} />
           </IconBtn>
         }
       />
-      <WeekStrip date={date} sel={sel} onSelect={setSel} daysPerWeek={settings.daysPerWeek} doneDates={doneDates} />
+      <WeekStrip date={date} sel={sel} onSelect={pick} daysPerWeek={settings.daysPerWeek} doneDates={doneDates} />
 
+      {/* The day's workouts and exercises slide in from the side of the day you picked. */}
+      <div className="slide-clip">
+      <div ref={dayRef}>
       <div className="fit-stack lift-day-cards">
         {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && (
           <WorkoutCard
@@ -185,6 +196,8 @@ export function LiftScreen() {
           })}
         </Section>
       )}
+      </div>
+      </div>
 
       <Menu
         anchor={menu}

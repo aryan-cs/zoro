@@ -72,10 +72,13 @@ export function NavProvider({ children }: { children: ReactNode }) {
           return;
         }
         // Leaving a tab closes what was opened on it (Settings, Water…), so coming back shows the
-        // tab itself. Only a workout in progress stays open.
-        setStacks((s) => ({ ...s, [from]: s[from].filter((e) => e.route.name === 'workout' && !e.leaving) }));
+        // tab itself. Only a workout in progress stays open. It closes once the tab has slid away,
+        // not while you can still see it go (unless you've come straight back).
         tabRef.current = t;
         setTabState(t);
+        setTimeout(() => {
+          if (tabRef.current !== from) setStacks((s) => ({ ...s, [from]: s[from].filter((e) => e.route.name === 'workout' && !e.leaving) }));
+        }, SLIDE_MS + 60);
       },
       push: (r) => {
         const t = tabRef.current;
