@@ -15,6 +15,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
+import { InStack } from './nav';
 import { Sym } from './Sym';
 import { SF, type SFName } from './sf';
 import { getDB, getSettings } from '../core/db';
@@ -856,10 +857,14 @@ export function GlassSheet({ opened, onClose, children }: { opened: boolean; onC
 export function SheetPage({ opened, onClose, title, children, closeLabel = 'Cancel' }: { opened: boolean; onClose: () => void; title: string; children: ReactNode; closeLabel?: string }) {
   return (
     <Popup opened={opened} onBackdropClick={onClose}>
-      <Page className="pb-[calc(var(--k-safe-area-bottom,0px)+16px)]">
-        <Header title={title} right={<NavText onClick={onClose}>{closeLabel}</NavText>} />
-        {children}
-      </Page>
+      {/* A sheet isn't a pushed screen, even when opened from one: its bar has no Back (which
+          would pop the screen underneath), only its own Cancel or Done. */}
+      <InStack.Provider value={false}>
+        <Page className="pb-[calc(var(--k-safe-area-bottom,0px)+16px)]">
+          <Header title={title} right={<NavText onClick={onClose}>{closeLabel}</NavText>} />
+          {children}
+        </Page>
+      </InStack.Provider>
     </Popup>
   );
 }
