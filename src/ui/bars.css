@@ -2369,3 +2369,86 @@ button.water-oz:active {
 .k-page.tab-safe.has-dock {
   padding-bottom: calc(var(--tabbar-bottom) + 98px + 40px);
 }
+
+/* ---------- A workout as steps (Workout screen) ----------
+ * Each set and each rest is a card, in the order you do them, shaped like the workout cards on
+ * the Workouts tab but plain gray. The next set to do is marked; done ones dim. */
+.step-list {
+  gap: 10px;
+}
+.step-card {
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: var(--ios-cell);
+  transition: opacity 0.25s;
+}
+.step-card.is-current {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22);
+}
+.step-card.is-done {
+  opacity: 0.5;
+}
+.step-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.step-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.step-sub {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+  font-variant-numeric: tabular-nums;
+}
+/* Tick a set off: a ring that fills with the workout color. */
+.step-check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px #636366;
+  color: #000;
+  -webkit-tap-highlight-color: transparent;
+}
+.step-check.is-done {
+  background: #a6ff00;
+  box-shadow: none;
+}
+.step-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.step-notes {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #8d8d93;
+}
+/* A rest: one short row, with a countdown once it's running. */
+.step-card.is-rest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 10px 8px 16px;
+  color: #8d8d93;
+}
+.step-rest-label {
+  font-size: 15px;
+}
+.step-rest-clock {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ios-label);
+}
