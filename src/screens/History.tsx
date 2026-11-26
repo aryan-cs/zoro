@@ -10,7 +10,7 @@ import type { Settings } from '../core/types';
 import { clockLabel, insightNote, nightStats, scoreNote, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets, trendNote } from '../core/sleepStats';
 import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
@@ -477,18 +477,6 @@ function Food() {
           <div className="fit-chart">
             <LineChart labels={labels} series={series} unit={` ${n.unit}`} height={140} />
           </div>
-          {id === 'kcal' && energy && Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
-            <Btn
-              size="md"
-              className="mt-4 w-full"
-              onClick={async () => {
-                await saveSettings({ kcalTarget: energy.recommended });
-                toast(`Target set to ${fmt(energy.recommended)} kcal`);
-              }}
-            >
-              Use {fmt(energy.recommended)} kcal
-            </Btn>
-          )}
         </FitCard>
       </div>
       <Menu
