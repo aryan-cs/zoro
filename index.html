@@ -7,13 +7,14 @@
     <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Zoro" />
     <link rel="icon" type="image/svg+xml" href="/zoro/favicon.svg" />
     <link rel="apple-touch-icon" href="/zoro/apple-touch-icon.png" />
     <title>Zoro</title>
   </head>
   <body>
+    <!-- Stops iOS blurring the top of the app; see .edge-sample in index.css. -->
+    <div class="edge-sample" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -690,23 +690,15 @@ button.meal-row:not(:disabled):active {
   right: 0;
   bottom: 0;
   z-index: 15;
-  /* Content fades out over the 36pt above the tab bar and is gone by its top edge, so nothing
-   * shows through the glass cut off by the bar's rim. Ends where scrolled-to-the-end content
-   * stops (.tab-safe), so the last cards never fade. */
-  height: calc(var(--tabbar-bottom) + 90px);
+  /* Content fades and blurs out toward the bottom of the screen: about three-quarters dark by the
+   * middle of the tab bar, black only at the screen's edge. */
+  height: calc(var(--tabbar-bottom) + 70px);
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0.45) 12px,
-    rgba(0, 0, 0, 0.8) 24px,
-    #000 36px,
-    #000 100%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.75) 50%, #000 100%);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 36px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 36px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 45%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 45%);
 }
 
 /* Grouped bar buttons: one glass capsule, as in Fitness's toolbar. */
