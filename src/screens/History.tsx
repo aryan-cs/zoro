@@ -102,7 +102,15 @@ function Lifts() {
   const logged = LIFTS.filter((id) => best[id]?.length);
   const top = points.length ? Math.max(...points.map((b) => b.e1rm)) : null;
   const latest = points.at(-1)?.e1rm ?? null;
-  const change = points.length > 1 ? Math.round(points.at(-1)!.e1rm - points[0].e1rm) : null;
+  // Change over the last 30 days: latest against the last session at least 30 days before it
+  // (or the first session, if you've been logging this lift for less than a month).
+  const change = useMemo(() => {
+    const last = points.at(-1);
+    if (!last || points.length < 2) return null;
+    const cutoff = addDays(last.date, -30);
+    const base = [...points].reverse().find((b) => b.date <= cutoff) ?? points[0];
+    return Math.round(last.e1rm - base.e1rm);
+  }, [points]);
 
   // The max your bench weights come from (it steps up as you finish 12-step blocks).
   const trainingMax = benchProgress(settings, history.filter((h) => !h.sample)).newMax ?? settings.benchMax;
