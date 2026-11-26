@@ -97,8 +97,8 @@ const p = (
 export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   upperA: {
     id: 'upperA',
-    name: 'Upper A',
-    short: 'Heavy bench + back',
+    name: 'Chest, Back, and Arms',
+    short: 'Heavy bench and back',
     exercises: [
       p('bench', 4, 5, 5, 180, { scheme: 'bench-heavy' }),
       p('pullup', 4, 6, 10, 150),
@@ -112,8 +112,8 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   lowerA: {
     id: 'lowerA',
-    name: 'Lower A',
-    short: 'Squat + hinge + abs',
+    name: 'Quads, Hamstrings, and Abs',
+    short: 'Squat, hinge and abs',
     exercises: [
       p('squat', 3, 6, 10, 180),
       p('rdl', 3, 8, 10, 150),
@@ -126,7 +126,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   arms: {
     id: 'arms',
-    name: 'Arms + Shoulders',
+    name: 'Arms & Shoulders',
     short: 'Arms, delts, forearms',
     exercises: [
       p('closeGripBench', 3, 6, 8, 120),
@@ -143,8 +143,8 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   upperB: {
     id: 'upperB',
-    name: 'Upper B',
-    short: 'Bench volume + chest',
+    name: 'Chest, Shoulders, and Arms',
+    short: 'Bench volume and chest',
     exercises: [
       p('pausedBench', 4, 6, 8, 150, { startWeight: 135 }),
       p('barbellRow', 3, 8, 12, 120),
@@ -159,8 +159,8 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   lowerB: {
     id: 'lowerB',
-    name: 'Lower B',
-    short: 'Single-leg + glutes + abs',
+    name: 'Quads, Glutes, and Abs',
+    short: 'Single-leg, glutes and abs',
     exercises: [
       p('bulgarian', 3, 8, 12, 90),
       p('hipThrust', 3, 8, 12, 120),
@@ -174,7 +174,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   pmForearms: {
     id: 'pmForearms',
-    name: 'Forearms + Grip',
+    name: 'Forearms & Grip',
     short: '15 min, light',
     secondary: true,
     exercises: [
@@ -185,14 +185,14 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   },
   pmAbs: {
     id: 'pmAbs',
-    name: 'Abs + Obliques',
+    name: 'Abs & Obliques',
     short: '10–15 min',
     secondary: true,
     exercises: [p('hangingLegRaise', 3, 12, 15, 45), p('woodchopper', 2, 12, 12, 45), p('plank', 2, 45, 60, 45)],
   },
   pmArms: {
     id: 'pmArms',
-    name: 'Arm Pump',
+    name: 'Biceps & Triceps',
     short: '15 min, light',
     secondary: true,
     exercises: [p('ezCurl', 2, 15, 20, 45, { superset: 'A' }), p('pushdown', 2, 15, 20, 45, { superset: 'A' })],

@@ -41,20 +41,18 @@ function StatGrid({ items, color }: { items: [string, string | null, string?, ((
   );
 }
 
-const LIFTS = ['bench', 'pausedBench', 'squat', 'rdl', 'inclineBarbell', 'barbellRow', 'hipThrust', 'closeGripBench', 'dbShoulderPress', 'pullup'];
-
-/** The main lifts you can follow over time (estimated max per session), with short names. */
+/** The lifts you can follow over time, one main lift per muscle group, with short names. */
 const TRACKED: Record<string, string> = {
   bench: 'Bench Press',
   squat: 'Squat',
   rdl: 'Romanian Deadlift',
-  pausedBench: 'Paused Bench',
-  inclineBarbell: 'Incline Press',
-  closeGripBench: 'Close-Grip Bench',
   barbellRow: 'Barbell Row',
-  hipThrust: 'Hip Thrust',
   dbShoulderPress: 'Shoulder Press',
+  hipThrust: 'Hip Thrust',
+  ezCurl: 'Curl',
+  cableCrunch: 'Cable Crunch',
 };
+const LIFTS = Object.keys(TRACKED);
 const LIFT_KEY = 'zoro.history.lift';
 
 function Lifts() {
