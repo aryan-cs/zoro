@@ -22,6 +22,8 @@ export default defineConfig({
         start_url: '/zoro/',
         scope: '/zoro/',
         display: 'standalone',
+        // Portrait only, like the phone apps it copies (WebKit reads this for Home Screen apps).
+        orientation: 'portrait',
         background_color: '#000000',
         theme_color: '#000000',
         icons: [

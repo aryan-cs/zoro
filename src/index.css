@@ -91,6 +91,22 @@ body {
   background: #000 !important;
 }
 
+/* AutoFill: Safari paints a filled-in field yellow with black text, from its own stylesheet with
+ * !important, which a page can't outrank. Paint the cell's color over that instead (an inset
+ * shadow draws above the background) and keep the text the field's own gray, white while typing. */
+input:-webkit-autofill,
+input:-webkit-autofill-strong-password,
+input:-webkit-autofill-strong-password-viewable,
+input:-webkit-autofill-and-obscured {
+  -webkit-box-shadow: 0 0 0 1000px var(--ios-cell) inset !important;
+  box-shadow: 0 0 0 1000px var(--ios-cell) inset !important;
+  -webkit-text-fill-color: rgba(235, 235, 245, 0.6) !important;
+  caret-color: #fff;
+}
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff !important;
+}
+
 /* iOS zooms into inputs smaller than 16px. */
 input,
 textarea,

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
+import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Dialog, DialogButton, Page } from 'konsta/react';
+import { createPortal } from 'react-dom';
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -7,7 +8,10 @@ import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
 import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
-import { db, fmt, Header, IconGroup, MacroSummary, useSettings, useToast } from '../ui/kit';
+import { db, fmt, Header, IconBtn, MacroSummary, Menu, useSettings, useToast } from '../ui/kit';
+import { aiKey } from '../ui/aiKey';
+import { QuickAddSheet } from './AddFood';
+import { PhotoLogSheet } from './PhotoLog';
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
 
@@ -321,6 +325,13 @@ export function FoodScreen() {
     [date, nav, settings.usdaApiKey, toast],
   );
   const [scan, scanner] = useScanner((c) => void onCode(c));
+  // + opens every way to add: search, a barcode, a photo (read by Gemini), or just the calories.
+  const [addMenu, setAddMenu] = useState<DOMRect | null>(null);
+  const [quick, setQuick] = useState(false);
+  const [quickMeal, setQuickMeal] = useState<Meal>('unsorted');
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [needKey, setNeedKey] = useState(false);
 
   const remove = async () => {
     if (selected?.id !== undefined) await db.entries.delete(selected.id);
@@ -352,12 +363,9 @@ export function FoodScreen() {
           />
         }
         right={
-          <IconGroup
-            items={[
-              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: scan },
-              { label: 'Add food', icon: <Sym name="plus" size={18.3} />, onClick: () => nav.push({ name: 'addFood', date }) },
-            ]}
-          />
+          <IconBtn label="Add food" onClick={(e) => setAddMenu(e.currentTarget.getBoundingClientRect())}>
+            <Sym name="plus" size={18.3} />
+          </IconBtn>
         }
       />
 
@@ -423,6 +431,66 @@ export function FoodScreen() {
       </div>
 
       {scanner}
+      <Menu
+        anchor={addMenu}
+        onClose={() => setAddMenu(null)}
+        items={[
+          { label: 'Search Foods', icon: <Sym name="magnifyingglass" size={16} />, onClick: () => nav.push({ name: 'addFood', date }) },
+          // Both open right in the tap, as Safari only shows the camera or photo picker for one.
+          { label: 'Scan Barcode', icon: <Sym name="barcode.viewfinder" size={16} />, onClick: scan },
+          { label: 'Log from Photo', icon: <Sym name="camera" size={16} />, onClick: () => (aiKey() ? photoInput.current?.click() : setNeedKey(true)) },
+          { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
+        ]}
+      />
+      <QuickAddSheet
+        opened={quick}
+        meal={quickMeal}
+        onMeal={setQuickMeal}
+        date={date}
+        onClose={() => setQuick(false)}
+        onDone={() => {
+          setQuick(false);
+          toast('Added');
+        }}
+      />
+      {/* Visually hidden rather than display:none, which iOS won't open from a script. */}
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*"
+        aria-hidden
+        tabIndex={-1}
+        style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', left: 0, top: 0 }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) setPhoto(f);
+        }}
+      />
+      <PhotoLogSheet file={photo} date={date} onClose={() => setPhoto(null)} onDone={() => setPhoto(null)} />
+      {createPortal(
+        <Dialog
+          opened={needKey}
+          onBackdropClick={() => setNeedKey(false)}
+          title="Add Your Gemini Key"
+          content="Logging from a photo uses your own free Gemini key. Add it in Settings › Connect to Gemini."
+          buttons={
+            <>
+              <DialogButton onClick={() => setNeedKey(false)}>Cancel</DialogButton>
+              <DialogButton
+                strong
+                onClick={() => {
+                  setNeedKey(false);
+                  nav.push({ name: 'settings' });
+                }}
+              >
+                Settings
+              </DialogButton>
+            </>
+          }
+        />,
+        document.querySelector('.k-app') ?? document.body,
+      )}
 
       <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
         <ActionsGroup>

@@ -240,7 +240,7 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
   );
 }
 
-function QuickAddSheet({ opened, meal, onMeal, date, onClose, onDone }: { opened: boolean; meal: Meal; onMeal: (m: Meal) => void; date: ISODate; onClose: () => void; onDone: () => void }) {
+export function QuickAddSheet({ opened, meal, onMeal, date, onClose, onDone }: { opened: boolean; meal: Meal; onMeal: (m: Meal) => void; date: ISODate; onClose: () => void; onDone: () => void }) {
   const blank = { name: '', kcal: '', protein: '', carbs: '', fat: '' };
   const [f, setF] = useState(blank);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
@@ -447,7 +447,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
           opened={needKey}
           onBackdropClick={() => setNeedKey(false)}
           title="Add Your Gemini Key"
-          content="Logging from a photo uses your own free Gemini key. Add it in Settings › Photo Logging."
+          content="Logging from a photo uses your own free Gemini key. Add it in Settings › Connect to Gemini."
           buttons={
             <>
               <DialogButton onClick={() => setNeedKey(false)}>Cancel</DialogButton>
