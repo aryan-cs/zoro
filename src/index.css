@@ -54,6 +54,18 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
+/* Opened from the Home Screen, iOS 26 and later can hand the app a viewport that stops short of
+ * the screen by the status bar's height (WebKit bug 301108, with a see-through status bar), which
+ * left a black band under the tab bar. Size the app to the viewport plus the status bar, never
+ * taller than the screen, so a phone without the bug is unchanged. Sheets and alerts (fixed
+ * position) measure from the app instead of that short viewport, so they reach the bottom too. */
+@media (display-mode: standalone) {
+  body {
+    bottom: auto;
+    height: min(100lvh, calc(100vh + env(safe-area-inset-top, 0px)));
+    contain: layout;
+  }
+}
 .k-page {
   background: #000 !important;
 }
