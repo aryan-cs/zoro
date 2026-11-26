@@ -1614,7 +1614,8 @@ button.meal-row:not(:disabled):active {
   margin-left: 1px;
   font-size: 0.55em;
 }
-/* Weight change, like Stocks: green up, red down, an arrow then the amount. */
+/* Weight change: an arrow then the amount; green when it went the way your phase wants, red when
+ * it didn't, gray on maintain. */
 .wt-change {
   display: inline-flex;
   align-items: center;
@@ -1625,11 +1626,14 @@ button.meal-row:not(:disabled):active {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.wt-change.is-up {
+.wt-change.is-good {
   color: #30d158;
 }
-.wt-change.is-down {
+.wt-change.is-bad {
   color: #ff453a;
+}
+.wt-change.is-flat {
+  color: #8d8d93;
 }
 
 /* ---------- Today: welcome ---------- */

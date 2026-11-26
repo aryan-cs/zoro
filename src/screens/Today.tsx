@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { addDays, carbTarget, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
 import { TEMPLATES } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
-import type { Meal } from '../core/types';
+import type { Meal, Phase } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
 import type { SFName } from '../ui/sf';
@@ -30,6 +30,13 @@ function RingTile(props: { label: string; value: string; progress: number; goal:
       </span>
     </button>
   );
+}
+
+/** Green when the weight moved the way your phase wants (down on a cut, up on a bulk), red when
+ * it moved the other way, gray on maintain. */
+function changeTone(change: number, phase: Phase) {
+  if (phase === 'maintain') return 'is-flat';
+  return (phase === 'cut' ? change < 0 : change > 0) ? 'is-good' : 'is-bad';
 }
 
 /** "Protein   120/185 g" over a bar in the macro's color. */
@@ -201,7 +208,7 @@ export function TodayScreen() {
             }
             right={
               change ? (
-                <span className={`wt-change ${change > 0 ? 'is-up' : 'is-down'}`}>
+                <span className={`wt-change ${changeTone(change, settings.phase)}`}>
                   <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
                   {fmt(Math.abs(change), 1)} LB
                 </span>
