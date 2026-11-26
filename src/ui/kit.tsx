@@ -331,7 +331,7 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
       {Array.from({ length: places }, (_, i) => {
         const p = places - 1 - i; // most significant first
         const unit = 10 ** p;
-        // Position on the 0–9 wheel: the ones follow the value; a higher place adds the share of
+        // Position on the 0–9 drum: the ones follow the value; a higher place adds the share of
         // the last unit below it that is rolling over (…9.x → …0).
         const below = a % unit;
         const turning = p === 0 ? a % 1 : Math.max(0, below - (unit - 1));
@@ -346,15 +346,22 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
         return (
           <span key={p} className="odo-col" aria-hidden>
             <span className="odo-ghost">0</span>
+            {/* A drum of the ten digits, 36° apart: the drum turns with the value, so a digit tilts
+                away, foreshortens and darkens as it rolls out of view, like a lottery wheel. */}
             <span className="odo-window">
-              <span className="odo-strip" style={{ transform: `translateY(calc(-1lh * ${pos}))` }}>
-                {/* Each digit fades with its distance from the middle: it fades out as it slides
-                    away and in as it arrives; a digit that isn't moving stays fully crisp. */}
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d, k) => (
-                  <span key={k} style={{ opacity: Math.max(0, 1 - Math.abs(k - pos) * 1.25) }}>
-                    {d === 0 && blankZero ? '\u00a0' : d}
-                  </span>
-                ))}
+              <span className="odo-drum">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => {
+                  // Where this digit sits relative to the front, the short way round (−5…5).
+                  const delta = ((((d - pos) % 10) + 15) % 10) - 5;
+                  if (Math.abs(delta) > 2.6) return null;
+                  const angle = -delta * 36;
+                  const light = Math.max(0, Math.cos((angle * Math.PI) / 180));
+                  return (
+                    <span key={d} className="odo-face" style={{ transform: `rotateX(${angle}deg) translateZ(var(--odo-r))`, opacity: light ** 4 }}>
+                      {d === 0 && blankZero ? '\u00a0' : d}
+                    </span>
+                  );
+                })}
               </span>
             </span>
           </span>

@@ -1937,22 +1937,28 @@ button.water-oz:active {
 .odo-ghost {
   visibility: hidden;
 }
+/* The drum: faces on a cylinder whose radius makes 36° per digit exactly one line apart
+ * (0.5 line ÷ tan 18° ≈ 1.54 lines), pushed back by that radius so the front face sits flat. */
 .odo-window {
-  /* No clipping or mask: digits fade by their own distance from the middle (RollingNumber). */
+  --odo-r: calc(1.539 * 1lh);
   position: absolute;
   inset: 0;
+  /* Seen through a slot one line tall, like a lottery or slot-machine wheel. */
+  overflow: hidden;
+  perspective: calc(6 * 1lh);
 }
-.odo-strip {
+.odo-drum {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: translateZ(calc(-1 * var(--odo-r)));
 }
-.odo-strip > span {
-  display: block;
-  height: 1lh;
+.odo-face {
+  position: absolute;
+  inset: 0;
+  text-align: center;
   line-height: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
+
