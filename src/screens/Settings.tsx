@@ -1,9 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
+import { Dialog, DialogButton, Page } from 'konsta/react';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
-import { addSampleWeek, exportAll, importAll, metricsOf, removeSampleData, saveMetric, today } from '../core/store';
+import { exportAll, importAll, metricsOf, saveMetric, today } from '../core/store';
 import { GOAL_METRICS, goalMetric, goalOf, progressTo, setGoal, type GoalMetric } from '../core/goals';
 import { amount, num, rough, sentences, span } from '../core/say';
 import { ACTIVITY, defaultRate, weeksToGoal, type Activity } from '../core/targets';
@@ -360,24 +360,6 @@ export function SettingsScreen() {
       </Section>
 
       <CloudBackup />
-
-      <Section title="Testing" footer="Fills every screen with a sample week so there’s something to look at. It’s never backed up, and turning it off removes it.">
-        <Row
-          title="Sample Data"
-          right={
-            <Toggle
-              checked={settings.sampleData !== false}
-              onChange={async () => {
-                const on = settings.sampleData === false;
-                await saveSettings({ sampleData: on });
-                if (on) await addSampleWeek();
-                else await removeSampleData();
-                toast(on ? 'Sample data added' : 'Sample data removed');
-              }}
-            />
-          }
-        />
-      </Section>
 
       <Section title="This Phone" footer={<>Food data: USDA FoodData Central · Open Food Facts (ODbL). Build {__BUILD__}</>}>
         <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />

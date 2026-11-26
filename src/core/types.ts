@@ -84,7 +84,7 @@ export interface WorkoutSession {
   /** For heavy bench sessions, which step of the 12-step table this was. */
   benchStep?: number;
   notes?: string;
-  /** Made by Settings › Add Sample Week. */
+  /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }
 
@@ -144,7 +144,7 @@ export interface FoodEntry {
   /** Position within its meal once you've dragged it (lists sort by this, else by loggedAt). */
   order?: number;
   liquid?: boolean;
-  /** Made by "Add Sample Week" for testing; "Remove Sample Data" deletes these. */
+  /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }
 
@@ -153,7 +153,7 @@ export interface WaterEntry {
   date: ISODate;
   oz: number;
   at: number;
-  /** Made by Settings › Add Sample Week. */
+  /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }
 
@@ -182,7 +182,7 @@ export interface SleepEntry {
   /** The night's stages from Apple Health, including time awake in bed before and during it. */
   stages?: StageSpan[];
   source: 'manual' | 'shortcut';
-  /** Made by Settings › Add Sample Week. */
+  /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }
 
@@ -193,7 +193,7 @@ export interface BodyMetric {
   date: ISODate;
   type: MetricType;
   value: number;
-  /** Made by Settings › Add Sample Week. */
+  /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
 }
 
@@ -220,8 +220,6 @@ export interface Settings {
   waterPresets?: number[];
   /** First name for Today's greeting. */
   name?: string;
-  /** Fill every screen with sample data (Settings › Testing). On unless turned off. */
-  sampleData?: boolean;
   /** The bench number you're working toward (History's Bench card); 225 until changed. */
   benchGoal?: number;
   /** Goals for the other tracked lifts (History), by exercise id; none until you set one. */

@@ -27,6 +27,9 @@ const ONES: Record<string, number> = { zero: 0, oh: 0, one: 1, two: 2, three: 3,
 const TEENS: Record<string, number> = { ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 
+const ONE_AS_NUMBER_NEXT = /^\s*(?:rep|reps|set|sets|pound|pounds|lb|lbs|kg|kilo|kilos|minute|minutes|min|second|seconds|sec|time|times|x|by|hundred|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|\d)\b/i;
+const ONE_AS_NUMBER_PREV = /\b(?:for|at|did|got|x|of|with|plus|just)\s*$/i;
+
 /** "two hundred and five" → 205, "one eighty five" → 185, "a hundred" → 100, "twelve" → 12. */
 function wordsToDigits(text: string): string {
   const words = text.split(/(\s+)/);
@@ -47,7 +50,10 @@ function wordsToDigits(text: string): string {
     const parts = lw.split(' ');
     let consumed = true;
     for (const p of parts) {
-      if (p in ONES || p in TEENS || p in TENS) {
+      // "that one felt heavy": a lone "one" is a word, not a number, unless a number or a unit is
+      // around it ("one rep", "one eighty five", "for one").
+      const loneOne = p === 'one' && num === null && !ONE_AS_NUMBER_NEXT.test(words.slice(i + 1).join('')) && !ONE_AS_NUMBER_PREV.test(words.slice(0, i).join(''));
+      if (!loneOne && (p in ONES || p in TEENS || p in TENS)) {
         const v = ONES[p] ?? TEENS[p] ?? TENS[p];
         if (num === null) {
           out.push(pendingSpace);

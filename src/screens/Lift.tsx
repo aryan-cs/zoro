@@ -103,9 +103,7 @@ export function LiftScreen() {
   const nav = useNav();
   const settings = useSettings();
   const date = today();
-  // Sample workouts count too while sample data is on (so past days show what was done).
-  const withSample = settings.sampleData !== false;
-  const history = useLiveQuery(() => loadHistory(db, 120, withSample), [withSample]) ?? [];
+  const history = useLiveQuery(() => loadHistory(db, 120), []) ?? [];
   const open = useLiveQuery(() => activeSession(), []);
   const [sel, setSel] = useState(date);
   const dayRef = useRef<HTMLDivElement>(null);

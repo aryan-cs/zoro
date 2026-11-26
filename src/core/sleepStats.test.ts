@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSleepImport } from './sleep';
-import { nightStats, sampleStages, sleepAfter, sleepDebt, sleepRoutine, sleepScore } from './sleepStats';
+import { nightStats, sleepAfter, sleepDebt, sleepRoutine, sleepScore } from './sleepStats';
 import type { SleepEntry } from './types';
 
 const HEALTH = `ZORO-SLEEP [
@@ -48,10 +48,4 @@ describe('sleep stages', () => {
     expect(sleepAfter(nights, () => true)).toBeNull();
   });
 
-  it('makes sample nights that add up', () => {
-    const spans = sampleStages(450, 3);
-    expect(spans[0][0]).toBeLessThan(0);
-    expect(spans.at(-1)![1]).toBe(450);
-    for (let i = 1; i < spans.length; i++) expect(spans[i][0]).toBe(spans[i - 1][1]);
-  });
 });

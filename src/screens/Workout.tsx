@@ -10,6 +10,7 @@ import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../co
 import type { ExercisePlan, ISODate, SetLog, SetTarget, TemplateId, WorkoutSession } from '../core/types';
 import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
+import { useListen } from '../ui/listen';
 import { restKey } from '../ui/workouts';
 
 function useWakeLock(active: boolean) {
@@ -425,6 +426,9 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   };
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saying, setSaying] = useState(false);
+  // Tapping the pencil listens straight away; what you say fills the field as you talk.
+  const listen = useListen();
+  const [sayText, setSayText] = useState('');
 
   useEffect(() => {
     if (!session) return;
@@ -501,7 +505,11 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
 
   // Say (or type) what you did, "200 on bench for 3": it's logged to that exercise's next sets
   // (the one you're on, if you don't name one), each set's target filling in what you didn't say.
-  const logSaid = async (text: string) => {
+  const logSaid = async (text: string): Promise<boolean> => {
+    const fail = (message: string) => {
+      toast(message);
+      return false;
+    };
     const current = firstOpen?.ex.exerciseId ?? plan.exercises[0]?.exerciseId;
     const at = Math.max(0, plan.exercises.findIndex((e) => e.exerciseId === current));
     const ordered = [...plan.exercises.slice(at), ...plan.exercises.slice(0, at)];
@@ -515,12 +523,12 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
       Object.values(EXERCISES).map((e) => ({ id: e.id, name: e.name })),
       (id) => noLoadOf(id ?? current),
     );
-    if (!said?.sets.length) return toast('Couldn’t tell what you did');
-    if (!said.exerciseId && said.elsewhere) return toast(`${EXERCISES[said.elsewhere].name} isn’t in this workout`);
+    if (!said?.sets.length) return fail('Couldn’t tell what you did');
+    if (!said.exerciseId && said.elsewhere) return fail(`${EXERCISES[said.elsewhere].name} isn’t in this workout`);
     const ex = plan.exercises.find((e) => e.exerciseId === (said.exerciseId ?? current));
-    if (!ex) return toast('Couldn’t tell which exercise');
+    if (!ex) return fail('Couldn’t tell which exercise');
     const open = ex.sets.map((_, i) => i).filter((i) => !byKey.get(`${ex.exerciseId}:${i}`));
-    if (!open.length) return toast(`${ex.name} is done`);
+    if (!open.length) return fail(`${ex.name} is done`);
     const noLoad = noLoadOf(ex.exerciseId);
     const done: { i: number; weight: number; reps: number }[] = [];
     let lastWeight = [...logged].filter((x) => x.exerciseId === ex.exerciseId).sort((a, b) => b.setIndex - a.setIndex)[0]?.weight;
@@ -528,7 +536,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
       const i = open[k];
       const t = ex.sets[i];
       const weight = noLoad ? (s.weight ?? 0) : (s.weight ?? t.weight ?? lastWeight);
-      if (weight === undefined) return toast(`Say the weight for ${ex.name} too`);
+      if (weight === undefined) return fail(`Say the weight for ${ex.name} too`);
       lastWeight = weight;
       const reps = s.reps ?? t.reps;
       done.push({ i, weight, reps });
@@ -541,6 +549,26 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
     if (clock && done.some((d) => clock.key === `${ex.exerciseId}:${d.i}`)) setClock(null);
     const what = (d: { weight: number; reps: number }) => `${noLoad || !d.weight ? '' : `${fmtLb(d.weight)} lb × `}${d.reps}${EXERCISES[ex.exerciseId].timed ? ' sec' : ''}`;
     toast(done.length === 1 ? `${ex.name}, Set ${last.i + 1}: ${what(last)}` : `${ex.name}: ${done.map(what).join(', ')}`);
+    return true;
+  };
+  const closeSay = () => {
+    listen.stop();
+    setSaying(false);
+    setSayText('');
+  };
+  // Logged: the box closes. Not understood: what you said stays in the field to fix.
+  const submitSay = async (text: string) => {
+    listen.stop();
+    if (!text.trim()) return closeSay();
+    if (await logSaid(text)) closeSay();
+    else setSayText(text);
+  };
+  const openSay = () => {
+    setSayText('');
+    setSaying(true);
+    listen.start(setSayText, (heard) => {
+      if (heard) void submitSay(heard);
+    });
   };
 
   const finish = async () => {
@@ -565,7 +593,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
         onBack={nav.pop}
         right={
           !planned && (
-            <IconBtn label="Write what you did" onClick={() => setSaying(true)}>
+            <IconBtn label="Say what you did" onClick={openSay}>
               <Sym name="pencil.line" size={18} />
             </IconBtn>
           )
@@ -576,14 +604,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
           Planned for {new Date(`${planned.date}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}. Start it on the day to log it.
         </p>
       )}
-      <SayPrompt
-        opened={saying}
-        onCancel={() => setSaying(false)}
-        onSave={(text) => {
-          setSaying(false);
-          void logSaid(text);
-        }}
-      />
+      <SayPrompt opened={saying} text={sayText} onText={setSayText} listening={listen.listening} onType={listen.stop} onCancel={closeSay} onSave={(t) => void submitSay(t)} />
 
       {/* How far through the workout (sets done of all of them): a glass bar held just above the
           tab bar, like a toolbar, with nothing but the bar in it. */}
@@ -695,14 +716,22 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
 }
 
 /**
- * "What did you do?": one line to say it (the keyboard's mic dictates) or type it, like "200 on
- * bench for 3", "3 sets of 8 at 135" or "plank 45 seconds".
+ * "What did you do?": it listens as soon as it opens (tap the pencil, say "200 on bench for 3")
+ * and shows what it hears; tap the field to type instead. Where listening isn't possible, it's
+ * a field to type in (or dictate with the keyboard's mic).
  */
-function SayPrompt(props: { opened: boolean; onCancel: () => void; onSave: (text: string) => void }) {
-  const [text, setText] = useState('');
+function SayPrompt(props: {
+  opened: boolean;
+  text: string;
+  onText: (text: string) => void;
+  listening: boolean;
+  /** Stop listening: you've tapped the field to type. */
+  onType: () => void;
+  onCancel: () => void;
+  onSave: (text: string) => void;
+}) {
   const save = () => {
-    const t = text.trim();
-    setText('');
+    const t = props.text.trim();
     if (t) props.onSave(t);
     else props.onCancel();
   };
@@ -712,14 +741,23 @@ function SayPrompt(props: { opened: boolean; onCancel: () => void; onSave: (text
       title="What Did You Do?"
       content={
         <div className="space-y-3">
-          <div>Say it with the keyboard’s mic, or type it.</div>
+          {props.listening ? (
+            <div className="say-listening" role="status">
+              <span className="say-dot" aria-hidden />
+              Listening
+            </div>
+          ) : (
+            <div>Type it, or say it with the keyboard’s mic.</div>
+          )}
           <input
-            key={String(props.opened)}
-            autoFocus
-            value={text}
-            placeholder="200 lb on bench for 3"
+            // Focused (keyboard up) only when it isn't listening.
+            key={`${props.opened}-${props.listening}`}
+            autoFocus={!props.listening}
+            value={props.text}
+            placeholder={props.listening ? '200 on bench for 3' : '200 lb on bench for 3'}
             enterKeyHint="done"
-            onChange={(e) => setText(e.target.value)}
+            onFocus={() => props.listening && props.onType()}
+            onChange={(e) => props.onText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()}
             className="w-full rounded-xl bg-[rgba(118,118,128,0.24)] px-3 py-2.5 text-[17px] text-white outline-none placeholder:text-[rgba(235,235,245,0.3)]"
           />
@@ -727,14 +765,7 @@ function SayPrompt(props: { opened: boolean; onCancel: () => void; onSave: (text
       }
       buttons={
         <>
-          <DialogButton
-            onClick={() => {
-              setText('');
-              props.onCancel();
-            }}
-          >
-            Cancel
-          </DialogButton>
+          <DialogButton onClick={props.onCancel}>Cancel</DialogButton>
           <DialogButton strong onClick={save}>
             Log
           </DialogButton>

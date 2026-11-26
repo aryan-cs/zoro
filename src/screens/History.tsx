@@ -96,7 +96,7 @@ const LIFT_KEY = 'zoro.history.lift';
 
 function Lifts() {
   const nav = useNav();
-  const history = useLiveQuery(() => loadHistory(db, 365, true), []) ?? [];
+  const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
   const best = useMemo(() => {
     const out: Record<string, { date: string; e1rm: number; weight: number; reps: number }[]> = {};
     for (const h of [...history].reverse()) {

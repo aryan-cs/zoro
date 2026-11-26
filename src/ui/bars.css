@@ -2673,3 +2673,29 @@ button.water-oz:active {
   line-height: 20px;
   color: #8d8d93;
 }
+/* Listening for what you did: a red dot that breathes, like a recording indicator. */
+.say-listening {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.say-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ff453a;
+  animation: say-breathe 1.2s ease-in-out infinite;
+}
+@keyframes say-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}

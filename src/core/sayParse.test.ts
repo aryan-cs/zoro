@@ -49,6 +49,11 @@ describe('reading what you did', () => {
     expect(r?.exerciseId).toBeUndefined();
     expect(r?.elsewhere).toBe('squat');
   });
+  it('reads "one" as a word when nothing makes it a number', () => {
+    expect(say('that one felt heavy')).toBeNull();
+    expect(say('one rep at 225')?.sets.map((x) => [x.weight, x.reps])).toEqual([[225, 1]]);
+    expect(say('did one at 225')?.sets.map((x) => [x.weight, x.reps])).toEqual([[225, 1]]);
+  });
   it('gives up on words without numbers', () => {
     expect(say('that was hard')).toBeNull();
   });
