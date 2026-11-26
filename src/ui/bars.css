@@ -689,12 +689,12 @@ button.meal-row:not(:disabled):active {
   -webkit-tap-highlight-color: transparent;
 }
 /* Press, as Fitness (iOS 27): the card grows about its center while held, with no color change,
- * and snaps back in one frame on release. Fitness's half-width cards grow 7.5% (about 6.5pt a
- * side); full-width cards grow the same few points, not the same percent, so they stay inside
- * the screen's 16pt margins. */
+ * and eases back down on release. Fitness's half-width cards grow 7.5% (about 6.5pt a side);
+ * full-width cards grow the same few points, not the same percent, so they stay inside the
+ * screen's 16pt margins. */
 .fit-card.is-link,
 .wk-card.is-link {
-  transition: none;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
 .fit-card.is-link:active,
 .wk-card.is-link:active {
