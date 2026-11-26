@@ -990,7 +990,11 @@ button.meal-row:not(:disabled):active {
 }
 .amt-serving {
   margin-top: -10px;
+  overflow: hidden;
+  padding: 0 16px;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   line-height: 18px;
   color: #98989f;
@@ -1010,6 +1014,9 @@ button.meal-row:not(:disabled):active {
   color: #98989f;
 }
 .amt-macro-value {
+  /* Steps down to fit its column (FitText), so a long value never runs into the next one. */
+  overflow: hidden;
+  padding: 0 2px;
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
   font-size: 20px;
   font-weight: 600;
@@ -1019,7 +1026,7 @@ button.meal-row:not(:disabled):active {
 }
 .amt-macro-value small {
   margin-left: 1px;
-  font-size: 12px;
+  font-size: 0.6em;
 }
 .amt-card {
   overflow: hidden;
@@ -1892,4 +1899,60 @@ button.meal-row:not(:disabled):active {
 }
 .water-preset.is-down {
   transform: translateY(6px);
+}
+
+/* Rolling digits (iOS numericText): a changed digit slides out and the new one slides in, with a
+ * touch of blur, upward for increases and downward for decreases. */
+.roll {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+}
+.roll-slot {
+  position: relative;
+  display: inline-block;
+}
+.roll-out {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.roll-in.is-up {
+  animation: roll-in-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.roll-in.is-down {
+  animation: roll-in-down 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.roll-out.is-up {
+  animation: roll-out-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.roll-out.is-down {
+  animation: roll-out-down 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes roll-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.55em);
+    filter: blur(2px);
+  }
+}
+@keyframes roll-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-0.55em);
+    filter: blur(2px);
+  }
+}
+@keyframes roll-out-up {
+  to {
+    opacity: 0;
+    transform: translateY(-0.55em);
+    filter: blur(2px);
+  }
+}
+@keyframes roll-out-down {
+  to {
+    opacity: 0;
+    transform: translateY(0.55em);
+    filter: blur(2px);
+  }
 }

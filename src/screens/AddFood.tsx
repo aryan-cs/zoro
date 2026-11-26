@@ -2,12 +2,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Block, ListItem, Page, Preloader } from 'konsta/react';
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BUILTIN_FOODS } from '../core/builtinFoods';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
-import { Btn, db, Field, FITNESS, fmt, GlassSheet, Header, IconGroup, Menu, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Btn, db, Field, FITNESS, FitText, fmt, GlassSheet, Header, IconGroup, Menu, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
@@ -66,10 +66,14 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
     setUnit(u);
     setQty(u === 'g' ? '100' : '1');
   }, [food]);
-  const macros = food ? macrosFor(food, num(qty), unit) : null;
-  const canServing = !!food?.serving;
-  const canGrams = !!food?.per100g || !!food?.serving?.grams;
-  const g = food?.liquid ? 'ml' : 'g';
+  // While the sheet slides away, keep showing the food it had (it's cleared when closing starts).
+  const last = useRef<FoodItem | null>(null);
+  if (food) last.current = food;
+  const shown = food ?? last.current;
+  const macros = shown ? macrosFor(shown, num(qty), unit) : null;
+  const canServing = !!shown?.serving;
+  const canGrams = !!shown?.per100g || !!shown?.serving?.grams;
+  const g = shown?.liquid ? 'ml' : 'g';
   const step = unit === 'g' ? 10 : 0.5;
 
   const add = async () => {
@@ -83,18 +87,18 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
 
   return (
     <GlassSheet opened={!!food} onClose={onClose}>
-      {food && macros && (
+      {shown && macros && (
         <div className="amt">
           <div className="amt-head">
-            <div className="amt-name">{food.name}</div>
-            {food.brand && <div className="amt-brand">{food.brand}</div>}
+            <div className="amt-name">{shown.name}</div>
+            {shown.brand && <div className="amt-brand">{shown.brand}</div>}
           </div>
           {canServing && canGrams && (
             <Seg
               value={unit}
               onChange={(u) => {
                 setUnit(u);
-                setQty(u === 'g' ? String(food.serving?.grams ?? 100) : '1');
+                setQty(u === 'g' ? String(shown.serving?.grams ?? 100) : '1');
               }}
               options={[
                 ['serving', 'Servings'],
@@ -122,7 +126,17 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
               <Sym name="plus.medium" size={18} />
             </button>
           </div>
-          {unit === 'serving' && food.serving && <div className="amt-serving">{cleanServing(food.serving.label)}</div>}
+          {/* Always one line, so switching Servings ⇄ Grams never changes the sheet's height: the
+              serving's size, or in grams how many servings that is. */}
+          <div className="amt-serving">
+            {unit === 'serving'
+              ? shown.serving
+                ? cleanServing(shown.serving.label)
+                : '\u00a0'
+              : shown.serving?.grams
+                ? `${fmt(num(qty) / shown.serving.grams, num(qty) % shown.serving.grams ? 1 : 0)} × ${cleanServing(shown.serving.label)}`
+                : '\u00a0'}
+          </div>
 
           <div className="amt-macros">
             {(
@@ -135,10 +149,10 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
             ).map(([label, v, u, color]) => (
               <div key={label}>
                 <div className="amt-macro-label">{label}</div>
-                <div className="amt-macro-value" style={{ color }}>
+                <FitText className="amt-macro-value" style={{ color }}>
                   {fmt(v, v > 0 && v < 10 && u === 'G' ? 1 : 0)}
                   <small>{u}</small>
-                </div>
+                </FitText>
               </div>
             ))}
           </div>

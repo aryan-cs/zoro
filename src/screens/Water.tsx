@@ -3,7 +3,7 @@ import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta
 import { useRef, useState } from 'react';
 import { addWater, removeWater, today, waterFor } from '../core/store';
 import type { WaterEntry } from '../core/types';
-import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, useSettings } from '../ui/kit';
+import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, RollingNumber, useSettings } from '../ui/kit';
 import { saveSettings } from '../core/db';
 
 const DEFAULT_PRESETS = [8, 16, 24, 32];
@@ -104,10 +104,12 @@ export function WaterScreen() {
         <div className="water-hero">
           <div className="water-ring">
             <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
-            <div className="water-pct">{pct}%</div>
+            <div className="water-pct">
+              <RollingNumber value={pct} format={(n) => `${n}%`} />
+            </div>
           </div>
           <div className="water-oz">
-            {fmt(total)} of {fmt(settings.waterTargetOz)} oz
+            <RollingNumber value={total} /> of {fmt(settings.waterTargetOz)} oz
           </div>
         </div>
         <div className="water-presets">

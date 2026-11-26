@@ -12,7 +12,7 @@ import {
   Sheet,
   Toast,
 } from 'konsta/react';
-import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { Sym } from './Sym';
@@ -278,7 +278,74 @@ function onRing(cx: number, cy: number, r: number, deg: number) {
  * on the start cap in a deep shade of the ring color, and past the goal a second lap whose tip casts
  * a shadow.
  */
-function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
+/**
+ * A number that glides to each new value (ease-out over `ms`) instead of jumping: rings fill and
+ * empty smoothly. Starts at its first value without animating.
+ */
+export function useTweened(target: number, ms = 600): number {
+  const [shown, setShown] = useState(target);
+  const current = useRef(target);
+  useEffect(() => {
+    const from = current.current;
+    if (from === target) return;
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      const v = from + (target - from) * (1 - Math.pow(1 - k, 3));
+      current.current = v;
+      setShown(v);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return shown;
+}
+
+/**
+ * A number that changes like iOS's counters (numericText): each digit that changes slides out
+ * and the new one slides in, upward when the value goes up and downward when it goes down.
+ */
+export function RollingNumber({ value, format = (n) => fmt(n) }: { value: number; format?: (n: number) => string }) {
+  const text = format(value);
+  const prev = useRef({ text, value });
+  const [roll, setRoll] = useState<{ from: string; dir: 'up' | 'down'; n: number } | null>(null);
+  useLayoutEffect(() => {
+    if (prev.current.text === text) return;
+    const from = prev.current.text;
+    const dir = value >= prev.current.value ? 'up' : 'down';
+    prev.current = { text, value };
+    setRoll((r) => ({ from, dir, n: (r?.n ?? 0) + 1 }));
+  }, [text, value]);
+  // Once the roll has played, drop the outgoing digits.
+  useEffect(() => {
+    if (!roll) return;
+    const t = window.setTimeout(() => setRoll(null), 450);
+    return () => window.clearTimeout(t);
+  }, [roll]);
+  const from = roll?.from ?? text;
+  const len = Math.max(text.length, from.length);
+  const now = text.padStart(len, ' ');
+  const was = from.padStart(len, ' ');
+  return (
+    <span className="roll" aria-label={text}>
+      {[...now].map((ch, i) => {
+        const changed = !!roll && was[i] !== ch;
+        return (
+          <span key={`${i}-${changed ? roll!.n : 0}`} className="roll-slot" aria-hidden>
+            {changed && was[i] !== ' ' && <span className={`roll-out is-${roll!.dir}`}>{was[i]}</span>}
+            {ch !== ' ' && <span className={changed ? `roll-in is-${roll!.dir}` : undefined}>{ch}</span>}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
+  // The ring glides to a new value instead of jumping.
+  const value = useTweened(raw);
   const p = target > 0 ? Math.max(0, value / target) : 0;
   // Full (up to ~4% over, where a second lap's tip would just sit on the start as a disc): one
   // seamless loop with no caps. The shading runs start → end color over three quarters of the
@@ -540,6 +607,23 @@ export function FitStat(props: { label?: string; value: ReactNode | null; unit?:
         {!empty && props.unit && <small>{props.unit}</small>}
       </div>
       {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
+    </div>
+  );
+}
+
+/** Text that steps its font size down (to `min`) when it would otherwise overflow its box. */
+export function FitText({ className, style, children, min = 12 }: { className?: string; style?: CSSProperties; children: ReactNode; min?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth + 0.5 && size > min) el.style.fontSize = `${(size -= 1)}px`;
+  });
+  return (
+    <div ref={ref} className={className} style={style}>
+      {children}
     </div>
   );
 }
