@@ -64,6 +64,17 @@ body {
     min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
   }
 }
+/* Where content starts below the status bar. From the Home Screen, iOS 26 and later also blurs
+ * a band about 40pt deep under the status bar (its scroll edge effect, which nothing turns off),
+ * so there content starts below that band and titles stay sharp; the band shows only black. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+@media (display-mode: standalone) {
+  :root {
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 40px);
+  }
+}
 .k-page {
   background: #000 !important;
 }
