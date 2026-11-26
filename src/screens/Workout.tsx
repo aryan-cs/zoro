@@ -47,6 +47,8 @@ function SetStep(props: {
   current: boolean;
   /** Which step this is, so the screen can scroll to it. */
   stepId: string;
+  /** Which of the exercise's sets this is (0-based). */
+  index: number;
   /** The exercise's final set (its how-to says to take this one to failure, if that's the plan). */
   last: boolean;
   /** Weight used on the previous set, when there's no target yet. */
@@ -158,7 +160,7 @@ function SetStep(props: {
         <h3 className="step-title">
           {/* Always one line: a long name steps down in size instead of wrapping. */}
           <FitText className="step-title-fit" min={12}>
-            {props.ex.name}
+            {`${props.ex.name}, Set ${props.index + 1} of ${props.ex.sets.length}`}
           </FitText>
         </h3>
         <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
@@ -386,27 +388,18 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
   const totalSets = plan.exercises.reduce((n, e) => n + e.sets.length, 0);
 
-  // The steps in order. Exercises sharing a superset label go round by round (A1, A2, rest);
-  // others set by set (set, rest). No rest after the workout's last set.
+  // The steps in order: one exercise at a time, all its sets (each followed by its rest) before the
+  // next exercise. Superset labels in the program don't interleave them. No rest after the last set.
   type SetStepT = { kind: 'set'; ex: ExercisePlan; i: number; restAfter?: number };
   type RestStepT = { kind: 'rest'; sec: number; after: string; next?: string };
   const steps: (SetStepT | RestStepT)[] = [];
-  const groups: ExercisePlan[][] = [];
   for (const ex of plan.exercises) {
-    const g = groups[groups.length - 1];
-    if (ex.superset && g && g[0].superset === ex.superset) g.push(ex);
-    else groups.push([ex]);
-  }
-  for (const g of groups) {
-    const rounds = Math.max(...g.map((e) => e.sets.length));
-    for (let r = 0; r < rounds; r++) {
-      const inRound = g.filter((e) => r < e.sets.length);
-      inRound.forEach((ex) => steps.push({ kind: 'set', ex, i: r }));
-      const sec = inRound[inRound.length - 1].restSec;
-      if (sec > 0) {
-        const last = steps[steps.length - 1] as SetStepT;
-        last.restAfter = sec;
-        steps.push({ kind: 'rest', sec, after: `${last.ex.exerciseId}:${last.i}` });
+    for (let i = 0; i < ex.sets.length; i++) {
+      const set: SetStepT = { kind: 'set', ex, i };
+      steps.push(set);
+      if (ex.restSec > 0) {
+        set.restAfter = ex.restSec;
+        steps.push({ kind: 'rest', sec: ex.restSec, after: `${ex.exerciseId}:${i}` });
       }
     }
   }
@@ -477,8 +470,8 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
         </div>
       )}
 
-      {/* The workout as steps, in the order you do them: each set, then the rest after it.
-          Supersets alternate their exercises set by set, resting after each round. */}
+      {/* The workout as steps, in the order you do them: each set, then the rest after it, one
+          exercise at a time. */}
       <div className="fit-stack step-list">
         <ScrollToActive active={activeStep.current} first={scrolledOnce} />
         {steps.map((step) => {
@@ -506,6 +499,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             <SetStep
               key={key}
               stepId={`s${key}`}
+              index={i}
               last={i === ex.sets.length - 1}
               target={t}
               ex={ex}
