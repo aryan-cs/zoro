@@ -2456,6 +2456,7 @@ button.water-oz:active {
 .step-presc {
   display: flex;
   align-items: baseline;
+  justify-content: flex-end; /* bottom right, under the tick */
   gap: 10px;
   margin-top: 4px;
 }
@@ -2497,7 +2498,12 @@ button.water-oz:active {
   align-items: center;
 }
 .step-card .step-title {
+  flex: 1;
+  min-width: 0;
   color: #c7c7cc;
+}
+.step-title-fit {
+  white-space: nowrap;
 }
 
 /* Touch and hold a set: its weight and reps, side by side with their labels. */

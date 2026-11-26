@@ -6,7 +6,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Bar, Btn, db, FITNESS, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, FitText, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -98,7 +98,12 @@ function SetStep(props: {
       }}
     >
       <div className="step-head">
-        <h3 className="step-title">{props.ex.name}</h3>
+        <h3 className="step-title">
+          {/* Always one line: a long name steps down in size instead of wrapping. */}
+          <FitText className="step-title-fit" min={12}>
+            {props.ex.name}
+          </FitText>
+        </h3>
         <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
           {done && <Sym name="checkmark" size={15} />}
         </button>
