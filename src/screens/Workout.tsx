@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject }
 import { warmVideos } from '../core/guide';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
+import { nextSet } from '../core/nextSet';
 import { parseSaid } from '../core/sayParse';
 import { addExerciseToSession, buildPlan, deleteSession, finishSession, logSet, removeExtraExercise, unlogSet } from '../core/store';
 import { ExercisePicker } from '../ui/ExercisePicker';
@@ -423,6 +424,9 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
     }
   });
   const setRest = (r: { after: string; endsAt: number; startedAt?: number } | null) => {
+    // A rest started or skipped here is the one that counts: don't bring back a skipped one from
+    // the last set's time (that's only for rests from before this screen opened).
+    restChecked.current = true;
     setRestState(r);
     try {
       if (r) localStorage.setItem(restStore, JSON.stringify(r));
@@ -531,9 +535,12 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
       queueMicrotask(() => setRest(r));
     }
   }
-  // The next set to do: the first one not yet logged.
-  const firstOpen = steps.find((x) => x.kind === 'set' && !byKey.get(`${x.ex.exerciseId}:${x.i}`)) as SetStepT | undefined;
-  const currentKey = firstOpen ? `${firstOpen.ex.exerciseId}:${firstOpen.i}` : '';
+  // The next set to do: the next one not yet logged after the set you logged last (the one a
+  // running rest follows), coming back around to the top for any you skipped.
+  const setSteps = steps.filter((x): x is SetStepT => x.kind === 'set');
+  const lastDone = rest?.after ?? (logged.length ? [...logged].sort((a, b) => b.completedAt - a.completedAt).map((x) => `${x.exerciseId}:${x.setIndex}`)[0] : undefined);
+  const currentKey = nextSet(setSteps.map((x) => `${x.ex.exerciseId}:${x.i}`), new Set(byKey.keys()), lastDone) ?? '';
+  const firstOpen = setSteps.find((x) => `${x.ex.exerciseId}:${x.i}` === currentKey);
   activeStep.current = rest ? `r${rest.after}` : currentKey ? `s${currentKey}` : '';
   const doneSets = logged.length;
 
