@@ -214,6 +214,8 @@ export interface Settings {
   sampleData?: boolean;
   /** The bench number you're working toward (History's Bench card); 225 until changed. */
   benchGoal?: number;
+  /** Goals for the other tracked lifts (History), by exercise id; none until you set one. */
+  liftGoals?: Record<string, number>;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

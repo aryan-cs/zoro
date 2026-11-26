@@ -2,10 +2,13 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+// Which build is running (shown in debug readouts): when it was built, in UTC.
+const BUILD = `${new Date().toISOString().slice(5, 16).replace('T', ' ')}Z`;
 
 // Served from https://aryan-cs.github.io/zoro/
 export default defineConfig({
   base: '/zoro/',
+  define: { __BUILD__: JSON.stringify(BUILD) },
   plugins: [
     react(),
     tailwindcss(),

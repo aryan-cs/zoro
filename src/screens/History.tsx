@@ -83,23 +83,23 @@ function Lifts() {
   const [editingGoal, setEditingGoal] = useState(false);
   const settings = useSettings();
   const toast = useToast();
-  const goal = settings.benchGoal ?? 225;
-  const points = useMemo(() => best[lift] ?? [], [best, lift]);
   const isBench = lift === 'bench';
+  // Bench works toward 225 until changed; other lifts have no goal (a dash) until you set one.
+  const goal = isBench ? (settings.benchGoal ?? 225) : settings.liftGoals?.[lift];
+  const points = useMemo(() => best[lift] ?? [], [best, lift]);
   const labels = useMemo(() => (points.length ? points.map((b) => short(b.date)) : emptyDays(30)), [points]);
   const series = useMemo<Series[]>(
     () =>
       points.length
         ? [
             { label: 'Estimated max', data: points.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-            ...(isBench ? [{ label: 'Goal', data: points.map(() => goal), color: 'rgba(255,255,255,0.3)' }] : []),
+            ...(goal ? [{ label: 'Goal', data: points.map(() => goal), color: 'rgba(255,255,255,0.3)' }] : []),
           ]
         : [],
-    [points, isBench, goal],
+    [points, goal],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
   const top = points.length ? Math.max(...points.map((b) => b.e1rm)) : null;
-  const latest = points.at(-1)?.e1rm ?? null;
   // Change over the last 30 days: latest against the last session at least 30 days before it
   // (or the first session, if you've been logging this lift for less than a month).
   const change = useMemo(() => {
@@ -135,16 +135,16 @@ function Lifts() {
                 ? [
                     ['Training Max', fmt(trainingMax), 'LB'],
                     ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
-                    ['Goal', fmt(goal), 'LB', () => setEditingGoal(true)],
+                    ['Goal', goal ? fmt(goal) : null, goal ? 'LB' : undefined, () => setEditingGoal(true)],
                   ]
                 : [
                     ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
-                    ['Latest', latest ? fmt(latest) : null, latest ? 'LB' : undefined],
                     ['Change', change === null ? null : `${change > 0 ? '+' : ''}${change}`, change === null ? undefined : 'LB'],
+                    ['Goal', goal ? fmt(goal) : null, goal ? 'LB' : undefined, () => setEditingGoal(true)],
                   ]
             }
           />
-          {isBench && <Bar value={top ?? trainingMax} target={goal} color={FITNESS.exercise} className="mt-4" />}
+          {goal ? <Bar value={top ?? (isBench ? trainingMax : 0)} target={goal} color={FITNESS.exercise} className="mt-4" /> : null}
           <div className="fit-chart">
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </div>
@@ -152,16 +152,17 @@ function Lifts() {
       </div>
       <NumberPrompt
         opened={editingGoal}
-        title="Bench Goal"
+        title={`${TRACKED[lift]} Goal`}
         unit="lb"
-        initial={String(goal)}
-        min={45}
-        max={1000}
+        initial={goal ? String(goal) : top ? String(Math.ceil((top * 1.1) / 5) * 5) : undefined}
+        min={5}
+        max={1500}
         onCancel={() => setEditingGoal(false)}
         onSave={async (n) => {
-          await saveSettings({ benchGoal: Math.round(n) });
+          const g = Math.round(n);
+          await saveSettings(isBench ? { benchGoal: g } : { liftGoals: { ...settings.liftGoals, [lift]: g } });
           setEditingGoal(false);
-          toast(`Goal set to ${fmt(Math.round(n))} lb`);
+          toast(`Goal set to ${fmt(g)} lb`);
         }}
       />
       <Menu

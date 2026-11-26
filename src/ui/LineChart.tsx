@@ -70,7 +70,9 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           data: s.data,
           borderColor: s.color,
           backgroundColor: s.color,
-          borderWidth: s.dots ? 0 : 2.5,
+          borderWidth: s.dots ? 0 : REFERENCE.test(s.label) ? 1.5 : 2.5,
+          // Goal and target lines are dashed, so they read as references rather than data.
+          borderDash: REFERENCE.test(s.label) ? [6, 5] : undefined,
           pointRadius: s.dots ? 2.5 : 0,
           // The picked point: filled in its color with a ring in the card's color.
           pointHoverRadius: REFERENCE.test(s.label) ? 0 : 5,
