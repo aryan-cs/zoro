@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useMemo, useState } from 'react';
-import { addDays, averageSleep, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
+import { addDays, averageSleep, carbTarget, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
-import type { MetricType } from '../core/types';
+import type { MetricType, Settings } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
@@ -213,31 +213,89 @@ const SIZES: { type: MetricType; label: string; start?: number }[] = [
   { type: 'forearm', label: 'Forearm', start: 11.625 },
 ];
 
-function SizeRow({ type, label, start }: { type: MetricType; label: string; start?: number }) {
+const SIZE_KEY = 'zoro.history.size';
+
+/**
+ * Body measurements as one card, like the lifts: pick waist, arm or forearm from the title's
+ * menu; latest (tap to log today's), the change over the last 30 days and since you started,
+ * then its chart.
+ */
+function Measurements() {
   const toast = useToast();
+  const [type, setType] = useState<MetricType>(() => {
+    try {
+      const saved = localStorage.getItem(SIZE_KEY);
+      return SIZES.some((x) => x.type === saved) ? (saved as MetricType) : 'waist';
+    } catch {
+      return 'waist';
+    }
+  });
+  const size = SIZES.find((x) => x.type === type)!;
+  const [menu, setMenu] = useState<DOMRect | null>(null);
+  const [logging, setLogging] = useState(false);
   const list = useLiveQuery(() => metricsOf(type, 730, db), [type]) ?? [];
-  const [editing, setEditing] = useState(false);
-  const latest = list[list.length - 1];
-  const base = list[0]?.value ?? start;
-  const change = latest && base !== undefined ? latest.value - base : null;
+  const latest = list.at(-1);
+  const labels = useMemo(() => (list.length ? list.map((m) => short(m.date)) : emptyDays(30)), [list]);
+  const series = useMemo<Series[]>(() => (list.length ? [{ label: size.label, data: list.map((m) => m.value), color: FITNESS.body }] : []), [list, size.label]);
+  const signed = (n: number | null) => (n === null ? null : `${n > 0 ? '+' : ''}${fmt(n, 2)}`);
+  // Change over 30 days: latest against the last measurement at least 30 days before it.
+  const month = useMemo(() => {
+    if (!latest || list.length < 2) return null;
+    const cutoff = addDays(latest.date, -30);
+    const base = [...list].reverse().find((m) => m.date <= cutoff) ?? list[0];
+    return latest.value - base.value;
+  }, [list, latest]);
+  const start = list[0]?.value ?? size.start;
+  const total = latest && start !== undefined && list.length + (size.start === undefined ? 0 : 1) > 1 ? latest.value - start : null;
+
   return (
     <>
-      <Row
-        title={label}
-        right={latest ? `${fmt(latest.value, 2)}"${change ? ` (${change > 0 ? '+' : ''}${fmt(change, 2)})` : ''}` : '—'}
-        chevron
-        onClick={() => setEditing(true)}
+      <FitCard
+        title={
+          <button type="button" className="lift-picker" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())} aria-label={`Measurement: ${size.label}. Choose another`}>
+            {size.label}
+            <Sym name="chevron.up.chevron.down" size={13} />
+          </button>
+        }
+      >
+        <StatGrid
+          color={FITNESS.body}
+          items={[
+            ['Latest', latest ? fmt(latest.value, 2) : null, latest ? 'IN' : undefined, () => setLogging(true)],
+            ['30 Days', signed(month), month === null ? undefined : 'IN'],
+            ['Since Start', signed(total), total === null ? undefined : 'IN'],
+          ]}
+        />
+        <div className="fit-chart">
+          <LineChart labels={labels} series={series} unit=" in" height={140} />
+        </div>
+      </FitCard>
+      <Menu
+        anchor={menu}
+        onClose={() => setMenu(null)}
+        items={SIZES.map((x) => ({
+          label: x.label,
+          icon: x.type === type ? <Sym name="checkmark" size={15} /> : undefined,
+          onClick: () => {
+            setType(x.type);
+            try {
+              localStorage.setItem(SIZE_KEY, x.type);
+            } catch {
+              /* remembered until the app closes */
+            }
+          },
+        }))}
       />
       <NumberPrompt
-        opened={editing}
-        title={label}
+        opened={logging}
+        title={size.label}
         unit="in"
-        initial={latest ? fmt(latest.value, 2) : start ? fmt(start, 2) : undefined}
+        initial={latest ? fmt(latest.value, 2) : size.start ? fmt(size.start, 2) : undefined}
         max={80}
-        onCancel={() => setEditing(false)}
+        onCancel={() => setLogging(false)}
         onSave={async (n) => {
           await saveMetric(type, n, today(), db);
-          setEditing(false);
+          setLogging(false);
           toast('Saved');
         }}
       />
@@ -246,29 +304,11 @@ function SizeRow({ type, label, start }: { type: MetricType; label: string; star
 }
 
 function Body() {
-  const toast = useToast();
-  const settings = useSettings();
-  const [editing, setEditing] = useState<'kcal' | null>(null);
   const weights = useLiveQuery(() => metricsOf('weight', 365, db), []) ?? [];
-  const intake = useLiveQuery(() => dailyIntake(35, db), []) ?? [];
   const trend = useMemo(() => weightTrend(weights), [weights]);
   const last = trend[trend.length - 1];
   const rate = weeklyRate(trend);
   const avg7 = sevenDayAverage(weights, today());
-  const energy = estimateEnergy(intake, trend, settings.targetRate);
-  const calDays = useMemo(() => Array.from({ length: 30 }, (_, i) => addDays(today(), i - 29)), []);
-  const calLabels = useMemo(() => calDays.map(short), [calDays]);
-  const calSeries = useMemo<Series[]>(
-    () =>
-      intake.length
-        ? [
-            { label: 'Intake', data: calDays.map((d) => { const k = intake.find((x) => x.date === d)?.kcal; return k ? Math.round(k) : null; }), color: FITNESS.move },
-            { label: 'Target', data: calDays.map(() => settings.kcalTarget), color: 'rgba(255,255,255,0.3)' },
-          ]
-        : [],
-    [calDays, intake, settings.kcalTarget],
-  );
-
   const recent = trend.filter((t) => t.date >= addDays(today(), -90));
   const labels = useMemo(() => (recent.length ? recent.map((t) => short(t.date)) : emptyDays(30)), [recent]);
   const series = useMemo<Series[]>(
@@ -296,19 +336,133 @@ function Body() {
           </div>
         </FitCard>
 
-        <FitCard title="Daily Calories">
+        <Measurements />
+      </div>
+
+
+
+    </>
+  );
+}
+
+type NutrientId = 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'water';
+/** What the Food card can follow, with units and colors (the same as Today's bars). */
+const NUTRIENTS: Record<NutrientId, { label: string; unit: string; color: string }> = {
+  kcal: { label: 'Calories', unit: 'kcal', color: FITNESS.move },
+  protein: { label: 'Protein', unit: 'g', color: FITNESS.exercise },
+  carbs: { label: 'Carbs', unit: 'g', color: FITNESS.carbs },
+  fat: { label: 'Fat', unit: 'g', color: FITNESS.steps },
+  fiber: { label: 'Fiber', unit: 'g', color: '#30d158' },
+  water: { label: 'Water', unit: 'oz', color: FITNESS.distance },
+};
+const NUTRIENT_KEY = 'zoro.history.nutrient';
+
+/**
+ * Food over time as one card, like the lifts: pick calories, protein, carbs, fat, fiber or water
+ * from the title's menu. Today, the 7-day average and the target (tap to change; carbs follow
+ * from the others), a month's chart against the target, and the days below in the same unit.
+ * Calories also show your estimated burn and offer the target it suggests.
+ */
+function Food() {
+  const settings = useSettings();
+  const toast = useToast();
+  const [id, setId] = useState<NutrientId>(() => {
+    try {
+      const saved = localStorage.getItem(NUTRIENT_KEY);
+      return saved && saved in NUTRIENTS ? (saved as NutrientId) : 'kcal';
+    } catch {
+      return 'kcal';
+    }
+  });
+  const n = NUTRIENTS[id];
+  const [menu, setMenu] = useState<DOMRect | null>(null);
+  const [editing, setEditing] = useState(false);
+  const since = addDays(today(), -29);
+  const entries = useLiveQuery(() => db.entries.where('date').aboveOrEqual(since).toArray(), [since]) ?? [];
+  const water = useLiveQuery(() => dailyWater(30, db), []) ?? [];
+  const weights = useLiveQuery(() => metricsOf('weight', 365, db), []) ?? [];
+  const intake = useLiveQuery(() => dailyIntake(35, db), []) ?? [];
+  const energy = estimateEnergy(intake, weightTrend(weights), settings.targetRate);
+
+  // Each of the last 30 days: the nutrient's total, or null if nothing was logged that day.
+  const days = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => {
+        const date = addDays(today(), i - 29);
+        if (id === 'water') {
+          const oz = water.find((w) => w.date === date)?.oz;
+          return { date, value: oz ? oz : null };
+        }
+        const list = entries.filter((e) => e.date === date);
+        if (!list.length) return { date, value: null };
+        const t = sumEntries(list);
+        return { date, value: id === 'fiber' ? list.reduce((s, e) => s + (e.macros.fiber ?? 0), 0) : t[id] };
+      }),
+    [entries, water, id],
+  );
+  const target =
+    id === 'kcal'
+      ? settings.kcalTarget
+      : id === 'protein'
+        ? settings.proteinTarget
+        : id === 'carbs'
+          ? carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget)
+          : id === 'fat'
+            ? settings.fatTarget
+            : id === 'water'
+              ? settings.waterTargetOz
+              : settings.fiberTarget;
+  const todayValue = days.at(-1)?.value ?? null;
+  // The 7 days before today, counting only days you logged.
+  const week = days.slice(-8, -1).filter((d) => d.value !== null);
+  const avg = week.length ? week.reduce((s, d) => s + (d.value ?? 0), 0) / week.length : null;
+  const labels = useMemo(() => days.map((d) => short(d.date)), [days]);
+  const series = useMemo<Series[]>(
+    () =>
+      days.some((d) => d.value !== null)
+        ? [
+            { label: n.label, data: days.map((d) => (d.value === null ? null : Math.round(d.value))), color: n.color },
+            ...(target ? [{ label: 'Target', data: days.map(() => target), color: 'rgba(255,255,255,0.3)' }] : []),
+          ]
+        : [],
+    [days, n, target],
+  );
+  const UNIT = n.unit.toUpperCase();
+  const editable = id !== 'carbs';
+  const save = async (v: number) => {
+    const r = Math.round(v);
+    const patch: Partial<Settings> =
+      id === 'kcal' ? { kcalTarget: r } : id === 'protein' ? { proteinTarget: r } : id === 'fat' ? { fatTarget: r } : id === 'water' ? { waterTargetOz: r } : { fiberTarget: r };
+    await saveSettings(patch);
+    setEditing(false);
+    toast(`Target set to ${fmt(r)} ${n.unit}`);
+  };
+
+  return (
+    <>
+      <div className="fit-stack">
+        <FitCard
+          title={
+            <button type="button" className="lift-picker" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())} aria-label={`Showing ${n.label}. Choose another`}>
+              {n.label}
+              <Sym name="chevron.up.chevron.down" size={13} />
+            </button>
+          }
+        >
           <StatGrid
-            color={FITNESS.move}
+            color={n.color}
             items={[
-              ['Burn', energy ? fmt(energy.tdee) : null, energy ? 'KCAL' : undefined],
-              ['Intake', energy ? fmt(energy.avgIntake) : null, energy ? 'KCAL' : undefined],
-              ['Target', fmt(settings.kcalTarget), 'KCAL', () => setEditing('kcal')],
+              id === 'kcal'
+                ? ['Burn', energy ? fmt(energy.tdee) : null, energy ? UNIT : undefined]
+                : ['Today', todayValue === null ? null : fmt(todayValue), todayValue === null ? undefined : UNIT],
+              ['7-Day Avg', avg === null ? null : fmt(avg), avg === null ? undefined : UNIT],
+              ['Target', target ? fmt(target) : null, target ? UNIT : undefined, editable ? () => setEditing(true) : undefined],
             ]}
           />
           <div className="fit-chart">
-            <LineChart labels={calLabels} series={calSeries} unit=" kcal" height={140} />
+            <LineChart labels={labels} series={series} unit={` ${n.unit}`} height={140} />
           </div>
-          {energy && Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
+          {id === 'kcal' && energy && Math.abs(energy.recommended - settings.kcalTarget) >= 100 && (
             <Btn
               size="md"
               className="mt-4 w-full"
@@ -322,79 +476,41 @@ function Body() {
           )}
         </FitCard>
       </div>
-
-      <NumberPrompt
-        opened={editing === 'kcal'}
-        title="Daily Calories"
-        unit="kcal"
-        initial={String(settings.kcalTarget)}
-        min={800}
-        max={6000}
-        onCancel={() => setEditing(null)}
-        onSave={async (n) => {
-          await saveSettings({ kcalTarget: Math.round(n) });
-          setEditing(null);
-          toast(`Target set to ${fmt(Math.round(n))} kcal`);
-        }}
+      <Menu
+        anchor={menu}
+        onClose={() => setMenu(null)}
+        items={(Object.keys(NUTRIENTS) as NutrientId[]).map((k) => ({
+          label: NUTRIENTS[k].label,
+          icon: k === id ? <Sym name="checkmark" size={15} /> : undefined,
+          onClick: () => {
+            setId(k);
+            try {
+              localStorage.setItem(NUTRIENT_KEY, k);
+            } catch {
+              /* remembered until the app closes */
+            }
+          },
+        }))}
       />
-
-      <Section title="Measurements">
-        {SIZES.map((s) => (
-          <SizeRow key={s.type} {...s} />
-        ))}
-      </Section>
-    </>
-  );
-}
-
-function Food() {
-  const settings = useSettings();
-  const since = addDays(today(), -13);
-  const entries = useLiveQuery(() => db.entries.where('date').aboveOrEqual(since).toArray(), [since]) ?? [];
-  const water = useLiveQuery(() => dailyWater(14, db), []) ?? [];
-  const days = useMemo(() => {
-    const out = [];
-    for (let i = 0; i < 14; i++) {
-      const d = addDays(today(), -i);
-      const t = sumEntries(entries.filter((e) => e.date === d));
-      out.push({ date: d, ...t, oz: water.find((w) => w.date === d)?.oz ?? 0 });
-    }
-    return out;
-  }, [entries, water]);
-  const logged = days.filter((d) => d.kcal > 0);
-  const week = logged.filter((d) => d.date > addDays(today(), -7) && d.date !== today());
-  const avg = (k: 'kcal' | 'protein' | 'oz', list = week) => (list.length ? list.reduce((s, d) => s + d[k], 0) / list.length : 0);
-  const pastWater = days.slice(1, 8).filter((d) => d.oz > 0);
-  const chartDays = [...logged].reverse();
-  const series = useMemo<Series[]>(
-    () => [
-      { label: 'Calories', data: chartDays.map((d) => Math.round(d.kcal)), color: FITNESS.move },
-      { label: 'Target', data: chartDays.map(() => settings.kcalTarget), color: 'rgba(255,255,255,0.3)' },
-    ],
-    [chartDays, settings.kcalTarget],
-  );
-
-  return (
-    <>
-      <div className="fit-stack">
-        <FitCard title="7-Day Averages">
-          <div className="fit-grid3">
-            <FitStat label="Calories" value={week.length ? fmt(avg('kcal')) : null} unit={week.length ? 'KCAL' : undefined} color={FITNESS.move} small />
-            <FitStat label="Protein" value={week.length ? fmt(avg('protein')) : null} unit={week.length ? 'G' : undefined} color={FITNESS.exercise} small />
-            <FitStat label="Water" value={pastWater.length ? fmt(avg('oz', pastWater)) : null} unit={pastWater.length ? 'OZ' : undefined} color={FITNESS.distance} small />
-          </div>
-          <div className="fit-chart">
-            <LineChart labels={chartDays.length ? chartDays.map((d) => short(d.date)) : emptyDays(14)} series={chartDays.length ? series : []} unit=" kcal" height={140} />
-          </div>
-        </FitCard>
-      </div>
+      <NumberPrompt
+        opened={editing}
+        title={`${n.label} Target`}
+        unit={n.unit}
+        initial={target ? String(target) : undefined}
+        min={1}
+        max={id === 'kcal' ? 6000 : 1000}
+        onCancel={() => setEditing(false)}
+        onSave={(v) => void save(v)}
+      />
       <Section title="By Day">
-        {days
-          .filter((d) => d.kcal > 0 || d.oz > 0)
+        {[...days]
+          .reverse()
+          .filter((d) => d.value !== null)
+          .slice(0, 14)
           .map((d) => (
-            <Row key={d.date} title={longDate(d.date)} right={`${fmt(d.kcal)} kcal`} />
+            <Row key={d.date} title={longDate(d.date)} right={`${fmt(d.value ?? 0)} ${n.unit}`} />
           ))}
-        {!logged.length && !water.length && <EmptyRow>No Food Logs</EmptyRow>}
+        {!days.some((d) => d.value !== null) && <EmptyRow>No {n.label} Logged</EmptyRow>}
       </Section>
     </>
   );

@@ -216,6 +216,8 @@ export interface Settings {
   benchGoal?: number;
   /** Goals for the other tracked lifts (History), by exercise id; none until you set one. */
   liftGoals?: Record<string, number>;
+  /** Daily fiber target (History › Food); none until you set one. */
+  fiberTarget?: number;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];
