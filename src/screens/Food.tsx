@@ -9,7 +9,7 @@ import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, Meal } from '../core/types';
 import { db, fmt, Header, IconGroup, MacroSummary, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { Scanner } from '../ui/Scanner';
+import { useScanner } from '../ui/Scanner';
 
 /** Meals in the order they're shown. Food added without a meal goes to Other ('unsorted' in the data). */
 export const MEALS: { id: Meal; label: string }[] = [
@@ -276,7 +276,6 @@ export function FoodScreen() {
   const [date, setDate] = useState(today());
   const entries = useLiveQuery(() => entriesFor(date, db), [date]) ?? [];
   const [selected, setSelected] = useState<FoodEntry | null>(null);
-  const [scanning, setScanning] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const slideMeals = useSlideSwap(listRef, date);
   const totals = sumEntries(entries);
@@ -306,7 +305,6 @@ export function FoodScreen() {
   // Scan: add one serving straight to Other. Unknown barcodes open New Food with it filled in.
   const onCode = useCallback(
     async (code: string) => {
-      setScanning(false);
       try {
         const saved = await db.foods.where('barcode').equals(normalizeBarcode(code)).first();
         const food = saved ?? (await lookupBarcode(code, settings.usdaApiKey));
@@ -322,6 +320,7 @@ export function FoodScreen() {
     },
     [date, nav, settings.usdaApiKey, toast],
   );
+  const [scan, scanner] = useScanner((c) => void onCode(c));
 
   const remove = async () => {
     if (selected?.id !== undefined) await db.entries.delete(selected.id);
@@ -355,7 +354,7 @@ export function FoodScreen() {
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: scan },
               { label: 'Add food', icon: <Sym name="plus" size={18.3} />, onClick: () => nav.push({ name: 'addFood', date }) },
             ]}
           />
@@ -423,7 +422,7 @@ export function FoodScreen() {
       </div>
       </div>
 
-      <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={(c) => void onCode(c)} />
+      {scanner}
 
       <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
         <ActionsGroup>

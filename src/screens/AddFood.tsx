@@ -9,7 +9,7 @@ import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood
 import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
 import { Btn, db, Field, FITNESS, FitText, fmt, GlassSheet, Header, IconGroup, Menu, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { Scanner } from '../ui/Scanner';
+import { useScanner } from '../ui/Scanner';
 import { MEALS } from './Food';
 const num = (s: string) => {
   const n = parseFloat(s);
@@ -188,7 +188,7 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
   // Optional barcode: filled in when you got here from a scan, or scan/type it now, so scanning
   // this item later brings this food straight back.
   const [code, setCode] = useState(barcode ?? '');
-  const [scanning, setScanning] = useState(false);
+  const [scan, scanner] = useScanner(setCode);
   useEffect(() => setCode(barcode ?? ''), [barcode, opened]);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
   const save = async () => {
@@ -225,16 +225,9 @@ function CustomFoodSheet({ opened, barcode, onClose, onCreated }: { opened: bool
       </Section>
       <Section title="Barcode">
         <Field label="Barcode" inputMode="numeric" placeholder="Optional" value={code} onChange={(v) => setCode(v.replace(/\D/g, ''))} />
-        <Row accent title="Scan Barcode" onClick={() => setScanning(true)} />
+        <Row accent title="Scan Barcode" onClick={scan} />
       </Section>
-      <Scanner
-        opened={scanning}
-        onClose={() => setScanning(false)}
-        onCode={(c) => {
-          setCode(c);
-          setScanning(false);
-        }}
-      />
+      {scanner}
       <div className="mx-4 mt-4">
         <Btn kind="tint" size="lg" disabled={!f.name.trim() || !f.kcal} onClick={() => void save()}>
           Save Food
@@ -285,7 +278,6 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<FoodItem | null>(null);
-  const [scanning, setScanning] = useState(false);
   const [quick, setQuick] = useState(false);
   // Two bar buttons (scan, +) keep the title centered; + opens the other ways to add.
   const [menu, setMenu] = useState<DOMRect | null>(null);
@@ -316,7 +308,6 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
 
   const onCode = useCallback(
     async (code: string) => {
-      setScanning(false);
       setLoading(true);
       try {
         const saved = await db.foods.where('barcode').equals(normalizeBarcode(code)).first();
@@ -331,6 +322,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
     },
     [toast, settings.usdaApiKey],
   );
+  const [scan, scanner] = useScanner((c) => void onCode(c));
 
   const logged = () => {
     setPicked(null);
@@ -348,7 +340,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         right={
           <IconGroup
             items={[
-              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: () => setScanning(true) },
+              { label: 'Scan barcode', icon: <Sym name="barcode.viewfinder" size={16.5} />, onClick: scan },
               { label: 'More ways to add', icon: <Sym name="plus" size={18.3} />, onClick: (e) => setMenu(e.currentTarget.getBoundingClientRect()) },
             ]}
           />
@@ -395,7 +387,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
       )}
 
       <AmountSheet food={picked} meal={meal} onMeal={setMeal} date={date} onClose={() => setPicked(null)} onLogged={logged} />
-      <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={onCode} />
+      {scanner}
       <Menu
         anchor={menu}
         onClose={() => setMenu(null)}

@@ -1,5 +1,5 @@
 import { BarcodeDetector, prepareZXingModule } from 'barcode-detector/ponyfill';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
 import { Popup } from 'konsta/react';
 import { NavButton, SearchField } from './bars';
@@ -15,107 +15,99 @@ function detector(): BarcodeDetector {
   return new BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e'] });
 }
 
-/**
- * Full-screen camera scanner, laid out like the Camera app: X to close (top left), a search
- * button that opens a field to type the barcode (top right), the viewfinder in the middle while
- * the camera runs, and a round shutter at the bottom to scan from a photo instead.
- */
-export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose: () => void; onCode: (code: string) => void }) {
-  const video = useRef<HTMLVideoElement>(null);
+/** The barcode in a photo, or null. Tries a 2000px copy first (quick), then the full photo. */
+async function readPhoto(file: File): Promise<string | null> {
+  const bitmap = await createImageBitmap(file);
+  const d = detector();
+  const k = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+  if (k < 1) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(bitmap.width * k);
+    c.height = Math.round(bitmap.height * k);
+    c.getContext('2d')?.drawImage(bitmap, 0, 0, c.width, c.height);
+    const small = await d.detect(c);
+    if (small[0]?.rawValue) return small[0].rawValue;
+  }
+  return (await d.detect(bitmap))[0]?.rawValue ?? null;
+}
 
-  // Fill the whole screen with the camera, cropping the edges (like object-fit: cover, which iOS
-  // ignores for a live camera video in this sheet, leaving black bands above and below). Checked
-  // every frame while the scanner is open: iOS reports the camera's size whenever it gets round
-  // to it (after the permission prompt, after it warms up), so no single event can be relied on.
-  useEffect(() => {
-    if (!opened) return;
-    let raf = 0;
-    let last = '';
-    const cover = () => {
-      raf = requestAnimationFrame(cover);
-      const v = video.current;
-      const box = v?.parentElement;
-      if (!v || !box || !v.videoWidth || !v.videoHeight) return;
-      const { clientWidth: w, clientHeight: h } = box;
-      const k = Math.max(w / v.videoWidth, h / v.videoHeight);
-      const vw = Math.ceil(v.videoWidth * k);
-      const vh = Math.ceil(v.videoHeight * k);
-      const key = `${vw}x${vh}@${w}x${h}`;
-      if (key === last) return;
-      last = key;
-      Object.assign(v.style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` });
-    };
-    raf = requestAnimationFrame(cover);
-    return () => cancelAnimationFrame(raf);
-  }, [opened]);
-  const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
+/**
+ * Barcode scanning with the iPhone's own camera. A Home Screen web app can't keep camera access
+ * (iOS forgets it when the app restarts, and soon after the camera stops), so a live viewfinder
+ * asked permission nearly every time; the system camera never asks. Call `scan` straight from a
+ * tap. When a photo has no readable barcode, the scanner screen opens with that message, a
+ * shutter to try again, and a search button to type the number.
+ */
+export function useScanner(onCode: (code: string) => void): [scan: () => void, element: ReactNode] {
+  const input = useRef<HTMLInputElement>(null);
+  const handler = useRef(onCode);
+  handler.current = onCode;
+  const [message, setMessage] = useState<string | null>(null);
+
+  const read = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const code = await readPhoto(file);
+      if (code) {
+        setMessage(null);
+        handler.current(code);
+      } else setMessage('No Barcode Found');
+    } catch {
+      setMessage('Couldn’t Read That Photo');
+    }
+  };
+  const scan = () => {
+    const el = input.current;
+    if (!el) return;
+    el.value = '';
+    el.click();
+  };
+  const element = (
+    <>
+      {/* Visually hidden rather than display:none, which iOS won't open from a script. */}
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        aria-hidden
+        tabIndex={-1}
+        style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', left: 0, top: 0 }}
+        onChange={(e) => void read(e.target.files?.[0])}
+      />
+      <Scanner
+        message={message}
+        onClose={() => setMessage(null)}
+        onPhoto={(f) => void read(f)}
+        onCode={(c) => {
+          setMessage(null);
+          handler.current(c);
+        }}
+      />
+    </>
+  );
+  return [scan, element];
+}
+
+/**
+ * The scanner screen, shown when a photo didn't scan, laid out like the Camera app: X to close
+ * (top left), a search button that opens a field to type the barcode (top right), the message in
+ * the middle, and a round shutter at the bottom to take another photo.
+ */
+function Scanner({ message, onClose, onCode, onPhoto }: { message: string | null; onClose: () => void; onCode: (code: string) => void; onPhoto: (f: File | undefined) => void }) {
   const [typing, setTyping] = useState(false);
   const [manual, setManual] = useState('');
 
-  useEffect(() => {
-    if (!opened) return;
-    let stream: MediaStream | null = null;
-    let timer: number | undefined;
-    let stopped = false;
-    const d = detector();
-    setError(null);
-    setLive(false);
-    setTyping(false);
-    setManual('');
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-        if (stopped || !video.current) return;
-        video.current.srcObject = stream;
-        await video.current.play();
-        setLive(true);
-        const tick = async () => {
-          if (stopped || !video.current) return;
-          try {
-            const found = await d.detect(video.current);
-            if (found[0]?.rawValue) {
-              stopped = true;
-              onCode(found[0].rawValue);
-              return;
-            }
-          } catch {
-            // Frame not ready yet.
-          }
-          timer = window.setTimeout(tick, 250);
-        };
-        void tick();
-      } catch {
-        setError('Camera Unavailable');
-      }
-    })();
-    return () => {
-      stopped = true;
-      window.clearTimeout(timer);
-      stream?.getTracks().forEach((t) => t.stop());
-    };
-  }, [opened, onCode]);
-
-  const fromPhoto = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const bitmap = await createImageBitmap(file);
-      const found = await detector().detect(bitmap);
-      if (found[0]?.rawValue) onCode(found[0].rawValue);
-      else setError('No Barcode Found');
-    } catch {
-      setError('Couldn’t Read That Photo');
-    }
-  };
-
   return (
-    <Popup opened={opened} onBackdropClick={onClose} className="scanner">
-      <video ref={video} playsInline muted autoPlay className={`scanner-video ${live ? '' : 'is-off'}`} />
-
-      <div className="scanner-fade is-top" aria-hidden />
-      <div className="scanner-fade is-bottom" aria-hidden />
+    <Popup opened={message !== null} onBackdropClick={onClose} className="scanner">
       <header className="scanner-bar">
-        <NavButton label="Close" onClick={onClose}>
+        <NavButton
+          label="Close"
+          onClick={() => {
+            setTyping(false);
+            onClose();
+          }}
+        >
           <Sym name="xmark" size={16.5} />
         </NavButton>
         <h1 className="ios-navbar-title">Scan Barcode</h1>
@@ -131,19 +123,22 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
             inputMode="numeric"
             autoFocus
             onChange={(v) => setManual(v.replace(/\D/g, ''))}
-            onSubmit={() => manual.length >= 8 && onCode(manual)}
+            onSubmit={() => {
+              if (manual.length < 8) return;
+              setTyping(false);
+              setManual('');
+              onCode(manual);
+            }}
             onCancel={() => setTyping(false)}
           />
         </div>
       )}
 
-      {/* The viewfinder only while the camera is running; otherwise the message, centered. */}
-      {live && !error && <div className="scanner-frame" aria-hidden />}
-      {error && <div className="scanner-message">{error}</div>}
+      {message && <div className="scanner-message">{message}</div>}
 
-      <label className="scanner-shutter" aria-label="Scan a photo">
+      <label className="scanner-shutter" aria-label="Take another photo">
         <span />
-        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fromPhoto(e.target.files?.[0])} />
+        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ''; }} />
       </label>
     </Popup>
   );
