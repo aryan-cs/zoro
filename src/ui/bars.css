@@ -2382,9 +2382,7 @@ button.water-oz:active {
   background: var(--ios-cell);
   transition: opacity 0.25s;
 }
-.step-card.is-current {
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22);
-}
+
 .step-card.is-done {
   opacity: 0.5;
 }
@@ -2500,4 +2498,37 @@ button.water-oz:active {
 }
 .step-card .step-title {
   color: #c7c7cc;
+}
+
+/* Touch and hold a set: its weight and reps, side by side with their labels. */
+.set-edit {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+.set-edit label {
+  display: grid;
+  grid-template-columns: 1fr auto 40px;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  color: var(--ios-label);
+}
+.set-edit-unit {
+  font-size: 15px;
+  color: #8d8d93;
+}
+
+/* A running rest fills from the left as the time passes, like a progress bar behind its row. */
+.step-card.is-rest {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.step-rest-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  background: rgba(166, 255, 0, 0.2);
+  transition: width 0.25s linear;
 }

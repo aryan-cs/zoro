@@ -6,7 +6,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Bar, Btn, db, FITNESS, fmtLb, Header, NumberPrompt, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -53,7 +53,9 @@ function SetStep(props: {
   const def = EXERCISES[props.ex.exerciseId];
   const noLoad = (def.kind === 'bodyweight' && !def.addedLoad) || def.timed || def.increment === 0;
   const [edit, setEdit] = useState<{ w?: number; r?: number }>({});
-  const [prompt, setPrompt] = useState<'w' | 'r' | null>(null);
+  const [prompt, setPrompt] = useState<'w' | 'r' | 'both' | null>(null);
+  // Touch and hold the set to change what you did (more or less than it said).
+  const hold = useRef<{ timer?: number; x: number; y: number; fired: boolean }>({ x: 0, y: 0, fired: false });
   const done = !!props.logged;
   const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
   const reps = props.logged?.reps ?? edit.r ?? props.target.reps;
@@ -72,7 +74,29 @@ function SetStep(props: {
   };
 
   return (
-    <section data-step={props.stepId} className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}>
+    <section
+      data-step={props.stepId}
+      className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}
+      onPointerDown={(e) => {
+        if ((e.target as Element).closest('.step-check')) return;
+        hold.current = { x: e.clientX, y: e.clientY, fired: false };
+        hold.current.timer = window.setTimeout(() => {
+          hold.current.fired = true;
+          setPrompt('both');
+        }, 450);
+      }}
+      onPointerMove={(e) => {
+        if (Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > 8) window.clearTimeout(hold.current.timer);
+      }}
+      onPointerUp={() => window.clearTimeout(hold.current.timer)}
+      onPointerCancel={() => window.clearTimeout(hold.current.timer)}
+      onContextMenu={(e) => e.preventDefault()}
+      onClickCapture={(e) => {
+        if (!hold.current.fired) return;
+        e.stopPropagation();
+        hold.current.fired = false;
+      }}
+    >
       <div className="step-head">
         <h3 className="step-title">{props.ex.name}</h3>
         <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
@@ -97,9 +121,21 @@ function SetStep(props: {
         )}
         <button type="button" className="step-num" onClick={() => setPrompt('r')} aria-label={`Change ${repUnit}`}>
           {reps}
-          <small>{def.timed ? 'SEC' : def.perSide ? 'EACH' : noLoad ? 'REPS' : ''}</small>
+          <small>{def.timed ? 'SEC' : def.perSide ? 'REPS EACH' : 'REPS'}</small>
         </button>
       </div>
+      <SetEdit
+        opened={prompt === 'both'}
+        title={def.name}
+        weight={noLoad ? undefined : weight}
+        reps={reps}
+        repUnit={repUnit}
+        onCancel={() => setPrompt(null)}
+        onSave={(w, r) => {
+          setPrompt(null);
+          change({ w, r });
+        }}
+      />
       <NumberPrompt
         opened={prompt === 'w'}
         title={def.name}
@@ -130,6 +166,51 @@ function SetStep(props: {
   );
 }
 
+/** Change a set's weight and reps together (touch and hold a set). */
+function SetEdit(props: { opened: boolean; title: string; weight?: number; reps: number; repUnit: string; onCancel: () => void; onSave: (w: number | undefined, r: number) => void }) {
+  const [w, setW] = useState('');
+  const [r, setR] = useState('');
+  useEffect(() => {
+    if (!props.opened) return;
+    setW(props.weight !== undefined ? String(props.weight) : '');
+    setR(String(props.reps));
+  }, [props.opened]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wn = parseFloat(w);
+  const rn = parseFloat(r);
+  const valid = Number.isFinite(rn) && rn > 0 && (props.weight === undefined && !w ? true : Number.isFinite(wn) && wn >= 0);
+  return (
+    <Dialog
+      opened={props.opened}
+      onBackdropClick={props.onCancel}
+      title={props.title}
+      content={
+        <div className="set-edit">
+          {props.weight !== undefined || w ? (
+            <label>
+              <span>Weight</span>
+              <NumField value={w} onChange={setW} label="Weight" width="w-24" placeholder="lb" />
+              <span className="set-edit-unit">lb</span>
+            </label>
+          ) : null}
+          <label>
+            <span>{props.repUnit === 'sec' ? 'Seconds' : 'Reps'}</span>
+            <NumField value={r} onChange={setR} label="Reps" width="w-24" />
+            <span className="set-edit-unit">{props.repUnit === 'each' ? 'each' : ''}</span>
+          </label>
+        </div>
+      }
+      buttons={
+        <>
+          <DialogButton onClick={props.onCancel}>Cancel</DialogButton>
+          <DialogButton strong disabled={!valid} onClick={() => valid && props.onSave(w ? wn : undefined, Math.round(rn))}>
+            Save
+          </DialogButton>
+        </>
+      }
+    />
+  );
+}
+
 /** Scrolls the workout so the active step sits just under the navigation bar. */
 function ScrollToActive({ active, first }: { active: string; first: RefObject<boolean> }) {
   // Found from its own spot in the list: a parent's ref isn't attached yet when this first runs.
@@ -152,7 +233,7 @@ function ScrollToActive({ active, first }: { active: string; first: RefObject<bo
  * A rest between sets, as a step: how long, and once the set before it is ticked off, a countdown
  * you can stretch or skip. It reads as done once the rest is over or you've moved on.
  */
-function RestStep({ sec, state, endsAt, onAdd, onSkip, stepId }: { sec: number; state: 'waiting' | 'running' | 'done'; endsAt?: number; onAdd: () => void; onSkip: () => void; stepId: string }) {
+function RestStep({ sec, state, endsAt, startedAt, onAdd, onSkip, stepId }: { sec: number; state: 'waiting' | 'running' | 'done'; endsAt?: number; startedAt?: number; onAdd: () => void; onSkip: () => void; stepId: string }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (state !== 'running') return;
@@ -160,10 +241,14 @@ function RestStep({ sec, state, endsAt, onAdd, onSkip, stepId }: { sec: number; 
     return () => window.clearInterval(t);
   }, [state]);
   const left = endsAt ? Math.max(0, Math.round((endsAt - now) / 1000)) : sec;
+  // How much of the rest has passed, for the fill behind it (+30s stretches it back a little).
+  const from = startedAt ?? (endsAt ? endsAt - sec * 1000 : now);
+  const passed = endsAt ? Math.min(1, Math.max(0, (now - from) / Math.max(1, endsAt - from))) : 0;
   const label = sec >= 60 ? `${Math.round((sec / 60) * 2) / 2} min` : `${sec} sec`;
   return (
     <section data-step={stepId} className={`step-card is-rest ${state === 'done' ? 'is-done' : ''} ${state === 'running' ? 'is-current' : ''}`}>
       <Sym name="timer" size={17} />
+      {state === 'running' && <span className="step-rest-fill" style={{ width: `${passed * 100}%` }} aria-hidden />}
       {state === 'running' ? (
         <>
           <span className="step-rest-clock tabular">{left > 0 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Go'}</span>
@@ -192,14 +277,14 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   // The rest running now: which set it follows, and when it ends. Saved for the session, so
   // leaving the workout and coming back picks the countdown up where it should be.
   const restKey = `zoro.rest.${sessionId}`;
-  const [rest, setRestState] = useState<{ after: string; endsAt: number } | null>(() => {
+  const [rest, setRestState] = useState<{ after: string; endsAt: number; startedAt?: number } | null>(() => {
     try {
       return JSON.parse(localStorage.getItem(restKey) ?? 'null');
     } catch {
       return null;
     }
   });
-  const setRest = (r: { after: string; endsAt: number } | null) => {
+  const setRest = (r: { after: string; endsAt: number; startedAt?: number } | null) => {
     setRestState(r);
     try {
       if (r) localStorage.setItem(restKey, JSON.stringify(r));
@@ -278,7 +363,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
     const lastKey = `${last.exerciseId}:${last.setIndex}`;
     const st = steps.find((x) => x.kind === 'rest' && x.after === lastKey) as RestStepT | undefined;
     if (st && !(st.next && byKey.get(st.next)) && last.completedAt + st.sec * 1000 > Date.now()) {
-      const r = { after: lastKey, endsAt: last.completedAt + st.sec * 1000 };
+      const r = { after: lastKey, startedAt: last.completedAt, endsAt: last.completedAt + st.sec * 1000 };
       queueMicrotask(() => setRest(r));
     }
   }
@@ -341,6 +426,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
                 sec={step.sec}
                 state={state}
                 endsAt={rest?.after === step.after ? rest.endsAt : undefined}
+                startedAt={rest?.after === step.after ? rest.startedAt : undefined}
                 onAdd={() => rest && setRest({ ...rest, endsAt: Math.max(rest.endsAt, Date.now()) + 30_000 })}
                 onSkip={() => setRest(null)}
               />
@@ -360,7 +446,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
               fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight || undefined : undefined}
               onLog={(weight, reps) => {
                 void logSet({ sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps }, db);
-                if (step.restAfter && !byKey.get(key)) setRest({ after: key, endsAt: Date.now() + step.restAfter * 1000 });
+                if (step.restAfter && !byKey.get(key)) setRest({ after: key, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000 });
               }}
               onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
             />
