@@ -10,6 +10,7 @@ import { SleepSetupScreen } from './screens/SleepSetup';
 import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
+import { useAutoTargets } from './ui/autoTargets';
 import { ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
@@ -261,6 +262,7 @@ function TabPane({ active, children }: { active: boolean; children: ReactNode })
 
 function Shell() {
   const { tab, stacks } = useNavState();
+  useAutoTargets(); // keep the daily targets on the profile's recommendation
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}

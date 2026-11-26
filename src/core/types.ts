@@ -218,6 +218,15 @@ export interface Settings {
   liftGoals?: Record<string, number>;
   /** Daily fiber target (History › Food); none until you set one. */
   fiberTarget?: number;
+  /** Profile (Settings › first group), used to recommend the targets. */
+  sex?: 'male' | 'female';
+  birthDate?: ISODate;
+  heightIn?: number;
+  activity?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very';
+  /** Body weight you're working toward, lb. */
+  goalWeight?: number;
+  /** Targets follow the profile's recommendation until you set one yourself (then false). */
+  autoTargets?: boolean;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

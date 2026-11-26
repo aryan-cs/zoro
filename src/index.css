@@ -520,3 +520,11 @@ select {
 .k-toggle .bg-primary {
   background-color: #34c759 !important;
 }
+
+/* Footnote under a grouped list (Settings): 13pt secondary text, aligned with the rows' text. */
+.zoro-section-footer {
+  margin: 7px 32px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(235, 235, 245, 0.6);
+}

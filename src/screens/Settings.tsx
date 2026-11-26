@@ -2,14 +2,42 @@ import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
-import { addSampleWeek, exportAll, importAll, removeSampleData, today } from '../core/store';
+import { addSampleWeek, exportAll, importAll, removeSampleData, saveMetric, today } from '../core/store';
+import { ACTIVITY, defaultRate, weeksToGoal, type Activity } from '../core/targets';
+import { useLatestWeight, useRecommendation } from '../ui/autoTargets';
+import { Sym } from '../ui/Sym';
 import type { Phase, Settings } from '../core/types';
-import { Btn, Field, fmt, Header, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
+import { Btn, db, Field, fmt, Header, Menu, NumberPrompt, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { addSleepShortcut } from './LogSleep';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
 
 type NumKey = 'benchMax' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
+type TargetKey = 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'fiberTarget' | 'waterTargetOz' | 'sleepTargetMin';
+
+/** 70 → 5′10″ */
+const feetInches = (inches: number) => `${Math.floor(inches / 12)}′${fmt(inches % 12, inches % 1 ? 1 : 0)}″`;
+
+/** A daily target: editing it means you're setting your own (targets stop following the profile). */
+function TargetSetting({ label, k, settings, scale = 1 }: { label: string; k: TargetKey; settings: Settings; scale?: number }) {
+  const shown = (n: number | undefined) => (n === undefined ? '' : String(Math.round((n / scale) * 100) / 100));
+  const [v, setV] = useState(shown(settings[k]));
+  useEffect(() => setV(shown(settings[k])), [settings, k]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Field
+      label={label}
+      inputMode="decimal"
+      placeholder="—"
+      value={v}
+      onChange={setV}
+      onBlur={() => {
+        const n = parseFloat(v);
+        if (!Number.isFinite(n) || shown(settings[k]) === v) return setV(shown(settings[k]));
+        void saveSettings({ [k]: Math.round(n * scale), autoTargets: false } as Partial<Settings>);
+      }}
+    />
+  );
+}
 
 function NumSetting({ label, k, settings }: { label: string; k: NumKey; settings: Settings }) {
   const [v, setV] = useState(String(settings[k]));
@@ -178,12 +206,97 @@ export function SettingsScreen() {
   };
 
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
+  const [prompt, setPrompt] = useState<'height' | 'weight' | 'goal' | null>(null);
+  const [activityMenu, setActivityMenu] = useState<DOMRect | null>(null);
+  const weight = useLatestWeight();
+  const { profile, rec } = useRecommendation();
+
+  // Footnotes, like the ones under Apple's Settings groups.
+  const profileNote = settings.activity
+    ? `${ACTIVITY[settings.activity].detail}. Your targets are worked out from these.`
+    : 'Your targets are worked out from these.';
+  const weeks = weight && settings.goalWeight ? weeksToGoal(weight, settings.goalWeight, settings.targetRate) : null;
+  const goalNote =
+    settings.phase === 'maintain'
+      ? 'Holding your weight steady.'
+      : weeks !== null && settings.goalWeight
+        ? `About ${weeks} week${weeks === 1 ? '' : 's'} to ${fmt(settings.goalWeight)} lb at ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`
+        : `${settings.targetRate < 0 ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`;
+  const targetsNote = !profile
+    ? 'Fill in your profile and weight above and these are set for you.'
+    : settings.autoTargets === false
+      ? `Set by you. Recommended: ${fmt(rec!.kcal)} kcal, ${fmt(rec!.protein)} g protein.`
+      : `Recommended: you burn about ${fmt(rec!.tdee)} kcal a day. Change any to set your own.`;
 
   return (
     <Page className="tab-safe">
       <Header title="Settings" onBack={nav.pop} />
 
-      <Section title="Plan">
+      {/* You: what the targets are worked out from. */}
+      <Section title="Profile" footer={profileNote}>
+        <Row
+          title="Sex"
+          right={
+            <Seg<'male' | 'female'>
+              className="is-compact w-44"
+              value={settings.sex ?? ('' as 'male')}
+              onChange={(v) => void saveSettings({ sex: v })}
+              options={[
+                ['male', 'Male'],
+                ['female', 'Female'],
+              ]}
+            />
+          }
+        />
+        <Field label="Birthday" type="date" value={settings.birthDate ?? ''} onChange={(v) => void saveSettings({ birthDate: v || undefined })} />
+        <Row title="Height" right={settings.heightIn ? feetInches(settings.heightIn) : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('height')} />
+        <Row title="Weight" right={weight ? `${fmt(weight, 1)} lb` : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('weight')} />
+        <Row
+          title="Activity"
+          right={
+            <button type="button" className="row-menu" onClick={(e) => setActivityMenu(e.currentTarget.getBoundingClientRect())}>
+              {settings.activity ? ACTIVITY[settings.activity].label : 'Choose'}
+              <Sym name="chevron.up.chevron.down" size={12} />
+            </button>
+          }
+        />
+      </Section>
+
+      {/* Your goal: the phase, how fast, and where you're headed. */}
+      <Section title="Goal" footer={goalNote}>
+        <Row
+          title="Phase"
+          right={
+            <Seg<Phase>
+              className="is-compact w-60 max-w-full"
+              value={settings.phase}
+              onChange={(p) => void saveSettings({ phase: p, targetRate: weight ? defaultRate(p, weight) : p === 'cut' ? -1 : p === 'bulk' ? 0.5 : 0 })}
+              options={[
+                ['cut', 'Cut'],
+                ['maintain', 'Maintain'],
+                ['bulk', 'Bulk'],
+              ]}
+            />
+          }
+        />
+        <NumSetting label="Weekly Change (lb)" k="targetRate" settings={settings} />
+        <Row title="Goal Weight" right={settings.goalWeight ? `${fmt(settings.goalWeight)} lb` : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
+      </Section>
+
+      {/* Daily targets: recommended from the profile until you set your own. */}
+      <Section title="Daily Targets" footer={targetsNote}>
+        <TargetSetting label="Calories" k="kcalTarget" settings={settings} />
+        <TargetSetting label="Protein (g)" k="proteinTarget" settings={settings} />
+        <TargetSetting label="Fat (g)" k="fatTarget" settings={settings} />
+        <Row title="Carbs (g)" right={fmt(carbs)} />
+        <TargetSetting label="Fiber (g)" k="fiberTarget" settings={settings} />
+        <TargetSetting label="Water (oz)" k="waterTargetOz" settings={settings} />
+        <TargetSetting label="Sleep (hr)" k="sleepTargetMin" settings={settings} scale={60} />
+        {settings.autoTargets === false && rec && <Row accent title="Use Recommended" onClick={() => void saveSettings({ autoTargets: true })} />}
+      </Section>
+
+      {/* The lifting program. */}
+      <Section title="Training" footer="Your lifting program starts on a Monday; bench weights come from your training max.">
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
         <Row title="Days per Week" right={<Seg className="is-compact w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
         <NumSetting label="Bench Training Max (lb)" k="benchMax" settings={settings} />
@@ -191,39 +304,16 @@ export function SettingsScreen() {
         <NumSetting label="Dumbbell Max (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
-      <Section title="Food Targets">
-        <Row title="Phase" right={
-          <Seg<Phase>
-            className="is-compact w-60 max-w-full"
-            value={settings.phase}
-            onChange={(p) => void saveSettings({ phase: p, targetRate: p === 'cut' ? -0.875 : p === 'bulk' ? 0.375 : 0 })}
-            options={[
-              ['cut', 'Cut'],
-              ['maintain', 'Maintain'],
-              ['bulk', 'Bulk'],
-            ]}
-          />
-        } />
-        <NumSetting label="Weekly Change (lb)" k="targetRate" settings={settings} />
-        <NumSetting label="Calories" k="kcalTarget" settings={settings} />
-        <NumSetting label="Protein (g)" k="proteinTarget" settings={settings} />
-        <NumSetting label="Fat (g)" k="fatTarget" settings={settings} />
-        <Row title="Carbs" right={`${fmt(carbs)} g`} />
-        <NumSetting label="Water (oz)" k="waterTargetOz" settings={settings} />
-      </Section>
-
-      <Section title="Food Data">
+      {/* Connections: food search and Apple Health. */}
+      <Section title="Connections" footer="A free USDA key adds generic foods to search. The shortcut copies last night's sleep from Apple Health.">
         <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
-      </Section>
-
-      <CloudBackup />
-
-      <Section title="Sleep">
         <Row title="Apple Health Shortcut" chevron onClick={addSleepShortcut} />
         <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
       </Section>
 
-      <Section title="Testing">
+      <CloudBackup />
+
+      <Section title="Testing" footer="Fills every screen with a sample week. Never backed up; turning it off removes it.">
         <Row
           title="Sample Data"
           right={
@@ -241,14 +331,62 @@ export function SettingsScreen() {
         />
       </Section>
 
-      <Section title="This Phone">
+      <Section title="This Phone" footer={<>Food data: USDA FoodData Central · Open Food Facts (ODbL). Build {__BUILD__}</>}>
         <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />
         <Row accent title="Export Backup" onClick={() => void exportData()} />
         <Row accent title="Restore Backup" onClick={() => fileInput.current?.click()} />
       </Section>
       <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pickImport(e.target.files?.[0])} />
-      <p className="mx-8 mb-2 mt-6 text-center text-[13px] text-white/60">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
-      <p className="mx-8 mb-2 text-center text-[13px] text-white/40">Build {__BUILD__}</p>
+
+      <Menu
+        anchor={activityMenu}
+        onClose={() => setActivityMenu(null)}
+        items={(Object.keys(ACTIVITY) as Activity[]).map((a) => ({
+          label: ACTIVITY[a].label,
+          icon: a === settings.activity ? <Sym name="checkmark" size={15} /> : undefined,
+          onClick: () => void saveSettings({ activity: a }),
+        }))}
+      />
+      <NumberPrompt
+        opened={prompt === 'height'}
+        title="Height"
+        unit="in"
+        initial={settings.heightIn ? String(settings.heightIn) : undefined}
+        min={36}
+        max={96}
+        onCancel={() => setPrompt(null)}
+        onSave={(n) => {
+          void saveSettings({ heightIn: Math.round(n * 2) / 2 });
+          setPrompt(null);
+        }}
+      />
+      <NumberPrompt
+        opened={prompt === 'weight'}
+        title="Today's Weight"
+        unit="lb"
+        initial={weight ? fmt(weight, 1) : undefined}
+        min={60}
+        max={600}
+        onCancel={() => setPrompt(null)}
+        onSave={async (n) => {
+          await saveMetric('weight', Math.round(n * 10) / 10, today(), db);
+          setPrompt(null);
+          toast('Weight saved');
+        }}
+      />
+      <NumberPrompt
+        opened={prompt === 'goal'}
+        title="Goal Weight"
+        unit="lb"
+        initial={settings.goalWeight ? String(settings.goalWeight) : undefined}
+        min={60}
+        max={600}
+        onCancel={() => setPrompt(null)}
+        onSave={(n) => {
+          void saveSettings({ goalWeight: Math.round(n) });
+          setPrompt(null);
+        }}
+      />
 
       <Dialog
         opened={pendingImport !== null}

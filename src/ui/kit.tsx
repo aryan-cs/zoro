@@ -84,10 +84,10 @@ export function NavText(props: { onClick?: () => void; children: ReactNode; stro
 /** A titled inset grouped list (Konsta List). Children are Rows, Cells or Fields. */
 /**
  * A grouped list (or plain block). Like Apple's Settings, groups carry no titles and are set apart
- * by space alone; `title` names the group for VoiceOver. Numbered setup steps (`keep`) still show
+ * by space alone, with an optional gray footnote under the group; `title` names it for VoiceOver. Numbered setup steps (`keep`) still show
  * theirs, since the heading is the instruction.
  */
-export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean; keep?: boolean }) {
+export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean; keep?: boolean; footer?: ReactNode }) {
   const titled = !!props.keep && !!(props.title || props.right);
   return (
     <div
@@ -108,6 +108,7 @@ export function Section(props: { title?: ReactNode; right?: ReactNode; children:
           {props.children}
         </List>
       )}
+      {props.footer && <p className="zoro-section-footer">{props.footer}</p>}
     </div>
   );
 }

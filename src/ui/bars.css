@@ -1652,6 +1652,19 @@ button.water-oz:active {
   opacity: 0.4;
 }
 
+/* A pop-up menu in a list row (Settings › Activity): the choice in gray with up/down chevrons. */
+.row-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 17px;
+  color: #8d8d93;
+  -webkit-tap-highlight-color: transparent;
+}
+.row-menu:active {
+  opacity: 0.4;
+}
+
 /* Today's Water square: the ring fills it, with the ounces in the middle. */
 .sq-ring {
   position: relative;
