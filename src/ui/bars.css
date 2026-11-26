@@ -2730,9 +2730,9 @@ button.water-oz:active {
 .wk-value {
   flex-shrink: 0;
   font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 30px;
+  font-size: 40px;
   font-weight: 700;
-  line-height: 32px;
+  line-height: 40px;
   color: var(--ios-label);
   font-variant-numeric: tabular-nums;
 }
