@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { addDays, carbTarget, formatMinutes, programWeek, roundTo, weightTrend } from '../core/calc';
-import { DELOAD_WEEKS, templateForWeekday, workoutDayPercent } from '../core/program';
+import { addDays, carbTarget, formatMinutes, roundTo, weightTrend } from '../core/calc';
+import { templateForWeekday, workoutDayPercent } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
@@ -11,7 +11,6 @@ import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, S
 import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
-import { SECOND_BY_WEEKDAY } from '../ui/workouts';
 
 export const longDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
@@ -98,9 +97,9 @@ export function TodayScreen() {
   const todaySets = useLiveQuery(() => db.sets.where('date').equals(date).toArray(), [date]) ?? [];
   const workoutPct = useMemo(() => {
     const weekday = new Date(`${date}T12:00`).getDay();
+    // Only the day's main workout counts toward the ring; an optional one joins once you start it.
     const main = templateForWeekday(weekday, settings.daysPerWeek);
-    const second = programWeek(settings.programStart, date, DELOAD_WEEKS).deload ? undefined : SECOND_BY_WEEKDAY[weekday];
-    const planned = [main, second].filter((x): x is TemplateId => !!x);
+    const planned = [main].filter((x): x is TemplateId => !!x);
     return workoutDayPercent(planned, todaySessions, todaySets, settings.daysPerWeek);
   }, [date, settings.daysPerWeek, settings.programStart, todaySessions, todaySets]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];

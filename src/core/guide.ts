@@ -376,8 +376,19 @@ export const GUIDE: Record<string, Guide> = {
     photo: 'plank',
     tips: ['Elbows under your shoulders, body straight from head to heels.', 'Squeeze your glutes and brace your abs so your hips don’t sag or pike up.'],
   },
+  postureMobility: {
+    photo: 'kneeling-hip-flexor',
+    tips: [
+      'Half-kneeling hip-flexor stretch, squeezing the glute of the back leg, 45 seconds a side, twice. Then thoracic extensions over the stability ball, 2 × 10.',
+      'Doorway chest stretch, 30 seconds, twice. Then chin tucks, 2 × 10, pulling your head straight back.',
+      'Dead bugs, 2 × 8 a side, keeping your lower back flat on the floor.',
+    ],
+  },
   inclineWalk: {
     photo: 'walking-treadmill',
-    tips: ['Walk at a pace where you could still hold a conversation.', 'Don’t hold the rails: let your legs do the work.'],
+    tips: [
+      'Easy pace, about 3–3.5 mph at a 6–10% incline: you should be able to hold a conversation.',
+      'Don’t hold the rails: let your legs do the work. It counts toward your 10,000 steps.',
+    ],
   },
 };

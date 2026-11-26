@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXERCISES, TEMPLATES, templateFor } from './program';
+import { EXERCISES, optionalForWeekday, TEMPLATES, templateForWeekday } from './program';
 import { benchState, planBenchVariation, planBenchVolume, planDouble, planWorkout, type HistorySession } from './progression';
 import { DEFAULT_SETTINGS } from './settings';
 import type { PrescribedExercise, SetLog, Settings } from './types';
@@ -143,12 +143,33 @@ describe('bench plan', () => {
   });
 });
 
-describe('4-day split', () => {
-  it('moves arm work onto the upper days', () => {
-    const a = templateFor('upperA', 4).exercises.map((e) => e.exerciseId);
-    const b = templateFor('upperB', 4).exercises.map((e) => e.exerciseId);
-    expect(a).toContain('preacherCurl');
-    expect(b[1]).toBe('closeGripBench');
+describe('the week', () => {
+  it('lifts Mon, Tue, Thu and Fri, with Saturday optional on 4 days and part of the week on 5', () => {
+    const days = [0, 1, 2, 3, 4, 5, 6].map((d) => templateForWeekday(d, 4));
+    expect(days).toEqual([null, 'upperA', 'lowerA', null, 'upperB', 'lowerB', null]);
+    expect(optionalForWeekday(6, 4)).toBe('arms');
+    expect(templateForWeekday(6, 5)).toBe('arms');
+    expect(optionalForWeekday(0, 4)).toBe('pmCardio');
+    expect(optionalForWeekday(3, 4)).toBe('pmCardio');
+  });
+
+  it('benches three days: heavy, volume, then paused or close-grip', () => {
+    expect(TEMPLATES.upperA.exercises[0]).toMatchObject({ exerciseId: 'bench', scheme: 'bench-heavy' });
+    expect(TEMPLATES.upperB.exercises[0]).toMatchObject({ exerciseId: 'bench', scheme: 'bench-volume' });
+    expect(TEMPLATES.lowerB.exercises[0]).toMatchObject({ exerciseId: 'pausedBench', scheme: 'bench-variation' });
+  });
+
+  it('gives an exercise the same rep range on every day it appears', () => {
+    const ranges = new Map<string, string>();
+    for (const t of Object.values(TEMPLATES)) {
+      if (t.secondary) continue;
+      for (const e of t.exercises) {
+        if (e.scheme !== 'double') continue;
+        const r = `${e.repMin}-${e.repMax}`;
+        expect(ranges.get(e.exerciseId) ?? r, e.exerciseId).toBe(r);
+        ranges.set(e.exerciseId, r);
+      }
+    }
   });
 });
 

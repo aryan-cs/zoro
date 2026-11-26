@@ -89,9 +89,12 @@ export function planDouble(
 
   if (def.timed) {
     const best = last ? Math.max(...last.sets.map((s) => s.reps)) : 0;
-    // Holds go up 5 seconds at a time; walks and other long ones a minute at a time.
-    const stepSec = rx.repMin >= 300 ? 60 : TIMED_STEP_SEC;
-    const target = deload ? rx.repMin : best ? Math.min(Math.max(best + stepSec, rx.repMin), rx.repMax * 2) : rx.repMin;
+    // Holds go up 5 seconds at a time (to twice the range); walks and other long ones a minute at
+    // a time, up to the top of their range; a fixed routine (posture) stays as it is.
+    const long = rx.repMin >= 300;
+    const stepSec = long ? 60 : TIMED_STEP_SEC;
+    const cap = long ? rx.repMax : rx.repMax * 2;
+    const target = deload || rx.repMin === rx.repMax ? rx.repMin : best ? Math.min(Math.max(best + stepSec, rx.repMin), cap) : rx.repMin;
     return { sets: make(null, [target], rx.repMax), notes };
   }
 

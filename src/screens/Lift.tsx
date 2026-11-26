@@ -9,10 +9,10 @@ import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard }
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
-import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH, useRunningRest } from '../ui/workouts';
+import { activeSession, optionalForWeekday, startWorkout, TEMPLATE_GLYPH, useRunningRest } from '../ui/workouts';
 
-const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
-const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
+const MAIN: TemplateId[] = ['upperA', 'lowerA', 'upperB', 'lowerB', 'arms'];
+const SECONDARY: TemplateId[] = ['pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const SPAN = 26; // weeks you can swipe back and ahead
@@ -126,7 +126,11 @@ export function LiftScreen() {
   const weekday = new Date(`${sel}T12:00`).getDay();
   const mainId = templateForWeekday(weekday, settings.daysPerWeek);
   const deload = programWeek(settings.programStart, sel, DELOAD_WEEKS).deload;
-  const secondId = !deload ? SECOND_BY_WEEKDAY[weekday] : undefined;
+  // The day's optional workout (Saturday's arm day, the rest days' walk), left out in easy weeks
+  // and, for the arm day, in week 1 while you ease in.
+  const week1 = programWeek(settings.programStart, sel, DELOAD_WEEKS).week === 1;
+  const optional = optionalForWeekday(weekday, settings.daysPerWeek);
+  const secondId = optional && !deload && !(optional === 'arms' && week1) ? optional : undefined;
   // Each workout's exercises (counted on its card; listed on the workout's own screen).
   const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
   const fromTemplate = (id: TemplateId | undefined | null) =>
@@ -172,7 +176,7 @@ export function LiftScreen() {
     if (full) status.set(h.date, 'complete');
     else if (status.get(h.date) !== 'complete') status.set(h.date, 'partial');
   }
-  const allowed = ALL_SESSIONS.filter((id) => settings.daysPerWeek === 5 || id !== 'arms');
+  const allowed = ALL_SESSIONS;
 
   return (
     <Page className="tab-safe">

@@ -82,6 +82,8 @@ export const EXERCISES: Record<string, ExerciseDef> = Object.fromEntries(
     ex('plank', 'Plank', 'bodyweight', 0, ['abs'], { timed: true }),
     // Cardio
     ex('inclineWalk', 'Incline Walk or StairMaster', 'machine', 0, ['cardio'], { timed: true }),
+    // Rest days: about ten minutes for the posture (forward head, rounded upper back, pelvic tilt).
+    ex('postureMobility', 'Posture and Mobility', 'bodyweight', 0, ['posture'], { timed: true }),
   ].map((e) => [e.id, e]),
 );
 
@@ -94,94 +96,111 @@ const p = (
   extra: Partial<PrescribedExercise> = {},
 ): PrescribedExercise => ({ exerciseId, sets, repMin, repMax, restSec, scheme: 'double', ...extra });
 
+/**
+ * The week, planned from the research and checked for time, recovery and balance:
+ * Mon heavy bench + back + arms, Tue legs + abs + forearms, Thu volume bench + back + shoulders,
+ * Fri paused or close-grip bench + legs + arms, Sat an optional arms/shoulders/abs day, and
+ * Sun and Wed rest (steps, an easy walk and posture work). One exercise at a time, about 70
+ * minutes a day. Arms and forearms get the most work (about 20 sets a week each), bench three
+ * days, abs three or four. An exercise that shows up on two days keeps the same rep range, so
+ * its weights carry over.
+ */
 export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   upperA: {
     id: 'upperA',
-    name: 'Chest, Back, and Arms',
-    short: 'Heavy bench and back',
+    name: 'Heavy Bench, Back, and Arms',
+    short: 'Heavy bench, pull-ups, arms',
     exercises: [
-      p('bench', 4, 5, 5, 180, { scheme: 'bench-heavy' }),
-      p('pullup', 4, 6, 10, 150),
-      p('inclineBarbell', 3, 8, 12, 120),
-      p('cableRow', 3, 8, 12, 90),
-      p('cableLateral', 3, 12, 20, 60),
-      p('ohTricepsExt', 3, 10, 15, 60, { superset: 'A' }),
-      p('inclineCurl', 3, 8, 12, 60, { superset: 'A' }),
-      p('reverseCurl', 3, 8, 12, 60),
+      p('bench', 4, 1, 8, 210, { scheme: 'bench-heavy' }),
+      p('pullup', 4, 6, 10, 120),
+      p('inclineBarbell', 3, 8, 12, 150),
+      p('ohTricepsExt', 3, 8, 12, 75),
+      p('inclineCurl', 3, 8, 12, 75),
+      p('reverseCurl', 3, 10, 15, 60),
+      p('cableCrunch', 3, 10, 15, 60),
     ],
   },
   lowerA: {
     id: 'lowerA',
-    name: 'Quads, Hamstrings, and Abs',
-    short: 'Squat, hinge and abs',
+    name: 'Legs, Abs, and Forearms',
+    short: 'Squat, RDL, abs, forearms',
     exercises: [
-      p('squat', 3, 6, 10, 180),
-      p('rdl', 3, 8, 10, 150),
-      p('walkingLunge', 2, 10, 10, 90),
-      p('ballLegCurl', 3, 10, 15, 60),
-      p('calfRaise', 3, 12, 15, 60),
-      p('hangingLegRaise', 3, 10, 15, 60),
-      p('woodchopper', 3, 12, 12, 60),
-    ],
-  },
-  arms: {
-    id: 'arms',
-    name: 'Arms & Shoulders',
-    short: 'Arms, delts, forearms',
-    exercises: [
-      p('closeGripBench', 3, 6, 8, 120),
-      p('preacherCurl', 3, 10, 15, 60, { superset: 'A' }),
-      p('leaningOhExt', 3, 10, 15, 60, { superset: 'A' }),
-      p('bayesianCurl', 3, 10, 15, 60, { superset: 'B' }),
-      p('pushdown', 3, 10, 15, 60, { superset: 'B' }),
-      p('hammerCurl', 3, 8, 12, 60),
-      p('lateralRaise', 3, 15, 20, 60),
-      p('facePull', 3, 15, 20, 60),
-      p('wristCurl', 3, 12, 20, 45, { superset: 'C' }),
-      p('reverseWristCurl', 2, 15, 20, 45, { superset: 'C' }),
+      p('squat', 3, 5, 8, 180),
+      p('rdl', 3, 6, 10, 150),
+      p('calfRaise', 3, 8, 15, 30),
+      p('bayesianCurl', 3, 10, 15, 30),
+      p('facePull', 3, 12, 20, 60),
+      p('woodchopper', 3, 10, 15, 30),
+      p('lateralRaise', 4, 12, 20, 60),
+      p('hangingLegRaise', 3, 8, 15, 60),
+      p('wristCurl', 3, 12, 20, 45),
+      p('reverseWristCurl', 3, 12, 20, 45),
     ],
   },
   upperB: {
     id: 'upperB',
-    name: 'Chest, Shoulders, and Arms',
-    short: 'Bench volume and chest',
+    name: 'Bench, Back, and Shoulders',
+    short: 'Volume bench, rows, delts',
     exercises: [
-      p('pausedBench', 4, 6, 8, 150, { startWeight: 135 }),
-      p('barbellRow', 3, 8, 12, 120),
+      p('bench', 4, 3, 8, 150, { scheme: 'bench-volume' }),
+      p('kneelingPulldown', 3, 8, 12, 60),
       p('dips', 3, 6, 12, 120),
-      p('kneelingPulldown', 3, 10, 12, 60),
-      p('cableFly', 3, 12, 15, 60),
-      p('dbShoulderPress', 3, 8, 10, 90),
-      p('rearDeltFly', 3, 15, 20, 60),
-      p('skullCrusher', 3, 8, 12, 60, { superset: 'A' }),
-      p('ezCurl', 3, 8, 12, 60, { superset: 'A' }),
+      p('cableRow', 3, 8, 12, 120),
+      p('preacherCurl', 3, 8, 12, 75),
+      p('pushdown', 3, 10, 15, 60),
+      p('lateralRaise', 3, 12, 20, 60),
+      p('rearDeltFly', 3, 12, 20, 60),
+      p('woodchopper', 3, 10, 15, 30),
     ],
   },
   lowerB: {
     id: 'lowerB',
-    name: 'Quads, Glutes, and Abs',
-    short: 'Single-leg, glutes and abs',
+    name: 'Bench, Legs, and Arms',
+    short: 'Paused or close-grip bench, legs, arms',
     exercises: [
-      p('bulgarian', 3, 8, 12, 90),
-      p('hipThrust', 3, 8, 12, 120),
-      p('cableLegExt', 3, 12, 15, 60),
-      p('ballLegCurl', 2, 10, 15, 60),
-      p('calfRaise', 3, 12, 15, 60),
-      p('cableCrunch', 3, 10, 15, 60),
-      p('rollout', 3, 8, 12, 60),
-      p('sidePlank', 2, 30, 45, 45),
+      p('pausedBench', 3, 3, 6, 150, { scheme: 'bench-variation' }),
+      p('barbellRow', 3, 8, 12, 120),
+      p('bulgarian', 3, 8, 12, 75),
+      p('ballLegCurl', 3, 8, 15, 60),
+      p('calfRaise', 2, 8, 15, 30),
+      p('cableLegExt', 2, 12, 20, 30),
+      p('cableLateral', 3, 12, 20, 30),
+      p('leaningOhExt', 3, 10, 15, 30),
+      p('hammerCurl', 3, 8, 12, 75),
+      p('reverseWristCurl', 2, 12, 20, 45),
+      p('wristCurl', 2, 12, 20, 45),
     ],
   },
+  arms: {
+    id: 'arms',
+    name: 'Arms, Shoulders, and Abs',
+    short: 'Optional, about 40 minutes',
+    exercises: [
+      p('cableLateral', 3, 12, 20, 30),
+      p('facePull', 3, 12, 20, 60),
+      p('ezCurl', 3, 8, 12, 75),
+      p('wristCurl', 3, 12, 20, 45),
+      p('reverseWristCurl', 2, 12, 20, 45),
+      p('cableCrunch', 3, 10, 15, 60),
+      p('sidePlank', 2, 30, 60, 30),
+      p('deadHang', 2, 30, 60, 60),
+      p('inclineWalk', 1, 900, 1200, 0),
+    ],
+  },
+  pmCardio: {
+    id: 'pmCardio',
+    name: 'Walk and Posture',
+    short: 'Rest day, optional and easy',
+    secondary: true,
+    exercises: [p('inclineWalk', 1, 1200, 1800, 0), p('postureMobility', 1, 600, 600, 0)],
+  },
+  // Earlier versions' second sessions, kept so old workouts still show their names.
   pmForearms: {
     id: 'pmForearms',
     name: 'Forearms & Grip',
     short: '15 min, light',
     secondary: true,
-    exercises: [
-      p('reverseCurl', 2, 12, 15, 45),
-      p('wristCurl', 2, 15, 20, 45),
-      p('deadHang', 2, 30, 60, 60),
-    ],
+    exercises: [p('reverseCurl', 2, 12, 15, 45), p('wristCurl', 2, 15, 20, 45), p('deadHang', 2, 30, 60, 60)],
   },
   pmAbs: {
     id: 'pmAbs',
@@ -195,39 +214,30 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Biceps & Triceps',
     short: '15 min, light',
     secondary: true,
-    exercises: [p('ezCurl', 2, 15, 20, 45, { superset: 'A' }), p('pushdown', 2, 15, 20, 45, { superset: 'A' })],
-  },
-  pmCardio: {
-    id: 'pmCardio',
-    name: 'Incline Walk',
-    short: '20–30 min',
-    secondary: true,
-    exercises: [p('inclineWalk', 1, 1200, 1800, 0)],
+    exercises: [p('ezCurl', 2, 15, 20, 45), p('pushdown', 2, 15, 20, 45)],
   },
 };
 
-/** Which main workout falls on each weekday (0 = Sunday). */
+/**
+ * Which main workout falls on each weekday (0 = Sunday). Saturday's arm day is the optional one:
+ * part of the week with 5 days, offered on top of a rest day with 4.
+ */
 export function templateForWeekday(weekday: number, daysPerWeek: 4 | 5): TemplateId | null {
-  const five: Record<number, TemplateId> = { 1: 'upperA', 2: 'lowerA', 3: 'arms', 5: 'upperB', 6: 'lowerB' };
-  if (daysPerWeek === 4 && weekday === 3) return null;
-  return five[weekday] ?? null;
+  const week: Record<number, TemplateId> = { 1: 'upperA', 2: 'lowerA', 4: 'upperB', 5: 'lowerB' };
+  if (weekday === 6 && daysPerWeek === 5) return 'arms';
+  return week[weekday] ?? null;
 }
 
-/** The 4-day version moves the arms-day work onto the upper days. */
-export function templateFor(id: TemplateId, daysPerWeek: 4 | 5): WorkoutTemplate {
-  const t = TEMPLATES[id];
-  if (daysPerWeek === 5) return t;
-  if (id === 'upperA') {
-    return { ...t, exercises: [...t.exercises, p('preacherCurl', 3, 10, 15, 60), p('pushdown', 3, 10, 15, 60)] };
-  }
-  if (id === 'upperB') {
-    const [first, ...rest] = t.exercises;
-    return {
-      ...t,
-      exercises: [first, p('closeGripBench', 3, 6, 8, 120), ...rest, p('preacherCurl', 3, 10, 15, 60), p('pushdown', 3, 10, 15, 60)],
-    };
-  }
-  return t;
+/** The optional workout offered on a day, if any: the Saturday arm day (with 4 days) or the rest days' walk. */
+export function optionalForWeekday(weekday: number, daysPerWeek: 4 | 5): TemplateId | null {
+  if (weekday === 6) return daysPerWeek === 4 ? 'arms' : null;
+  if (weekday === 0 || weekday === 3) return 'pmCardio';
+  return null;
+}
+
+/** A workout as planned (the same every week; the number of days only moves Saturday). */
+export function templateFor(id: TemplateId, _daysPerWeek: 4 | 5): WorkoutTemplate {
+  return TEMPLATES[id];
 }
 
 /** Sets at a fraction of the current bench max ("Top set", "Back-off"...). */

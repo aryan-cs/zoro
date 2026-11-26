@@ -81,5 +81,5 @@ export const TEMPLATE_GLYPH: Record<TemplateId, SFName> = {
   pmCardio: 'figure.walk',
 };
 
-/** Optional second session by weekday (0 = Sunday). */
-export const SECOND_BY_WEEKDAY: Partial<Record<number, TemplateId>> = { 1: 'pmCardio', 2: 'pmForearms', 3: 'pmAbs', 4: 'pmCardio', 6: 'pmForearms' };
+/** The optional workout offered by weekday (0 = Sunday): see optionalForWeekday. */
+export { optionalForWeekday } from '../core/program';

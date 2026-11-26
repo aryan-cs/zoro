@@ -44,13 +44,13 @@ describe('store', () => {
 
   it('progresses a lift from logged sets', async () => {
     const plan = await buildPlan('upperB', today(), db);
-    const paused = plan.exercises[0];
-    expect(paused.sets[0].weight).toBe(135);
+    const row = () => plan.exercises.find((e) => e.exerciseId === 'cableRow')!;
+    expect(row().sets[0].weight).toBeNull(); // first time: pick a weight
     const sid = await startSession(plan, today(), db);
-    for (let i = 0; i < 4; i++) await logSet({ sessionId: sid, date: today(), exerciseId: 'pausedBench', setIndex: i, weight: 135, reps: 8, targetReps: 6 }, db);
+    for (let i = 0; i < row().sets.length; i++) await logSet({ sessionId: sid, date: today(), exerciseId: 'cableRow', setIndex: i, weight: 100, reps: 12, targetReps: 8 }, db);
     await finishSession(sid, db);
     const next = await buildPlan('upperB', today(), db);
-    expect(next.exercises[0].sets[0].weight).toBe(140);
+    expect(next.exercises.find((e) => e.exerciseId === 'cableRow')!.sets[0].weight).toBe(105);
   });
 
   it('re-logging a set updates it instead of duplicating', async () => {

@@ -235,20 +235,21 @@ describe('exercise names', () => {
   });
 
   it("prefers today's exercises", () => {
-    // Arms day has the single-arm extension, not the overhead cable one.
-    expect(parse('tricep extension 3 by 12 at 40', { candidates: ids('arms') }).exerciseId).toBe('leaningOhExt');
+    // Friday has the single-arm extension, not the overhead cable one.
+    expect(parse('tricep extension 3 by 12 at 40', { candidates: ids('lowerB') }).exerciseId).toBe('leaningOhExt');
     expect(parse('tricep extension 3 by 12 at 40').exerciseId).toBe('ohTricepsExt');
-    // Upper B's bench is the paused one.
-    expect(matchExercise('bench', { exercises: EXERCISES, candidates: ids('upperB') })?.id).toBe('pausedBench');
+    // Friday's bench is the paused one.
+    expect(matchExercise('bench', { exercises: EXERCISES, candidates: ids('lowerB') })?.id).toBe('pausedBench');
   });
 
   it('an ambiguous name picks the first unfinished candidate and lowers confidence', () => {
-    const r = parse('curls 3 by 12 at 30', { candidates: ids('arms') });
+    const arms = ['preacherCurl', 'hammerCurl', 'pushdown'];
+    const r = parse('curls 3 by 12 at 30', { candidates: arms });
     expect(r.exerciseId).toBe('preacherCurl');
     expect(r.groups[0].alternatives).toContain('hammerCurl');
     expect(r.confidence).toBeLessThan(0.85);
     // The exercise you're on wins a tie.
-    expect(parse('curls 3 by 12 at 30', { candidates: ids('arms'), currentExerciseId: 'hammerCurl' }).exerciseId).toBe('hammerCurl');
+    expect(parse('curls 3 by 12 at 30', { candidates: arms, currentExerciseId: 'hammerCurl' }).exerciseId).toBe('hammerCurl');
   });
 
   it('uses the current exercise when none is named', () => {
