@@ -127,6 +127,8 @@ export interface FoodItem {
   favorite?: boolean;
   /** Drinks: amounts are in ml instead of grams. */
   liquid?: boolean;
+  /** The page or PDF its nutrition came from (foods logged from a photo). */
+  url?: string;
 }
 
 /** 'unsorted' holds scanned foods until they're dragged into a meal. */

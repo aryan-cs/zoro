@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Block, ListItem, Page, Preloader } from 'konsta/react';
+import { Block, Dialog, DialogButton, ListItem, Page, Preloader } from 'konsta/react';
+import { createPortal } from 'react-dom';
 import { SearchField } from '../ui/bars';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,6 +12,8 @@ import { Btn, db, Field, FITNESS, FitText, fmt, GlassSheet, Header, IconGroup, M
 import { useNav } from '../ui/nav';
 import { Scanner } from '../ui/Scanner';
 import { MEALS } from './Food';
+import { PhotoLogSheet } from './PhotoLog';
+import { aiKey } from '../ui/aiKey';
 const num = (s: string) => {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
@@ -290,6 +293,10 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   // Two bar buttons (scan, +) keep the title centered; + opens the other ways to add.
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [custom, setCustom] = useState<{ barcode?: string } | null>(null);
+  // Log from Photo: the picker (camera or library, iOS asks), then the sheet that reads it.
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [needKey, setNeedKey] = useState(false);
   // Arrived from a scan that found nothing: go straight to entering it from the label.
   useEffect(() => {
     if (barcode) setCustom({ barcode });
@@ -400,6 +407,12 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         anchor={menu}
         onClose={() => setMenu(null)}
         items={[
+          {
+            label: 'Log from Photo',
+            icon: <Sym name="camera" size={16} />,
+            // Opened right in the tap, as Safari only shows the picker for one.
+            onClick: () => (aiKey() ? photoInput.current?.click() : setNeedKey(true)),
+          },
           { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
           { label: 'New Food', icon: <Sym name="square.and.pencil" size={16} />, onClick: () => setCustom({}) },
         ]}
@@ -416,6 +429,50 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
           nav.pop();
         }}
       />
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) setPhoto(f);
+        }}
+      />
+      <PhotoLogSheet
+        file={photo}
+        date={date}
+        meal={meal}
+        onClose={() => setPhoto(null)}
+        onDone={() => {
+          setPhoto(null);
+          nav.pop();
+        }}
+      />
+      {createPortal(
+        <Dialog
+          opened={needKey}
+          onBackdropClick={() => setNeedKey(false)}
+          title="Add Your Gemini Key"
+          content="Logging from a photo uses your own free Gemini key. Add it in Settings › Photo Logging."
+          buttons={
+            <>
+              <DialogButton onClick={() => setNeedKey(false)}>Cancel</DialogButton>
+              <DialogButton
+                strong
+                onClick={() => {
+                  setNeedKey(false);
+                  nav.push({ name: 'settings' });
+                }}
+              >
+                Settings
+              </DialogButton>
+            </>
+          }
+        />,
+        document.querySelector('.k-app') ?? document.body,
+      )}
       <CustomFoodSheet
         opened={!!custom}
         barcode={custom?.barcode}
