@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Btn, db, dim, fmtLb, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, dim, FITNESS, fmtLb, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -174,14 +174,30 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   return (
     <Page className="tab-safe">
       <Header
-        title={TEMPLATES[session.templateId].name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}
+        title={TEMPLATES[session.templateId].name}
         onBack={nav.pop}
       />
 
-      <Section>
-        <Row title="Sets" right={`${doneSets} of ${totalSets}`} />
-        {plan.deload && <Row title="Easy Week" />}
-      </Section>
+      {/* How far through the workout: sets done of all of them, like Today's nutrition bars. */}
+      <div className="fit-stack">
+        <div className="fit-card">
+          <div className="nut-row">
+            <div className="nut-head">
+              <span>Sets</span>
+              <span className="nut-value" style={{ color: FITNESS.exercise }}>
+                {doneSets}
+                <small>/{totalSets}</small>
+              </span>
+            </div>
+            <Bar value={doneSets} target={totalSets} color={FITNESS.exercise} />
+          </div>
+        </div>
+      </div>
+      {plan.deload && (
+        <Section>
+          <Row title="Easy Week" />
+        </Section>
+      )}
 
       {plan.newBenchMax && (
         <div className="surface mx-4 mt-3 rounded-3xl px-4 py-2.5 text-[15px]">
