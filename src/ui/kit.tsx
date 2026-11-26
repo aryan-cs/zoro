@@ -666,6 +666,8 @@ export function WorkoutCard(props: {
   exercises?: { name: string; detail: string; done?: boolean }[];
   /** A rest counting down in this workout: a ring around play that runs down with it. */
   rest?: { startedAt?: number; endsAt: number } | null;
+  /** A number on the title's line, at the right (Steps: how many walked). */
+  value?: ReactNode;
 }) {
   const style = { '--tint': props.color } as CSSProperties;
   return (
@@ -697,7 +699,14 @@ export function WorkoutCard(props: {
           )
         )}
       </div>
-      <h2 className="wk-title">{props.title}</h2>
+      {props.value !== undefined ? (
+        <div className="wk-title-row">
+          <h2 className="wk-title">{props.title}</h2>
+          <span className="wk-value">{props.value}</span>
+        </div>
+      ) : (
+        <h2 className="wk-title">{props.title}</h2>
+      )}
       {props.sub && <div className="wk-sub">{props.sub}</div>}
       {props.progress !== undefined && <Bar value={props.progress} target={1} color={props.color} className="wk-progress" />}
       {props.tiles && props.tiles.length > 0 && (

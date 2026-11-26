@@ -243,7 +243,7 @@ export function LiftScreen() {
           title="Steps"
           glyph="figure.walk"
           color={STEPS_ORANGE}
-          sub={`${(steps ?? 0).toLocaleString()} of ${settings.stepsTarget.toLocaleString()}`}
+          value={(steps ?? 0).toLocaleString()}
           progress={Math.min(1, (steps ?? 0) / Math.max(1, settings.stepsTarget))}
         />
       </div>

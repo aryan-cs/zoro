@@ -2715,3 +2715,24 @@ button.water-oz:active {
 .step-dur.is-more {
   margin-left: 8px;
 }
+
+/* A card's number on its title line (Steps), right-aligned in SF Rounded like Health's values. */
+.wk-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.wk-title-row .wk-title {
+  margin: 0;
+}
+.wk-value {
+  flex-shrink: 0;
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--ios-label);
+  font-variant-numeric: tabular-nums;
+}
