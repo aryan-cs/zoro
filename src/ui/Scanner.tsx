@@ -24,36 +24,29 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
   const video = useRef<HTMLVideoElement>(null);
 
   // Fill the whole screen with the camera, cropping the edges (like object-fit: cover, which iOS
-  // ignores for a live camera video in this sheet, leaving black bands above and below). Runs
-  // each time the scanner opens: the video only exists while it's open.
+  // ignores for a live camera video in this sheet, leaving black bands above and below). Checked
+  // every frame while the scanner is open: iOS reports the camera's size whenever it gets round
+  // to it (after the permission prompt, after it warms up), so no single event can be relied on.
   useEffect(() => {
     if (!opened) return;
-    const v = video.current;
-    if (!v) return;
+    let raf = 0;
+    let last = '';
     const cover = () => {
-      const box = v.parentElement;
-      if (!box || !v.videoWidth || !v.videoHeight) return;
+      raf = requestAnimationFrame(cover);
+      const v = video.current;
+      const box = v?.parentElement;
+      if (!v || !box || !v.videoWidth || !v.videoHeight) return;
       const { clientWidth: w, clientHeight: h } = box;
       const k = Math.max(w / v.videoWidth, h / v.videoHeight);
-      const vw = v.videoWidth * k;
-      const vh = v.videoHeight * k;
+      const vw = Math.ceil(v.videoWidth * k);
+      const vh = Math.ceil(v.videoHeight * k);
+      const key = `${vw}x${vh}@${w}x${h}`;
+      if (key === last) return;
+      last = key;
       Object.assign(v.style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` });
     };
-    v.addEventListener('loadedmetadata', cover);
-    v.addEventListener('playing', cover);
-    v.addEventListener('resize', cover);
-    window.addEventListener('resize', cover);
-    // iOS can report the camera's size a moment after it starts playing: check again briefly.
-    const poll = window.setInterval(cover, 200);
-    const stopPoll = window.setTimeout(() => window.clearInterval(poll), 3000);
-    return () => {
-      v.removeEventListener('loadedmetadata', cover);
-      v.removeEventListener('playing', cover);
-      v.removeEventListener('resize', cover);
-      window.removeEventListener('resize', cover);
-      window.clearInterval(poll);
-      window.clearTimeout(stopPoll);
-    };
+    raf = requestAnimationFrame(cover);
+    return () => cancelAnimationFrame(raf);
   }, [opened]);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
