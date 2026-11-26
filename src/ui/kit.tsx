@@ -453,8 +453,12 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
   const g = w * 0.22; // arrow half-size
   // On the tip, a deep shade of the ring's own color (pure black read as a hole); on an empty
   // track, the ring color itself so the glyph stays legible.
-  const ink = p > 0 ? mixColor(colors[0], '#000000', 0.62) : colors[0];
-  const inkOpacity = p > 0 ? 1 : 0.7;
+  // Near zero the filled part is just its two round caps on top of each other (a dot), so it fades
+  // out over the last 3% instead of vanishing the moment it reaches 0 (and fades in from 0 the
+  // same way). The glyph's ink follows, from the cap's deep shade to the track's color.
+  const shown = Math.min(1, p / 0.03);
+  const ink = mixColor(colors[0], '#000000', 0.62 * shown);
+  const inkOpacity = 0.7 + 0.3 * shown;
   let glyphEl: ReactNode;
   if (glyph === 'arrow') {
     glyphEl = (
@@ -487,7 +491,7 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
     <g>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={colors[0]} strokeOpacity="0.15" strokeWidth={w} />
       {p > 0 && (
-        <>
+        <g opacity={shown}>
           {lap(0, end, 'a')}
           {/* The start's round cap, only under the goal: once the ring has come all the way round,
               the first lap's end is behind it, and a start-colored disc there would show as a flat-
@@ -519,7 +523,7 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
           {/* The tip on top, in the lap's color at that point, so its trailing half melts into the
               stroke and only the rounded front shows. */}
           <circle cx={lx} cy={ly} r={w / 2} fill={shade(past ? total : end)} />
-        </>
+        </g>
       )}
       {glyphEl}
     </g>
