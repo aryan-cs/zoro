@@ -1,9 +1,8 @@
-import { Children, isValidElement, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { saveSettings } from '../core/db';
 import { useSettings } from './kit';
-import { SF } from './sf';
-import { Sym } from './Sym';
+import { MaskSym } from './Sym';
 
 /**
  * The boxes on a page (History's cards) can be rearranged like Home Screen apps: touch and hold
@@ -102,32 +101,10 @@ function HoldBox({ children, onHold }: { children: ReactNode; onHold: (el: HTMLE
 
 const CLOSE_MS = 240;
 
-/**
- * SF Symbols' eye.slash, drawn the way Apple layers it: the eye with a gap cut out along the
- * slash, then the slash. (Flattened to one path, the slash and eye overlap with no gap.)
- */
-function EyeSlash({ size }: { size: number }) {
-  const eye = SF.eye;
-  const W = 64.38;
-  const H = 49.96;
-  const k = size / (24 * 1.67);
-  const id = useId().replace(/[^\w-]/g, '');
-  const [x1, y1, x2, y2] = [12.5, 3.5, 51.9, 46.5];
-  return (
-    <svg width={W * k} height={H * k} viewBox={`0 0 ${W} ${H}`} fill="currentColor" overflow="visible" aria-hidden>
-      <mask id={`m${id}`}>
-        <rect width={W} height={H} fill="#fff" />
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#000" strokeWidth={12} strokeLinecap="round" />
-      </mask>
-      <path d={eye.d} transform={`translate(0 ${(H - eye.h) / 2})`} mask={`url(#m${id})`} />
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="currentColor" strokeWidth={5.4} strokeLinecap="round" />
-    </svg>
-  );
-}
 
 /**
- * iOS's context menu: the page blurs and dims, the box lifts (a copy of it, drawn over the blur),
- * and the menu opens beside it: under it if there's room, else above, else over its lower edge.
+ * iOS's context menu: the page blurs and dims, the box stays sharp over it (a copy, drawn over the
+ * blur, at its own size), and the menu opens beside it: under it if there's room, else above, else over its lower edge.
  */
 function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void; onPin: () => void; onHide: () => void }) {
   const lift = useRef<HTMLDivElement>(null);
@@ -176,11 +153,15 @@ function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void;
       <div className={`ios-menu ctx-menu ${closing ? 'is-closing' : ''}`} role="menu" style={{ top, left: r.left, transformOrigin: top >= r.bottom ? 'top left' : 'bottom left' }} onClick={(e) => e.stopPropagation()}>
         <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onPin)}>
           <span>{props.pinned ? 'Unpin' : 'Pin to Top'}</span>
-          <Sym name={props.pinned ? 'pin.slash' : 'pin'} size={16} />
+          <span className="ios-menu-icon">
+            <MaskSym name={props.pinned ? 'pin.slash' : 'pin'} size={17} />
+          </span>
         </button>
         <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onHide)}>
           <span>Hide</span>
-          <EyeSlash size={16} />
+          <span className="ios-menu-icon">
+            <MaskSym name="eye.slash" size={17} />
+          </span>
         </button>
       </div>
     </div>,

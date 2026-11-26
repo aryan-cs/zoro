@@ -1478,6 +1478,14 @@ button.water-oz:active {
 .ios-menu-item:active {
   background: rgba(255, 255, 255, 0.12);
 }
+/* Menu icons sit in a fixed column, each centered in it, so different symbols line up. */
+.ios-menu-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+}
 
 /* ---------- Today: a grid of squares ---------- */
 .fit-grid.is-squares > * {
@@ -2160,35 +2168,17 @@ button.water-oz:active {
     opacity: 0;
   }
 }
-/* The box itself, lifted a little over the blur. */
+/* The box itself, sharp over the blur at its own size (scaling it up pushed it past the page's
+ * margins). */
 .ctx-lift {
   position: fixed;
   pointer-events: none;
-  animation: ctx-lift 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 .ctx-lift > * {
   height: 100%;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
-.ctx-lift.is-closing {
-  animation: ctx-drop 0.22s ease-in both;
-}
-@keyframes ctx-lift {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.03);
-  }
-}
-@keyframes ctx-drop {
-  from {
-    transform: scale(1.03);
-  }
-  to {
-    transform: scale(1);
-  }
-}
+
 .ctx-menu {
   min-width: 220px;
 }

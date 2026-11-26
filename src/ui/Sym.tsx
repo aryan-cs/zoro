@@ -1,4 +1,5 @@
 import { SF, type SFName } from './sf';
+import { SF_MASKS, type SFMaskName } from './sfMasks';
 
 /** Outline units per point at a symbol size of 1pt (1.67 units/pt at 24pt). */
 const UNITS_PER_PT = 24 * 1.67;
@@ -25,4 +26,12 @@ export function Sym({ name, size = 17, className, label }: { name: SFName; size?
       <path fillRule={s.e ? 'evenodd' : 'nonzero'} d={s.d} />
     </svg>
   );
+}
+
+/** An SF Symbol with cut-outs, from Apple's own rendering (see sfMasks.ts), at `size` points. */
+export function MaskSym({ name, size = 17 }: { name: SFMaskName; size?: number }) {
+  const m = SF_MASKS[name];
+  const k = size / 24;
+  const mask = `url(${m.src}) center / 100% 100% no-repeat`;
+  return <span aria-hidden className="inline-block shrink-0" style={{ width: m.w * k, height: m.h * k, background: 'currentColor', WebkitMask: mask, mask }} />;
 }

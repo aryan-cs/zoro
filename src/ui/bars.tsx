@@ -155,7 +155,7 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
         {props.items.map((i) => (
           <button key={i.label} type="button" role="menuitem" className="ios-menu-item" onClick={() => close(i.onClick)}>
             <span>{i.label}</span>
-            {i.icon}
+            {i.icon && <span className="ios-menu-icon">{i.icon}</span>}
           </button>
         ))}
       </div>
