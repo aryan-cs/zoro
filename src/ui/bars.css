@@ -1937,15 +1937,14 @@ button.water-oz:active {
 .odo-ghost {
   visibility: hidden;
 }
-/* The drum: faces on a cylinder whose radius makes 36° per digit exactly one line apart
- * (0.5 line ÷ tan 18° ≈ 1.54 lines), pushed back by that radius so the front face sits flat. */
+/* The drum: faces on a cylinder whose radius makes 60° per digit about one line apart
+ * (0.5 line ÷ tan 30° ≈ 0.87 lines), pushed back by that radius so the front face sits flat.
+ * Nothing is clipped: digits turn away into the screen instead of being cut off. */
 .odo-window {
-  --odo-r: calc(1.539 * 1lh);
+  --odo-r: calc(0.866 * 1lh);
   position: absolute;
   inset: 0;
-  /* Seen through a slot one line tall, like a lottery or slot-machine wheel. */
-  overflow: hidden;
-  perspective: calc(6 * 1lh);
+  perspective: calc(4 * 1lh);
 }
 .odo-drum {
   position: absolute;

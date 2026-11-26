@@ -319,6 +319,9 @@ export function useTweened(target: number, ms = 600): number {
  * passes 65, 66 … 79). Counting up rolls upward, counting down rolls downward. An invisible digit
  * in each place sets its width and baseline, so it lines up with the text around it.
  */
+/** Degrees the drum turns per digit: steep enough that a leaving digit visibly tips into the screen. */
+const STEP_DEG = 60;
+
 export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
   const target = Math.round(value);
   const v = useTweened(target, 800);
@@ -346,18 +349,20 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
         return (
           <span key={p} className="odo-col" aria-hidden>
             <span className="odo-ghost">0</span>
-            {/* A drum of the ten digits, 36° apart: the drum turns with the value, so a digit tilts
-                away, foreshortens and darkens as it rolls out of view, like a lottery wheel. */}
+            {/* A drum (like a slot-machine reel or the iOS picker wheel), its axis across the screen:
+                as it turns, the digit in front rolls up and back into the screen, darkening, while
+                the next rises from below and comes forward. */}
             <span className="odo-window">
               <span className="odo-drum">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => {
-                  // Where this digit sits relative to the front, the short way round (−5…5).
+                  // Where this digit sits relative to the front, the short way round (−5…5). Only the
+                  // digit leaving and the one arriving are drawn.
                   const delta = ((((d - pos) % 10) + 15) % 10) - 5;
-                  if (Math.abs(delta) > 2.6) return null;
-                  const angle = -delta * 36;
+                  if (Math.abs(delta) >= 1) return null;
+                  const angle = -delta * STEP_DEG;
                   const light = Math.max(0, Math.cos((angle * Math.PI) / 180));
                   return (
-                    <span key={d} className="odo-face" style={{ transform: `rotateX(${angle}deg) translateZ(var(--odo-r))`, opacity: light ** 4 }}>
+                    <span key={d} className="odo-face" style={{ transform: `rotateX(${angle}deg) translateZ(var(--odo-r))`, opacity: light }}>
                       {d === 0 && blankZero ? '\u00a0' : d}
                     </span>
                   );
