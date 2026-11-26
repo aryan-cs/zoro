@@ -2333,7 +2333,9 @@ button.water-oz:active {
   color: var(--tint);
 }
 
-/* How far through a workout you are, under its title. */
+/* How far through a workout you are, along the card's bottom: the same 14pt from the card's
+ * sides as from its bottom edge (the card pads 20pt, so the bar reaches 6pt past that). */
 .wk-progress {
-  margin-top: 12px;
+  width: auto !important;
+  margin: 16px -6px -6px;
 }
