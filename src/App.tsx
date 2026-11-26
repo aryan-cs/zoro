@@ -289,78 +289,113 @@ const OWN_SWIPE = '.fit-chart, canvas, input, textarea, select, .ios-segmented, 
  */
 function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(HTMLDivElement | null)[]>, current: number, pushed: boolean) {
   const { setTab } = useNav();
-  const st = useRef({ p: current, v: 0, target: current, response: 0.42, raf: 0, last: 0, dragging: false });
+  // p: where the tabs are, in pages (2 = Today). While a slide runs, `run` holds its spring curve.
+  const st = useRef({
+    p: current,
+    target: current,
+    dragging: false,
+    run: null as null | { t0: number; dt: number; ps: number[]; vs: number[]; anims: Animation[] },
+  });
   const live = useRef({ pushed, current });
   live.current = { pushed, current };
-
-  // Width of a page, kept up to date without measuring every frame (which forces a layout).
+  // Width of a page, kept up to date without measuring during a swipe (which forces a layout).
   const width = useRef(window.innerWidth);
-  // What each tab was last given, so a frame only touches what actually changes.
-  const applied = useRef<{ t: string; v: string }[]>([]);
-  const paint = () => {
-    const s = st.current;
+
+  /** Puts every tab at position `p` directly (at rest, or under your finger). */
+  const place = (p: number, moving: boolean) => {
     const W = width.current || 1;
-    const moving = !!s.raf || s.dragging;
-    // While the tabs move, their glass stops blurring what's behind it: re-blurring every frame as
-    // a whole screen slides is what makes paging stutter on iPhone. (Over the dark app it looks the same.)
     root.current?.classList.toggle('is-paging', moving);
     panes.current?.forEach((el, i) => {
       if (!el) return;
-      const off = i - s.p;
+      const off = i - p;
       // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
-      const t = !moving && Math.abs(off) < 1e-4 ? '' : `translate3d(${Math.round(off * W * 2) / 2}px, 0, 0)`;
+      el.style.transform = !moving && Math.abs(off) < 1e-4 ? '' : `translate3d(${off * W}px, 0, 0)`;
       // The tabs either side stay drawn (just off screen) so a swipe has nothing to paint first.
-      const v = Math.abs(off) < 1.999 ? 'visible' : 'hidden';
-      const was = applied.current[i];
-      if (was?.t === t && was?.v === v) return;
-      el.style.transform = t;
-      el.style.visibility = v;
-      applied.current[i] = { t, v };
+      el.style.visibility = Math.abs(off) < 1.999 ? 'visible' : 'hidden';
     });
   };
-  const step = (t: number) => {
-    const s = st.current;
-    const dt = Math.min(1 / 30, s.last ? (t - s.last) / 1000 : 1 / 60);
-    s.last = t;
-    const k = ((2 * Math.PI) / s.response) ** 2;
-    const c = (4 * Math.PI) / s.response; // damping ratio 1: no bounce, as paging settles
-    s.v += (k * (s.target - s.p) - c * s.v) * dt;
-    s.p += s.v * dt;
-    if (Math.abs(s.target - s.p) < 0.0004 && Math.abs(s.v) < 0.02) {
-      s.p = s.target;
-      s.v = 0;
-      s.raf = 0;
-      s.last = 0;
-      paint();
-      return;
-    }
-    s.raf = requestAnimationFrame(step);
-    paint();
+
+  /** Where a running slide is right now (position and speed), from its spring curve. */
+  const now = () => {
+    const r = st.current.run;
+    if (!r) return { p: st.current.p, v: 0 };
+    const k = Math.min(r.ps.length - 1, Math.max(0, Math.floor((performance.now() - r.t0) / 1000 / r.dt)));
+    return { p: r.ps[k], v: r.vs[k] };
   };
+  /** Stops a running slide where it is. */
+  const halt = () => {
+    const r = st.current.run;
+    if (!r) return;
+    const { p } = now();
+    r.anims.forEach((a) => a.cancel());
+    st.current.run = null;
+    st.current.p = p;
+    place(p, true);
+  };
+
+  /**
+   * Slides to `target` on a critically damped spring (no bounce, as paging settles), starting at
+   * `velocity` (pages a second). The curve is worked out up front and handed to the browser's own
+   * animator, which runs at the screen's full rate (iOS holds scripts to 30 fps in Low Power Mode).
+   */
   const animateTo = (target: number, velocity?: number) => {
     const s = st.current;
+    const from = now();
+    const v0 = velocity ?? from.v;
+    halt();
+    const p0 = s.p;
     s.target = target;
-    if (velocity !== undefined) s.v = velocity;
     // About half a second to the next tab; a little longer for each one passed.
-    s.response = 0.42 + 0.11 * Math.max(0, Math.abs(target - s.p) - 1);
-    if (!s.raf) {
-      s.last = 0;
-      s.raf = requestAnimationFrame(step);
+    const response = 0.42 + 0.11 * Math.max(0, Math.abs(target - p0) - 1);
+    const k = ((2 * Math.PI) / response) ** 2;
+    const c = (4 * Math.PI) / response;
+    const dt = 1 / 120;
+    const ps = [p0];
+    const vs = [v0];
+    let p = p0;
+    let v = v0;
+    for (let n = 0; n < 600; n++) {
+      v += (k * (target - p) - c * v) * dt;
+      p += v * dt;
+      ps.push(p);
+      vs.push(v);
+      if (Math.abs(target - p) < 0.0005 && Math.abs(v) < 0.02) break;
     }
-  };
-  const stop = () => {
-    const s = st.current;
-    cancelAnimationFrame(s.raf);
-    s.raf = 0;
-    s.last = 0;
+    ps[ps.length - 1] = target;
+    if (ps.length < 3) {
+      s.p = target;
+      place(target, false);
+      return;
+    }
+    const W = width.current || 1;
+    const lo = Math.min(...ps);
+    const hi = Math.max(...ps);
+    root.current?.classList.add('is-paging');
+    const anims: Animation[] = [];
+    panes.current?.forEach((el, i) => {
+      if (!el) return;
+      // Shown if it passes through the screen at any point in the slide.
+      el.style.visibility = i > lo - 1 && i < hi + 1 ? 'visible' : Math.abs(i - p0) < 1.999 ? 'visible' : 'hidden';
+      // Every tab moves by the same curve, so share keyframes sampled from it.
+      const frames = ps.map((q) => ({ transform: `translate3d(${(i - q) * W}px, 0, 0)` }));
+      anims.push(el.animate(frames, { duration: (ps.length - 1) * dt * 1000, easing: 'linear', fill: 'forwards' }));
+    });
+    const run = { t0: performance.now(), dt, ps, vs, anims };
+    s.run = run;
+    void anims[0]?.finished.then(() => {
+      if (st.current.run !== run) return;
+      st.current.run = null;
+      st.current.p = target;
+      place(target, false);
+      anims.forEach((a) => a.cancel());
+    }, () => {});
   };
 
   useLayoutEffect(() => {
-    paint();
+    place(st.current.p, false);
     const onResize = () => {
       width.current = window.innerWidth;
-      applied.current = [];
-      paint();
+      if (!st.current.run) place(st.current.p, false);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -368,7 +403,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   // A tab picked any way (the tab bar, a swipe, a card that opens another tab): go there.
   useLayoutEffect(() => {
     const s = st.current;
-    if (s.target !== current || Math.abs(s.p - current) > 1e-4) animateTo(current);
+    if (s.target !== current || (!s.run && Math.abs(s.p - current) > 1e-4)) animateTo(current);
   }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -385,7 +420,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       if (e.touches.length !== 1 || live.current.pushed) return;
       if ((e.target as Element).closest(OWN_SWIPE)) return;
       const t = e.touches[0];
-      start = { x: t.clientX, y: t.clientY, t: e.timeStamp, p: st.current.p };
+      start = { x: t.clientX, y: t.clientY, t: e.timeStamp, p: 0 };
       last = { x: t.clientX, t: e.timeStamp };
       v = 0;
       mode = 'undecided';
@@ -401,7 +436,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
         mode = Math.abs(dx) > Math.abs(dy) * 1.15 && e.timeStamp - start.t < 400 ? 'swipe' : 'other';
         if (mode === 'other') return;
         // Catch the tabs where they are (even mid-slide) and take them from there.
-        stop();
+        halt();
         st.current.dragging = true;
         start = { ...start, x: t.clientX, p: st.current.p };
       }
@@ -412,7 +447,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       v = v * 0.4 + inst * 0.6;
       last = { x: t.clientX, t: e.timeStamp };
       st.current.p = rubber(start.p - (t.clientX - start.x) / W);
-      paint();
+      place(st.current.p, true);
     };
     const onEnd = (e: TouchEvent) => {
       if (!start || mode !== 'swipe') {
