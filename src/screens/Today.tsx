@@ -7,8 +7,7 @@ import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { hrMin } from '../core/say';
-import { Bar, db, FITNESS, FitCard, fmt, IconBtn, LogBtn, NumberPrompt, RING_GRADIENT, SingleRing, useHoldInfo, useSettings, useToast } from '../ui/kit';
-import type { SFName } from '../ui/sf';
+import { Bar, db, FITNESS, FitCard, fmt, IconBtn, LogBtn, NumberPrompt, RING_GRADIENT, RingSummary, useHoldInfo, useSettings, useToast } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 
@@ -21,19 +20,8 @@ export function mealNow(): Meal {
   return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
 }
 
-/** One goal as a ring with its value under it (Sleep, Water, Workouts); the name is for VoiceOver. */
-function RingTile(props: { label: string; value: string; progress: number; goal: number; colors: readonly [string, string]; glyph: SFName; color: string; onOpen: () => void; info?: string }) {
-  // Touch and hold explains it; a tap opens it.
-  const hold = useHoldInfo(props.label, props.info);
-  return (
-    <button type="button" className="ring-tile" onClick={props.onOpen} aria-label={`${props.label}: ${props.value}`} {...hold}>
-      <SingleRing value={props.progress} target={props.goal} colors={props.colors} glyph={props.glyph} />
-      <span className="ring-tile-value" style={{ color: props.color }}>
-        {props.value}
-      </span>
-    </button>
-  );
-}
+/** A goal in hours: "8h", or "7h 30m" when it isn't whole. */
+const hours = (min: number) => `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}m` : ''}`;
 
 /** Green when the weight moved the way your phase wants (down on a cut, up on a bulk), red when
  * it moved the other way, gray on maintain. */
@@ -77,7 +65,7 @@ function ChartHead(props: { label: string; value: ReactNode; color: string; righ
 }
 
 /**
- * Today: a welcome page. A greeting, rings for sleep, water and the week's workouts, a bar for
+ * Today: a welcome page. A greeting, combined rings for sleep, water, steps and workouts, a bar for
  * each macro, then weight with its trend. Every block opens its screen.
  */
 export function TodayScreen() {
@@ -90,6 +78,7 @@ export function TodayScreen() {
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
+  const steps = useLiveQuery(() => db.metrics.where('[type+date]').equals(['steps', date]).first(), [date])?.value ?? 0;
   // Today's workouts as one percentage: each planned workout counts the share of its exercises
   // you've started (on exercise 3 of 10 is 30%; finished is 100%), averaged over the day's
   // workouts (one done and one halfway is 75%). Any other workout you start today joins in.
@@ -164,40 +153,58 @@ export function TodayScreen() {
       </header>
 
       <div className="fit-stack">
-        {/* Sleep, water and the week's workouts, each a ring: halfway is half a ring. */}
-        <section className="fit-card is-bare today-rings">
-          <RingTile
-            label="Sleep"
-            info={`How long you slept last night against your ${hrMin(settings.sleepTargetMin)} goal. The ring closes when you reach it. Tap to log or see your sleep.`}
-            value={sleep ? formatMinutes(sleep.minutes) : '—'}
-            progress={sleep?.minutes ?? 0}
-            goal={settings.sleepTargetMin}
-            colors={RING_GRADIENT.sleep}
-            glyph="moon.fill"
-            color={FITNESS.sleep}
-            onOpen={() => nav.push({ name: 'logSleep' })}
-          />
-          <RingTile
-            label="Water"
-            info={`How much you’ve drunk today against your ${fmt(settings.waterTargetOz)} oz goal. The ring closes when you reach it. Tap to add water.`}
-            value={`${fmt(waterOz)} oz`}
-            progress={waterOz}
-            goal={settings.waterTargetOz}
-            colors={RING_GRADIENT.distance}
-            glyph="drop.fill"
-            color={FITNESS.distance}
-            onOpen={() => nav.push({ name: 'screen', tab: 'water' })}
-          />
-          <RingTile
-            label="Workouts"
-            info="How much of today’s planned training you’ve done, counting each exercise you finish. Rest means nothing is planned today. Tap to see your workouts."
-            value={workoutPct === null ? 'Rest' : `${workoutPct}%`}
-            progress={workoutPct ?? 0}
-            goal={100}
-            colors={RING_GRADIENT.exercise}
-            glyph="figure.run"
-            color={FITNESS.exercise}
-            onOpen={() => nav.push({ name: 'screen', tab: 'lift' })}
+        {/* Sleep, water, steps and today's workout as Fitness's combined rings, each labeled beside
+            them; tap a line to open it, touch and hold to see what it counts. */}
+        <section className="fit-card">
+          <RingSummary
+            rows={[
+              {
+                label: 'Sleep',
+                value: sleep?.minutes ?? 0,
+                target: settings.sleepTargetMin,
+                unit: '',
+                display: `${sleep ? formatMinutes(sleep.minutes) : '—'}/${hours(settings.sleepTargetMin)}`,
+                color: FITNESS.sleep,
+                gradient: RING_GRADIENT.sleep,
+                glyph: 'moon.fill',
+                info: `How long you slept last night against your ${hrMin(settings.sleepTargetMin)} goal. The ring closes when you reach it. Tap to log or see your sleep.`,
+                onOpen: () => nav.push({ name: 'logSleep' }),
+              },
+              {
+                label: 'Water',
+                value: waterOz,
+                target: settings.waterTargetOz,
+                unit: 'OZ',
+                color: FITNESS.distance,
+                gradient: RING_GRADIENT.distance,
+                glyph: 'drop.fill',
+                info: `How much you’ve drunk today against your ${fmt(settings.waterTargetOz)} oz goal. The ring closes when you reach it. Tap to add water.`,
+                onOpen: () => nav.push({ name: 'screen', tab: 'water' }),
+              },
+              {
+                label: 'Steps',
+                value: steps,
+                target: settings.stepsTarget,
+                unit: '',
+                color: FITNESS.carbs,
+                gradient: RING_GRADIENT.carbs,
+                glyph: 'figure.walk',
+                info: `Steps today from Apple Health against your ${fmt(settings.stepsTarget)} goal. They come in when the Apple Health automation runs. Tap to set it up.`,
+                onOpen: () => nav.push({ name: 'healthSetup' }),
+              },
+              {
+                label: 'Workouts',
+                value: workoutPct ?? 0,
+                target: 100,
+                unit: '',
+                display: workoutPct === null ? 'Rest' : `${workoutPct}%`,
+                color: FITNESS.exercise,
+                gradient: RING_GRADIENT.exercise,
+                glyph: 'figure.run',
+                info: 'How much of today’s planned training you’ve done, counting each exercise you finish. Rest means nothing is planned today. Tap to see your workouts.',
+                onOpen: () => nav.push({ name: 'screen', tab: 'lift' }),
+              },
+            ]}
           />
         </section>
 

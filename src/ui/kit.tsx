@@ -538,15 +538,25 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
 }
 
 /** "Move" over "41/170CAL": white label, then the value in the ring's color in SF Rounded with a small uppercase unit. */
-function RingValue({ label, value, target, unit, color, big, info }: { label: string; value: number; target: number; unit: string; color: string; big?: boolean; info?: string }) {
+function RingValue({ label, value, target, unit, color, big, info, display, onOpen }: { label: string; value: number; target: number; unit: string; color: string; big?: boolean; info?: string; display?: string; onOpen?: () => void }) {
   const hold = useHoldInfo(label, info);
-  return (
-    <div className={`ring-value ${big ? 'is-big' : ''}`} {...hold}>
+  const body = (
+    <>
       <div className="ring-value-label">{label}</div>
       <div className="ring-value-num" style={{ color }}>
-        {fmt(value)}/{fmt(target)}
-        <small>{unit}</small>
+        {display ?? `${fmt(value)}/${fmt(target)}`}
+        {unit && <small>{unit}</small>}
       </div>
+    </>
+  );
+  // A line that opens its screen is a button (tap opens it; touch and hold still explains it).
+  return onOpen ? (
+    <button type="button" className={`ring-value is-link ${big ? 'is-big' : ''}`} onClick={onOpen} {...hold}>
+      {body}
+    </button>
+  ) : (
+    <div className={`ring-value ${big ? 'is-big' : ''}`} {...hold}>
+      {body}
     </div>
   );
 }
@@ -863,6 +873,10 @@ export interface RingRow {
   glyph: RingGlyph;
   /** What touching and holding its legend line explains. */
   info?: string;
+  /** The legend's value when "value/target" doesn't read well (sleep in hours, a percentage). */
+  display?: string;
+  /** Tapping its legend line opens its screen. */
+  onOpen?: () => void;
 }
 
 /**
@@ -883,7 +897,7 @@ export function RingSummary({ rows }: { rows: RingRow[] }) {
       </svg>
       <div className="ring-legend">
         {rows.map((r) => (
-          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} info={r.info} />
+          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} info={r.info} display={r.display} onOpen={r.onOpen} />
         ))}
       </div>
     </div>

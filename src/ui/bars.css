@@ -498,6 +498,19 @@ button.meal-row:not(:disabled):active {
   width: 140px;
   height: 140px;
 }
+.ring-value.is-link {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.ring-value.is-link:active {
+  opacity: 0.6;
+}
 .ring-value-label {
   font-size: 15px;
   line-height: 18px;
