@@ -178,7 +178,7 @@ export function LiftScreen() {
             return (
               <Row
                 key={e.exerciseId}
-                title={<span className="block truncate">{def.name}</span>}
+                title={<span className="block">{def.name}</span>}
                 right={`${e.sets.length} × ${s.reps}${s.repMax && s.repMax > s.reps ? `–${s.repMax}` : ''}${def.timed ? 's' : ''}${s.weight ? ` @ ${fmtLb(s.weight)}` : ''}`}
               />
             );

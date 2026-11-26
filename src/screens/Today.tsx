@@ -6,7 +6,8 @@ import { DELOAD_BLOCK_WEEKS, templateForWeekday, workoutDayPercent } from '../co
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
+import { hrMin } from '../core/say';
+import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useHoldInfo, useSettings, useToast } from '../ui/kit';
 import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -22,9 +23,11 @@ export function mealNow(): Meal {
 }
 
 /** One goal as a ring with its value under it (Sleep, Water, Workouts); the name is for VoiceOver. */
-function RingTile(props: { label: string; value: string; progress: number; goal: number; colors: readonly [string, string]; glyph: SFName; color: string; onOpen: () => void }) {
+function RingTile(props: { label: string; value: string; progress: number; goal: number; colors: readonly [string, string]; glyph: SFName; color: string; onOpen: () => void; info?: string }) {
+  // Touch and hold explains it; a tap opens it.
+  const hold = useHoldInfo(props.label, props.info);
   return (
-    <button type="button" className="ring-tile" onClick={props.onOpen} aria-label={`${props.label}: ${props.value}`}>
+    <button type="button" className="ring-tile" onClick={props.onOpen} aria-label={`${props.label}: ${props.value}`} {...hold}>
       <SingleRing value={props.progress} target={props.goal} colors={props.colors} glyph={props.glyph} />
       <span className="ring-tile-value" style={{ color: props.color }}>
         {props.value}
@@ -41,9 +44,10 @@ function changeTone(change: number, phase: Phase) {
 }
 
 /** "Protein   120/185 g" over a bar in the macro's color. */
-function NutritionRow(props: { label: string; value: number; target: number; unit: string; color: string }) {
+function NutritionRow(props: { label: string; value: number; target: number; unit: string; color: string; info?: string }) {
+  const hold = useHoldInfo(props.label, props.info);
   return (
-    <div className="nut-row">
+    <div className="nut-row" {...hold}>
       <div className="nut-head">
         <span>{props.label}</span>
         <span className="nut-value" style={{ color: props.color }}>
@@ -165,6 +169,7 @@ export function TodayScreen() {
         <section className="fit-card is-bare today-rings">
           <RingTile
             label="Sleep"
+            info={`How long you slept last night against your ${hrMin(settings.sleepTargetMin)} goal. The ring closes when you reach it. Tap to log or see your sleep.`}
             value={sleep ? formatMinutes(sleep.minutes) : '—'}
             progress={sleep?.minutes ?? 0}
             goal={settings.sleepTargetMin}
@@ -175,6 +180,7 @@ export function TodayScreen() {
           />
           <RingTile
             label="Water"
+            info={`How much you’ve drunk today against your ${fmt(settings.waterTargetOz)} oz goal. The ring closes when you reach it. Tap to add water.`}
             value={`${fmt(waterOz)} oz`}
             progress={waterOz}
             goal={settings.waterTargetOz}
@@ -185,6 +191,7 @@ export function TodayScreen() {
           />
           <RingTile
             label="Workouts"
+            info="How much of today’s planned training you’ve done, counting each exercise you finish. Rest means nothing is planned today. Tap to see your workouts."
             value={workoutPct === null ? 'Rest' : `${workoutPct}%`}
             progress={workoutPct ?? 0}
             goal={100}
@@ -196,10 +203,10 @@ export function TodayScreen() {
         </section>
 
         <FitCard bare title="Nutrition" onOpen={() => nav.push({ name: 'screen', tab: 'food' })}>
-          <NutritionRow label="Calories" value={totals.kcal} target={settings.kcalTarget} unit="kcal" color={FITNESS.move} />
-          <NutritionRow label="Protein" value={totals.protein} target={settings.proteinTarget} unit="g" color={FITNESS.exercise} />
-          <NutritionRow label="Carbs" value={totals.carbs} target={carbs} unit="g" color={FITNESS.carbs} />
-          <NutritionRow label="Fat" value={totals.fat} target={settings.fatTarget} unit="g" color={FITNESS.steps} />
+          <NutritionRow label="Calories" value={totals.kcal} target={settings.kcalTarget} unit="kcal" color={FITNESS.move} info="Calories eaten today against your daily target. Your target is set from your profile and goal in Settings." />
+          <NutritionRow label="Protein" value={totals.protein} target={settings.proteinTarget} unit="g" color={FITNESS.exercise} info="Protein eaten today against your target. Protein is what your muscles are built and repaired from, so lifters aim higher than most people." />
+          <NutritionRow label="Carbs" value={totals.carbs} target={carbs} unit="g" color={FITNESS.carbs} info="Carbs eaten today against your target. Carbs are your main fuel for training; the target is whatever calories are left after protein and fat." />
+          <NutritionRow label="Fat" value={totals.fat} target={settings.fatTarget} unit="g" color={FITNESS.steps} info="Fat eaten today against your target. You need a steady amount for your hormones and to absorb some vitamins." />
         </FitCard>
 
         <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>

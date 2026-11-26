@@ -127,6 +127,8 @@ export function Row(props: {
   chevron?: boolean;
   danger?: boolean;
   accent?: boolean;
+  /** Touch-and-hold handlers (useHoldInfo) for the whole row. */
+  hold?: object;
 }) {
   // Action rows use native list buttons.
   if ((props.accent || props.danger) && props.onClick && !props.chevron && !props.sub) {
@@ -147,6 +149,7 @@ export function Row(props: {
       innerClassName={props.sub ? 'zoro-row-inner min-w-0 !py-2' : 'zoro-row-inner min-w-0 !py-0'}
       titleWrapClassName={`zoro-row-title min-w-0 ${props.sub ? '!min-h-0' : '!min-h-[52px]'}`}
       strongTitle={false}
+      {...props.hold}
     />
   );
 }
@@ -689,6 +692,33 @@ export function FitStat(props: { label?: string; value: ReactNode | null; unit?:
       {props.sub && <div className="fit-stat-sub">{props.sub}</div>}
     </div>
   );
+}
+
+/**
+ * Keeps a row of stat values whole: if any would be cut off (a long number with its unit), the
+ * whole row steps down a size together, so the values stay the same size as each other and none
+ * ends in "…". Watches the row's width, so it holds on any screen.
+ */
+export function useFitRow(ref: React.RefObject<HTMLElement | null>, key: unknown, min = 14) {
+  useLayoutEffect(() => {
+    const row = ref.current;
+    if (!row) return;
+    const fit = () => {
+      const values = [...row.querySelectorAll<HTMLElement>('.fit-stat-value')];
+      values.forEach((v) => (v.style.fontSize = ''));
+      if (!values.length) return;
+      let size = parseFloat(getComputedStyle(values[0]).fontSize);
+      const overflowing = () => values.some((v) => v.scrollWidth > v.clientWidth + 0.5);
+      while (overflowing() && size > min) {
+        size -= 1;
+        values.forEach((v) => (v.style.fontSize = `${size}px`));
+      }
+    };
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(row);
+    return () => watch.disconnect();
+  }, [ref, key, min]);
 }
 
 /** Text that steps its font size down (to `min`) when it would otherwise overflow its box. */
