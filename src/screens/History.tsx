@@ -52,7 +52,7 @@ const LIFT_KEY = 'zoro.history.lift';
 
 function Lifts() {
   const nav = useNav();
-  const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
+  const history = useLiveQuery(() => loadHistory(db, 365, true), []) ?? [];
   const best = useMemo(() => {
     const out: Record<string, { date: string; e1rm: number; weight: number; reps: number }[]> = {};
     for (const h of [...history].reverse()) {
@@ -95,7 +95,7 @@ function Lifts() {
 
   const settings = useSettings();
   // The max your bench weights come from (it steps up as you finish 12-step blocks).
-  const trainingMax = benchProgress(settings, history).newMax ?? settings.benchMax;
+  const trainingMax = benchProgress(settings, history.filter((h) => !h.sample)).newMax ?? settings.benchMax;
   return (
     <>
       <div className="fit-stack">

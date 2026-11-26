@@ -23,3 +23,15 @@ describe('sample data', () => {
     expect(await db.metrics.count()).toBe(0);
   });
 });
+
+describe('sample data stays out of real use', () => {
+  it('is left out of backups and of workout planning', async () => {
+    const { exportAll, loadHistory } = await import('./store');
+    await addSampleWeek(db);
+    const backup = await exportAll(db);
+    for (const rows of Object.values(backup.tables)) expect((rows as { sample?: boolean }[]).some((r) => r.sample)).toBe(false);
+    expect(backup.tables.sets.length).toBe(0);
+    expect((await loadHistory(db)).length).toBe(0);
+    expect((await loadHistory(db, 400, true)).length).toBeGreaterThan(25);
+  });
+});

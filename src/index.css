@@ -19,6 +19,20 @@ body,
 #root {
   height: 100%;
 }
+/* Like a native app, touch and hold doesn't select text or pop a callout (it would also cancel a
+ * card's press animation); text fields still select. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
 body {
   /* The document never scrolls; each page scrolls inside itself, so screens that fit don't move. */
   position: fixed;
@@ -500,4 +514,9 @@ select {
 }
 .k-toast > div > div {
   padding: 12px 20px !important;
+}
+
+/* Switches are green when on, as in iOS Settings. */
+.k-toggle .bg-primary {
+  background-color: #34c759 !important;
 }

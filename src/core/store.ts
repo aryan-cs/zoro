@@ -24,9 +24,13 @@ export const today = (): ISODate => toISODate(new Date());
 // ---------- Workouts ----------
 
 /** All past sessions with their sets, newest first. */
-export async function loadHistory(db: ZoroDB = getDB(), sinceDays = 400): Promise<HistorySession[]> {
+/**
+ * Workouts since `sinceDays` ago, newest first. Sample workouts are left out unless `withSample`
+ * (History shows them; planning never sees them, so sample data can't change your real targets).
+ */
+export async function loadHistory(db: ZoroDB = getDB(), sinceDays = 400, withSample = false): Promise<HistorySession[]> {
   const since = addDays(today(), -sinceDays);
-  const sessions = await db.sessions.where('date').aboveOrEqual(since).toArray();
+  const sessions = (await db.sessions.where('date').aboveOrEqual(since).toArray()).filter((s) => withSample || !s.sample);
   const sets = await db.sets.where('date').aboveOrEqual(since).toArray();
   const bySession = new Map<number, SetLog[]>();
   for (const s of sets) {
@@ -42,6 +46,7 @@ export async function loadHistory(db: ZoroDB = getDB(), sinceDays = 400): Promis
       templateId: s.templateId,
       deload: s.deload,
       benchStep: s.benchStep,
+      sample: s.sample,
       sets: bySession.get(s.id!) ?? [],
     }))
     .sort((a, b) => b.date.localeCompare(a.date) || b.sessionId - a.sessionId);
@@ -261,8 +266,13 @@ export interface Backup {
 }
 
 export async function exportAll(db: ZoroDB = getDB()): Promise<Backup> {
+  // Backups (file and GitHub) hold only real data: sample rows, and sets of sample workouts, stay out.
+  const sampleSessions = new Set((await db.sessions.filter((x) => !!x.sample).primaryKeys()) as number[]);
   const tables: Record<string, unknown[]> = {};
-  for (const name of TABLES) tables[name] = await db.table(name).toArray();
+  for (const name of TABLES) {
+    const rows = (await db.table(name).toArray()) as { sample?: boolean; sessionId?: number }[];
+    tables[name] = rows.filter((r) => !r.sample && !(name === 'sets' && r.sessionId !== undefined && sampleSessions.has(r.sessionId)));
+  }
   return { app: 'zoro', version: 1, exportedAt: new Date().toISOString(), tables };
 }
 

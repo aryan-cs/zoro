@@ -208,6 +208,8 @@ export interface Settings {
   waterPresets?: number[];
   /** First name for Today's greeting. */
   name?: string;
+  /** Fill every screen with sample data (Settings › Testing). On unless turned off. */
+  sampleData?: boolean;
   dumbbellMax: number;
   barWeight: number;
   plates: number[];

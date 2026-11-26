@@ -19,6 +19,8 @@ export interface HistorySession {
   templateId: TemplateId;
   deload?: boolean;
   benchStep?: number;
+  /** A Settings › Sample Data workout (History shows it; planning never loads it). */
+  sample?: boolean;
   sets: SetLog[];
 }
 

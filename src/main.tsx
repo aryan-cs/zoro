@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { requestPersistence } from './core/db';
+import { getSettings, requestPersistence } from './core/db';
 import { ensureSampleData } from './core/store';
 import './index.css';
 import { startSync } from './ui/sync';
@@ -11,11 +11,13 @@ document.documentElement.classList.add('dark');
 
 void requestPersistence();
 
-// Local previews (localhost, the Simulator) load sample data in every screen, and never sync,
-// so sample data can't reach the GitHub backup. The deployed app is untouched.
+// Sample data fills every screen unless it's switched off in Settings › Testing (local previews
+// always have it). Backups never include it, and local previews don't sync at all.
 const localPreview = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.hostname.endsWith('.local');
-if (localPreview) void ensureSampleData();
-else startSync();
+void getSettings().then((s) => {
+  if (localPreview || s.sampleData !== false) void ensureSampleData();
+});
+if (!localPreview) startSync();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

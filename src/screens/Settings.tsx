@@ -1,4 +1,4 @@
-import { Dialog, DialogButton, Page } from 'konsta/react';
+import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
@@ -225,20 +225,19 @@ export function SettingsScreen() {
 
       <Section title="Testing">
         <Row
-          accent
-          title="Add Sample Week"
-          onClick={async () => {
-            await addSampleWeek();
-            toast('Added a sample week');
-          }}
-        />
-        <Row
-          danger
-          title="Remove Sample Data"
-          onClick={async () => {
-            await removeSampleData();
-            toast('Sample data removed');
-          }}
+          title="Sample Data"
+          right={
+            <Toggle
+              checked={settings.sampleData !== false}
+              onChange={async () => {
+                const on = settings.sampleData === false;
+                await saveSettings({ sampleData: on });
+                if (on) await addSampleWeek();
+                else await removeSampleData();
+                toast(on ? 'Sample data added' : 'Sample data removed');
+              }}
+            />
+          }
         />
       </Section>
 
