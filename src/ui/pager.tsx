@@ -1,14 +1,19 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { pageSlide } from './nav';
 
 /**
  * Pages side by side that slide sideways when you pick another one, like scrolling through
  * screens in iOS: picking Sleep from Body slides Body off, past Food, onto Sleep. Every page stays
  * mounted (so the ones in between show as they pass); at rest the others fold away so the page
- * scrolls only as far as the one you're on. Uses UIKit's push timing.
+ * scrolls only as far as the one you're on. Timing from pageSlide: longer trips take a bit longer.
  */
 export function Pager({ index, pages }: { index: number; pages: ReactNode[] }) {
   const [moving, setMoving] = useState(false);
   const last = useRef(index);
+  // The timing has to be on the track in the same render as the move (a transition already
+  // running ignores later changes): work it out from the distance as the index changes.
+  const slide = useRef(pageSlide(1));
+  if (last.current !== index) slide.current = pageSlide(index - last.current);
   useLayoutEffect(() => {
     if (last.current === index) return;
     last.current = index;
@@ -18,7 +23,7 @@ export function Pager({ index, pages }: { index: number; pages: ReactNode[] }) {
     <div className="pager">
       <div
         className="pager-track"
-        style={{ transform: `translateX(${-index * 100}%)` }}
+        style={{ transform: `translateX(${-index * 100}%)`, transition: `transform ${slide.current.ms}ms ${slide.current.ease}` }}
         onTransitionEnd={(e) => {
           if (e.target === e.currentTarget) setMoving(false);
         }}
@@ -60,7 +65,8 @@ export function useSlideSwap(ref: RefObject<HTMLElement | null>, key: unknown) {
     const el = ref.current;
     if (!p || !el?.parentElement) return;
     pending.current = null;
-    const timing = { duration: 420, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' };
+    const { ms, ease } = pageSlide(1);
+    const timing = { duration: ms, easing: ease };
     el.parentElement.appendChild(p.copy);
     p.copy.style.top = `${el.offsetTop}px`;
     p.copy.animate([{ transform: 'none' }, { transform: `translateX(${-p.dir * 100}%)` }], { ...timing, fill: 'forwards' }).finished.finally(() => p.copy.remove());

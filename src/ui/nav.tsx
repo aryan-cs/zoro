@@ -27,6 +27,16 @@ export interface Entry {
  * 500 ms, and finishes the pop from 30% across. Mirrored as --push-ms / --push-ease in index.css.
  */
 export const SLIDE_MS = 420;
+
+/**
+ * Sliding sideways between pages (tabs, History's sections): about half a second to the next
+ * page, a little longer for each one passed, easing in and out so a long trip glides past the
+ * pages between instead of flicking across them.
+ */
+export function pageSlide(distance: number): { ms: number; ease: string } {
+  const d = Math.max(1, Math.abs(distance));
+  return { ms: Math.round(500 + 140 * (d - 1)), ease: d > 1 ? 'cubic-bezier(0.42, 0, 0.2, 1)' : 'cubic-bezier(0.25, 0.8, 0.25, 1)' };
+}
 export const PUSH_EASE = 'linear(0, 0.079, 0.237, 0.404, 0.553, 0.673, 0.765, 0.834, 0.884, 0.92, 0.945, 0.963, 0.975, 0.983, 0.989, 0.992, 0.995, 0.997, 0.998, 0.999, 1)';
 export const RELEASE_MS = 500;
 export const RELEASE_EASE = 'linear(0, 0.104, 0.309, 0.517, 0.688, 0.814, 0.899, 0.951, 0.981, 0.997, 1.004, 1.006, 1.006, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1)';
@@ -76,9 +86,12 @@ export function NavProvider({ children }: { children: ReactNode }) {
         // not while you can still see it go (unless you've come straight back).
         tabRef.current = t;
         setTabState(t);
-        setTimeout(() => {
-          if (tabRef.current !== from) setStacks((s) => ({ ...s, [from]: s[from].filter((e) => e.route.name === 'workout' && !e.leaving) }));
-        }, SLIDE_MS + 60);
+        setTimeout(
+          () => {
+            if (tabRef.current !== from) setStacks((s) => ({ ...s, [from]: s[from].filter((e) => e.route.name === 'workout' && !e.leaving) }));
+          },
+          pageSlide(4).ms + 60,
+        );
       },
       push: (r) => {
         const t = tabRef.current;

@@ -2226,7 +2226,6 @@ button.water-oz:active {
 .pager-track {
   display: flex;
   align-items: flex-start;
-  transition: transform var(--push-ms) var(--push-ease);
 }
 .pager-page {
   flex: 0 0 100%;
