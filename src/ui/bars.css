@@ -1516,6 +1516,13 @@ button.water-oz:active {
 .ios-menu-item:active {
   background: rgba(255, 255, 255, 0.12);
 }
+/* What a context menu is for, in small gray text over its items. */
+.ios-menu-title {
+  padding: 8px 14px 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(235, 235, 245, 0.6);
+}
 /* A gap between groups of items, as iOS menus have (a band of the darker glass behind). */
 .ios-menu-sep {
   height: 8px;

@@ -123,7 +123,13 @@ export function NavButtonGroup({ items }: { items: { label: string; icon: ReactN
  * iOS 26 pull-down menu: a glass panel that grows out of the button that opened it, with
  * white 17pt items and their symbols on the right. Tapping outside closes it.
  */
-export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => void; items: { label: string; icon?: ReactNode; onClick: () => void; /** Starts a new group (a gap above it). */ group?: boolean }[] }) {
+export function PullDownMenu(props: {
+  anchor: DOMRect | null;
+  onClose: () => void;
+  /** A small gray line at the top saying what the menu is for, as iOS context menus have. */
+  title?: string;
+  items: { label: string; icon?: ReactNode; onClick: () => void; /** Starts a new group (a gap above it). */ group?: boolean }[];
+}) {
   // Closing plays the open animation in reverse (back into the button), then tells the parent.
   const [closing, setClosing] = useState(false);
   if (!props.anchor) return null;
@@ -144,14 +150,20 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
       <div
         className={`ios-menu ${closing ? 'is-closing' : ''}`}
         role="menu"
-        // Opens down from its button, on the button's side of the screen (as iOS does).
-        style={
-          a.left + a.width / 2 < window.innerWidth / 2
-            ? { top: a.bottom + 8, left: Math.max(16, a.left), transformOrigin: 'top left' }
-            : { top: a.bottom + 8, right: Math.max(16, window.innerWidth - a.right) }
-        }
+        // Opens down from its button, on the button's side of the screen (as iOS does), or up from
+        // it when there isn't room below (above the tab bar).
+        style={(() => {
+          const h = props.items.length * 44 + 12 + props.items.filter((i) => i.group).length * 16 + (props.title ? 32 : 0);
+          const up = a.bottom + 8 + h > window.innerHeight - 96 && a.top - 8 - h > 56;
+          const y = up ? { top: a.top - 8 - h } : { top: a.bottom + 8 };
+          const left = a.left + a.width / 2 < window.innerWidth / 2;
+          return left
+            ? { ...y, left: Math.max(16, a.left), transformOrigin: up ? 'bottom left' : 'top left' }
+            : { ...y, right: Math.max(16, window.innerWidth - a.right), transformOrigin: up ? 'bottom right' : 'top right' };
+        })()}
         onClick={(e) => e.stopPropagation()}
       >
+        {props.title && <div className="ios-menu-title">{props.title}</div>}
         {props.items.map((i) => (
           <Fragment key={i.label}>
             {i.group && <div className="ios-menu-sep" role="separator" />}

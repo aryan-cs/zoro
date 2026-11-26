@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, programWeek } from '../core/calc';
-import { DELOAD_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
-import { addExtraExercise, loadHistory, stepsOn, today } from '../core/store';
+import { DELOAD_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday, workoutFor } from '../core/program';
+import { addExtraExercise, loadHistory, stepsOn, swapWorkout, today } from '../core/store';
 import type { TemplateId } from '../core/types';
 import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
 import { ActivitySheet, STEPS_ORANGE } from '../ui/ActivitySheet';
@@ -27,7 +27,7 @@ const SPAN = 26; // weeks you can swipe back and ahead
 /** A day's workout: done in full, started but left partway, or (once it's past) missed. */
 type DayStatus = 'complete' | 'partial';
 
-function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => void; daysPerWeek: 4 | 5; status: Map<string, DayStatus>; programStart: string }) {
+function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => void; daysPerWeek: 4 | 5; swaps?: Record<string, TemplateId | 'rest'>; status: Map<string, DayStatus>; programStart: string }) {
   const ref = useRef<HTMLDivElement>(null);
   // Weeks run Sunday to Saturday, like Calendar.
   const thisSunday = addDays(props.date, -new Date(`${props.date}T12:00`).getDay());
@@ -77,7 +77,7 @@ function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => 
           {Array.from({ length: 7 }, (_, i) => {
             const d = addDays(sunday, i);
             const wd = i;
-            const t = templateForWeekday(wd, props.daysPerWeek);
+            const t = workoutFor(d, { daysPerWeek: props.daysPerWeek, workoutSwaps: props.swaps });
             const st = props.status.get(d);
             // Planned and past with nothing logged: missed (from the program's start on).
             const missed = !!t && !st && d < props.date && d >= props.programStart;
@@ -126,13 +126,16 @@ export function LiftScreen() {
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const isToday = sel === date;
   const weekday = new Date(`${sel}T12:00`).getDay();
-  const mainId = templateForWeekday(weekday, settings.daysPerWeek);
+  // The day's workout: the program's, or what you swapped it for (hold its card).
+  const mainId = workoutFor(sel, settings);
+  const ownId = templateForWeekday(weekday, settings.daysPerWeek);
+  const [swapMenu, setSwapMenu] = useState<DOMRect | null>(null);
   const deload = programWeek(settings.programStart, sel, DELOAD_WEEKS).deload;
   // The day's optional workout (Saturday's arm day, the rest days' walk), left out in easy weeks
   // and, for the arm day, in week 1 while you ease in.
   const week1 = programWeek(settings.programStart, sel, DELOAD_WEEKS).week === 1;
   const optional = optionalForWeekday(weekday, settings.daysPerWeek);
-  const secondId = optional && !deload && !(optional === 'arms' && week1) ? optional : undefined;
+  const secondId = optional && optional !== mainId && !deload && !(optional === 'arms' && week1) ? optional : undefined;
   // Each workout's exercises (counted on its card; listed on the workout's own screen).
   const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
   const fromTemplate = (id: TemplateId | undefined | null) =>
@@ -148,6 +151,8 @@ export function LiftScreen() {
     return total ? Math.min(1, logged.size / total) : 0;
   };
   const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
+  // A workout you've started (or done) that day stays: swapping it would hide what you logged.
+  const canSwap = !!mainId && !doneOn(mainId) && dayProgress(mainId) === 0 && !(isToday && open?.templateId === mainId);
   // Tapping a workout's card: a finished one opens what you did (any day); otherwise, today, it
   // does what play does.
   const openCard = (id: TemplateId) => {
@@ -202,7 +207,7 @@ export function LiftScreen() {
           </IconBtn>
         }
       />
-      <WeekStrip date={date} sel={sel} onSelect={pick} daysPerWeek={settings.daysPerWeek} status={status} programStart={settings.programStart} />
+      <WeekStrip date={date} sel={sel} onSelect={pick} daysPerWeek={settings.daysPerWeek} swaps={settings.workoutSwaps} status={status} programStart={settings.programStart} />
 
       {/* The day's workouts and exercises slide in from the side of the day you picked. */}
       <div className="slide-clip">
@@ -230,9 +235,17 @@ export function LiftScreen() {
             onOpen={openCard(mainId)}
             rest={restFor(mainId)}
             progress={dayProgress(mainId)}
+            sub={ownId !== mainId ? `Instead of ${ownId ? TEMPLATES[ownId].name : 'a rest day'}` : undefined}
+            onHold={canSwap ? (el) => setSwapMenu(el.getBoundingClientRect()) : undefined}
           />
         ) : (
-          <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
+          <WorkoutCard
+            title="Rest Day"
+            glyph="bed.double.fill"
+            color={FITNESS.sleep}
+            sub={ownId ? `Instead of ${TEMPLATES[ownId].name}` : undefined}
+            onHold={(el) => setSwapMenu(el.getBoundingClientRect())}
+          />
         )}
         {secondId && (
           <WorkoutCard
@@ -278,6 +291,20 @@ export function LiftScreen() {
         items={[
           ...allowed.map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void start(id) })),
           { label: 'Add Exercise', icon: <Sym name="plus" size={15} />, onClick: () => setPicking(true), group: true },
+        ]}
+      />
+      {/* Hold the day's workout: do another one that day instead (or rest). */}
+      <Menu
+        anchor={swapMenu}
+        onClose={() => setSwapMenu(null)}
+        title={`Swap ${isToday ? 'Today’s' : `${new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}’s`} Workout`}
+        items={[
+          ...ALL_SESSIONS.map((id) => ({
+            label: TEMPLATES[id].name,
+            icon: <Sym name={id === mainId ? 'checkmark' : TEMPLATE_GLYPH[id]} size={15} />,
+            onClick: () => void swapWorkout(sel, id),
+          })),
+          { label: 'Rest Day', icon: <Sym name={mainId ? 'bed.double.fill' : 'checkmark'} size={15} />, onClick: () => void swapWorkout(sel, 'rest'), group: true },
         ]}
       />
       <ExercisePicker

@@ -438,6 +438,13 @@ select {
     translate var(--spring-smooth),
     transform var(--spring-smooth);
 }
+/* A closed full-height sheet waits just below the screen, as iOS's does. Konsta parks it a screen
+ * and a half down (its centering shift plus its own height), so most of a close happened off
+ * screen: it was gone in a fifth of a second, which read as no animation at all. Through
+ * Tailwind's variable, since the minifier drops a plain translate override. */
+.k-popup.translate-y-full {
+  --tw-translate-y: 50% !important;
+}
 :has(+ .k-sheet),
 :has(+ .k-popup),
 :has(+ .k-actions) {

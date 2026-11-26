@@ -710,8 +710,8 @@ export function WorkoutCard(props: {
   rest?: { startedAt?: number; endsAt: number } | null;
   /** A number on the title's line, at the right (Steps: how many walked). */
   value?: ReactNode;
-  /** Touch and hold the card (Steps: add a walk, run or stairs). */
-  onHold?: () => void;
+  /** Touch and hold the card (Steps: add a walk, run or stairs; a workout: swap it). */
+  onHold?: (el: HTMLElement) => void;
   holdLabel?: string;
 }) {
   const style = { '--tint': props.color } as CSSProperties;
@@ -794,7 +794,7 @@ export function WorkoutCard(props: {
  * where there are any). The click that ends a hold doesn't count as a tap. Nothing when `onHold`
  * isn't given.
  */
-export function useHold(onHold?: () => void) {
+export function useHold(onHold?: (el: HTMLElement) => void) {
   const timer = useRef(0);
   const from = useRef<[number, number] | null>(null);
   const fired = useRef(false);
@@ -808,12 +808,13 @@ export function useHold(onHold?: () => void) {
       if ((e.target as Element).closest('button, a, input, select, textarea')) return;
       fired.current = false;
       from.current = [e.clientX, e.clientY];
+      const el = e.currentTarget as HTMLElement;
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
         fired.current = true;
         from.current = null;
         navigator.vibrate?.(10);
-        onHold();
+        onHold(el);
       }, 500);
     },
     onPointerMove: (e: React.PointerEvent) => {

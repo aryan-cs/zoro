@@ -261,6 +261,8 @@ export interface Settings {
   benchGoal?: number;
   /** Goals for the other tracked lifts (History), by exercise id; none until you set one. */
   liftGoals?: Record<string, number>;
+  /** Days whose workout you swapped for another (hold its card on Lift): the workout, or 'rest'. */
+  workoutSwaps?: Record<ISODate, TemplateId | 'rest'>;
   /** Daily fiber target (History › Food); none until you set one. */
   fiberTarget?: number;
   /** Profile (Settings › first group), used to recommend the targets. */

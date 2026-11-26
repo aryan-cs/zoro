@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, roundTo, weightTrend } from '../core/calc';
-import { templateForWeekday, workoutDayPercent } from '../core/program';
+import { workoutDayPercent, workoutFor } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, stepsOn, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
@@ -86,12 +86,12 @@ export function TodayScreen() {
   const todaySessions = useLiveQuery(() => db.sessions.where('date').equals(date).toArray(), [date]) ?? [];
   const todaySets = useLiveQuery(() => db.sets.where('date').equals(date).toArray(), [date]) ?? [];
   const workoutPct = useMemo(() => {
-    const weekday = new Date(`${date}T12:00`).getDay();
-    // Only the day's main workout counts toward the ring; an optional one joins once you start it.
-    const main = templateForWeekday(weekday, settings.daysPerWeek);
+    // Only the day's main workout (as swapped, if it was) counts toward the ring; an optional one
+    // joins once you start it.
+    const main = workoutFor(date, settings);
     const planned = [main].filter((x): x is TemplateId => !!x);
     return workoutDayPercent(planned, todaySessions, todaySets, settings.daysPerWeek);
-  }, [date, settings.daysPerWeek, settings.programStart, todaySessions, todaySets]);
+  }, [date, settings, todaySessions, todaySets]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
   const [weighing, setWeighing] = useState(false);
 

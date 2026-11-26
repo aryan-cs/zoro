@@ -1,8 +1,8 @@
 import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
-import { getDB, getSettings, TABLES, type ZoroDB } from './db';
+import { getDB, getSettings, saveSettings, TABLES, type ZoroDB } from './db';
 import { parseHealthImport, type DaySteps } from './sleep';
-import { templateFor, templateForWeekday, withExtras } from './program';
+import { templateFor, templateForWeekday, withExtras, workoutFor } from './program';
 import { activitySteps } from './activity';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
 import type {
@@ -78,9 +78,18 @@ export async function deleteLiftEntry(id: number, db: ZoroDB = getDB()): Promise
 }
 
 export async function scheduledTemplate(date: ISODate, db: ZoroDB = getDB()): Promise<TemplateId | null> {
+  return workoutFor(date, await getSettings(db));
+}
+
+/**
+ * Do another workout (or rest) on a day instead of the program's. Picking the program's own
+ * workout again takes the swap away.
+ */
+export async function swapWorkout(date: ISODate, to: TemplateId | 'rest', db: ZoroDB = getDB()): Promise<void> {
   const settings = await getSettings(db);
-  const [y, m, d] = date.split('-').map(Number);
-  return templateForWeekday(new Date(y, m - 1, d).getDay(), settings.daysPerWeek);
+  const { [date]: _old, ...rest } = settings.workoutSwaps ?? {};
+  const own = templateForWeekday(new Date(`${date}T12:00`).getDay(), settings.daysPerWeek) ?? 'rest';
+  await saveSettings({ workoutSwaps: to === own ? rest : { ...rest, [date]: to } }, db);
 }
 
 /** Targets for a workout, computed from everything logged before it. */

@@ -1,4 +1,4 @@
-import type { ExerciseDef, PrescribedExercise, TemplateId, WorkoutTemplate } from './types';
+import type { ExerciseDef, ISODate, PrescribedExercise, TemplateId, WorkoutTemplate } from './types';
 
 const ex = (
   id: string,
@@ -254,6 +254,13 @@ export function templateForWeekday(weekday: number, daysPerWeek: 4 | 5): Templat
   const week: Record<number, TemplateId> = { 1: 'upperA', 2: 'lowerA', 4: 'upperB', 5: 'lowerB' };
   if (weekday === 6 && daysPerWeek === 5) return 'arms';
   return week[weekday] ?? null;
+}
+
+/** A day's main workout: the program's for that weekday, unless you swapped it for another (or a rest). */
+export function workoutFor(date: ISODate, settings: { daysPerWeek: 4 | 5; workoutSwaps?: Record<ISODate, TemplateId | 'rest'> }): TemplateId | null {
+  const swap = settings.workoutSwaps?.[date];
+  if (swap) return swap === 'rest' ? null : swap;
+  return templateForWeekday(new Date(`${date}T12:00`).getDay(), settings.daysPerWeek);
 }
 
 /** The optional workout offered on a day, if any: the Saturday arm day (with 4 days) or the rest days' walk. */
