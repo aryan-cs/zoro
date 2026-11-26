@@ -2007,6 +2007,16 @@ button.water-oz:active {
 .chart-wrap {
   position: relative;
 }
+/* The reading fades out 3 seconds after the finger lifts (LineChart.tsx). */
+.chart-callout {
+  transition: opacity 0.3s ease-out;
+}
+.chart-wrap.is-fading .chart-callout,
+.chart-wrap.is-fading .chart-rule,
+.chart-wrap.is-fading .chart-dot {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease-out;
+}
 .chart-callout {
   position: absolute;
   top: -4px;

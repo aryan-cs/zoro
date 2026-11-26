@@ -147,6 +147,10 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
     const values = series.flatMap((s) => s.data).filter((v): v is number => typeof v === 'number');
     const flat = values.length > 0 && Math.max(...values) - Math.min(...values) < 1e-6 ? values[0] : null;
     chart.current?.destroy();
+    // iOS follows every tap with pretend mouse events, which would bring the reading back after
+    // the finger lifts (and nothing would ever clear it): mouse events just after a touch are dropped.
+    let lastTouch = 0;
+    const fromTouch = () => Date.now() - lastTouch < 1000;
     chart.current = new Chart(canvas.current, {
       type: 'line',
       data: {
@@ -167,12 +171,15 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           showLine: !s.dots,
         })),
       },
+      // Chart.js reports touches as mouse events too, so this checks the browser's own event type.
+      plugins: [{ id: 'touch-only', beforeEvent: (_c, args) => ((args.event.native?.type ?? '').startsWith('mouse') && fromTouch() ? false : undefined) }],
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
         interaction: { mode: 'index', intersect: false },
-        events: ['mousemove', 'mouseout', 'touchstart', 'touchmove', 'touchend'],
+        // Picking only: lifting or leaving doesn't clear the reading here (that waits 3 seconds, below).
+        events: ['mousemove', 'touchstart', 'touchmove'],
         plugins: {
           tooltip: {
             enabled: false,
@@ -212,8 +219,10 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
         },
       },
     });
-    // Lifting the finger clears the reading, as in Health.
+    // The reading shows only while a finger (or pointer) is on the chart; once it lifts or
+    // leaves, the reading stays 3 seconds, then clears. Touching again keeps it.
     const node = canvas.current;
+    let hide = 0;
     const clear = () => {
       const c = chart.current;
       if (!c) return;
@@ -224,13 +233,52 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
       shownIndex.current = -1;
       release();
     };
-    node.addEventListener('touchend', clear);
-    node.addEventListener('touchcancel', clear);
-    node.addEventListener('mouseleave', clear);
+    let fade = 0;
+    const hold = () => {
+      window.clearTimeout(hide);
+      window.clearTimeout(fade);
+      wrap.current?.classList.remove('is-fading');
+    };
+    // After 3 seconds the reading fades out (0.3s), then clears.
+    const clearSoon = () => {
+      hold();
+      hide = window.setTimeout(() => {
+        wrap.current?.classList.add('is-fading');
+        fade = window.setTimeout(() => {
+          clear();
+          wrap.current?.classList.remove('is-fading');
+        }, 300);
+      }, 3000);
+    };
+    const touched = () => {
+      lastTouch = Date.now();
+      hold();
+    };
+    const lifted = () => {
+      lastTouch = Date.now();
+      clearSoon();
+    };
+    const moved = () => {
+      if (!fromTouch()) hold();
+    };
+    const left = () => {
+      if (!fromTouch()) clearSoon();
+    };
+    node.addEventListener('touchstart', touched, { passive: true });
+    node.addEventListener('touchmove', touched, { passive: true });
+    node.addEventListener('touchend', lifted);
+    node.addEventListener('touchcancel', lifted);
+    node.addEventListener('mousemove', moved);
+    node.addEventListener('mouseleave', left);
     return () => {
-      node.removeEventListener('touchend', clear);
-      node.removeEventListener('touchcancel', clear);
-      node.removeEventListener('mouseleave', clear);
+      window.clearTimeout(hide);
+      window.clearTimeout(fade);
+      node.removeEventListener('touchstart', touched);
+      node.removeEventListener('touchmove', touched);
+      node.removeEventListener('touchend', lifted);
+      node.removeEventListener('touchcancel', lifted);
+      node.removeEventListener('mousemove', moved);
+      node.removeEventListener('mouseleave', left);
       chart.current?.destroy();
       chart.current = null;
     };

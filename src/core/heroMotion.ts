@@ -5,17 +5,14 @@
  * Big (top of the page): the rings fill the width, the legend two by two under them.
  * Small (scrolled): the card as it's always been, rings on the left, the legend in a column beside.
  *
- * From big to small, by scroll progress p (0 to 1):
- *  1. The rings shrink into the top left (fast, by p = A).
- *  2. Meanwhile the legend, riding just under the rings, unfolds from two by two into a column:
- *     first the rows spread apart (by p = B), each line getting its own height, then the lines
- *     slide sideways into one column (by p = C). Lines never share a height while they slide, so
- *     they can't run into each other, and they stay under the rings, so they can't cross them.
- *  3. The column rises into place beside the small rings (C to 1).
+ * Everything moves at once, each part on its own eased (smootherstep) stretch of the scroll, the
+ * stretches overlapping so it reads as one motion: the rings shrink into the top left; the legend's
+ * rows spread apart while its lines slide into one column, and the column rises beside the rings.
+ * The stretches were found by searching for the most overlap that never lets a line touch the
+ * rings, another line, or the content below, at every iPhone width (heroMotion.test.ts checks it).
  *
  * The page keeps the big layout's height (plus a little slack) and the hero stays pinned while it
- * shrinks, so the content below rises one point per point scrolled; the timing keeps every line
- * above it the whole way.
+ * shrinks, so the content below rises one point per point scrolled.
  */
 
 export const HERO = {
@@ -33,10 +30,11 @@ export const HERO = {
   LINE: 3,
   /** Extra room under the big legend, so the legend can unfold before the content below arrives. */
   SLACK: 24,
-  /** By this much scroll the rings are small. */
-  A: 0.25,
-  /** By this much the legend's rows have spread apart. */
-  B: 0.2,
+  /** Each part's stretch of the scroll (0 to 1), eased: */
+  RINGS: [0, 0.35],
+  SPREAD: [0, 0.3],
+  SLIDE: [0.125, 0.625],
+  RISE: [0.2, 1],
 };
 
 export interface HeroInput {
@@ -59,16 +57,16 @@ export interface HeroPlan {
   smallH: number;
   /** Scroll from big to small. */
   span: number;
-  /** When the column starts to rise. */
-  C: number;
   frame: (p: number) => HeroFrame;
 }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
-const smooth = (t: number) => t * t * (3 - 2 * t);
+/** Smootherstep: eases in and out with no jolt at either end. */
+const ease = (t: number) => t * t * t * (t * (6 * t - 15) + 10);
+const along = (p: number, [a, b]: number[]) => ease(clamp((p - a) / (b - a)));
 
 export function planHero({ width: W, ws, hs }: HeroInput): HeroPlan {
-  const { PAD, SMALL, BESIDE, UNDER, ROWGAP, LINE, SLACK, A, B } = HERO;
+  const { PAD, SMALL, BESIDE, UNDER, ROWGAP, LINE, SLACK, RINGS, SPREAD, SLIDE, RISE } = HERO;
   const n = hs.length;
   // Small: rings and column centered on each other.
   const off: number[] = [];
@@ -100,21 +98,15 @@ export function planHero({ width: W, ws, hs }: HeroInput): HeroPlan {
   const span = Math.max(1, bigH - smallH);
   // The unfolded column, under the rings.
   const colDy = off.map((v) => UNDER + v);
-  const colBottom = n ? Math.max(...colDy.map((d, i) => d + hs[i])) : 0;
-  const ringSmallBottom = ringY1 + SMALL;
-  // The column has to start rising before the content below (rising at one point per point
-  // scrolled) reaches its bottom.
-  const C = Math.min(0.5, Math.max(Math.max(A, B) + 0.08, (bigH - ringSmallBottom - colBottom) / span - 0.02));
-
   const frame = (pRaw: number): HeroFrame => {
     const p = clamp(pRaw);
-    const r = clamp(p / A);
+    const r = along(p, RINGS);
     const size = W + (SMALL - W) * r;
     const ringY = PAD + (ringY1 - PAD) * r;
     const ringBottom = ringY + size;
-    const spread = smooth(clamp(p / B));
-    const slide = smooth(clamp((p - B) / (C - B)));
-    const rise = clamp((p - C) / (1 - C));
+    const spread = along(p, SPREAD);
+    const slide = along(p, SLIDE);
+    const rise = along(p, RISE);
     return {
       ring: { x: 0, y: ringY, size },
       items: hs.map((_, i) => {
@@ -127,5 +119,5 @@ export function planHero({ width: W, ws, hs }: HeroInput): HeroPlan {
     };
   };
 
-  return { bigH, smallH, span, C, frame };
+  return { bigH, smallH, span, frame };
 }
