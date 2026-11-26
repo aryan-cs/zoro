@@ -19,7 +19,7 @@ export interface ExerciseDef {
   cue?: string;
 }
 
-export type Scheme = 'double' | 'bench-heavy';
+export type Scheme = 'double' | 'bench-heavy' | 'bench-volume' | 'bench-variation';
 
 export interface PrescribedExercise {
   exerciseId: string;
@@ -81,8 +81,10 @@ export interface WorkoutSession {
   startedAt: number;
   finishedAt?: number;
   deload?: boolean;
-  /** For heavy bench sessions, which step of the 12-step table this was. */
+  /** For heavy bench sessions, which week of the bench plan this was. */
   benchStep?: number;
+  /** How many sets the workout's plan had (all of them logged = done in full). */
+  plannedSets?: number;
   notes?: string;
   /** Left by the old sample week (deleted at startup). */
   sample?: boolean;

@@ -117,6 +117,8 @@ function SetStep(props: {
   const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
   const reps = props.logged?.reps ?? edit.r ?? props.target.reps;
   const repUnit = def.timed ? 'sec' : def.perSide ? 'each' : 'reps';
+  // Two minutes or more is entered and shown in minutes.
+  const inMinutes = !!def.timed && reps >= 120;
 
   const log = (w: number | undefined, r: number) => props.onLog(noLoad ? 0 : (w ?? 0), r);
   finishClock.current = () => log(weight, reps);
@@ -228,8 +230,20 @@ function SetStep(props: {
           </>
         )}
         <button type="button" className="step-num" onClick={() => !props.readOnly && setPrompt('r')} aria-label={`Change ${repUnit}`}>
-          {clockLeft}
-          <small>{def.timed ? 'SEC' : def.perSide ? 'REPS EACH' : 'REPS'}</small>
+          {def.timed ? (
+            // A long hold or walk reads in minutes: 20 MIN, then 19 MIN 43 SEC as it counts down.
+            durationParts(clockLeft).map(([n, unit], i) => (
+              <span key={unit} className={`step-dur ${i ? 'is-more' : ''}`}>
+                {n}
+                <small>{unit}</small>
+              </span>
+            ))
+          ) : (
+            <>
+              {clockLeft}
+              <small>{def.perSide ? 'REPS EACH' : 'REPS'}</small>
+            </>
+          )}
         </button>
       </div>
       <SetEdit
@@ -260,14 +274,14 @@ function SetStep(props: {
       <NumberPrompt
         opened={prompt === 'r'}
         title={def.name}
-        unit={def.timed ? 'sec' : 'reps'}
-        initial={String(reps)}
-        min={1}
-        max={def.timed ? 600 : 100}
+        unit={inMinutes ? 'min' : def.timed ? 'sec' : 'reps'}
+        initial={String(inMinutes ? Math.round((reps / 60) * 10) / 10 : reps)}
+        min={inMinutes ? 0.5 : 1}
+        max={inMinutes ? 240 : def.timed ? 600 : 100}
         onCancel={() => setPrompt(null)}
         onSave={(n) => {
           setPrompt(null);
-          change({ r: Math.round(n) });
+          change({ r: Math.round(inMinutes ? n * 60 : n) });
         }}
       />
     </section>
@@ -439,6 +453,13 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   useEffect(() => {
     if (plan) warmVideos(plan.exercises.map((e) => e.exerciseId));
   }, [plan]);
+  // Keep the session's planned set count matching what's shown, so Lift can tell a workout done
+  // in full from one left partway.
+  useEffect(() => {
+    if (!plan || !session || planned || session.finishedAt) return;
+    const n = plan.exercises.reduce((sum, e) => sum + e.sets.length, 0);
+    if (session.plannedSets !== n) void db.sessions.update(sessionId, { plannedSets: n });
+  }, [plan, session, planned, sessionId]);
 
   const finished = !!session?.finishedAt;
   // The step you're on (a running rest, else the next set): kept at the top of the screen, just
@@ -547,7 +568,8 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
     const step = steps.find((x) => x.kind === 'set' && x.ex.exerciseId === ex.exerciseId && x.i === last.i) as SetStepT | undefined;
     if (step?.restAfter) setRest({ after: `${ex.exerciseId}:${last.i}`, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000 });
     if (clock && done.some((d) => clock.key === `${ex.exerciseId}:${d.i}`)) setClock(null);
-    const what = (d: { weight: number; reps: number }) => `${noLoad || !d.weight ? '' : `${fmtLb(d.weight)} lb × `}${d.reps}${EXERCISES[ex.exerciseId].timed ? ' sec' : ''}`;
+    const what = (d: { weight: number; reps: number }) =>
+      EXERCISES[ex.exerciseId].timed ? durationWords(d.reps) : `${noLoad || !d.weight ? '' : `${fmtLb(d.weight)} lb × `}${d.reps}`;
     toast(done.length === 1 ? `${ex.name}, Set ${last.i + 1}: ${what(last)}` : `${ex.name}: ${done.map(what).join(', ')}`);
     return true;
   };
@@ -594,7 +616,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
         right={
           !planned && (
             <IconBtn label="Say what you did" onClick={openSay}>
-              <Sym name="pencil.line" size={18} />
+              <Sym name="mic.fill" size={19} />
             </IconBtn>
           )
         }
@@ -615,12 +637,6 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
         <Section>
           <Row title="Easy Week" />
         </Section>
-      )}
-
-      {plan.newBenchMax && (
-        <div className="surface mx-4 mt-3 rounded-3xl px-4 py-2.5 text-[15px]">
-          Bench block max: <b>{plan.newBenchMax} lb</b>
-        </div>
       )}
 
       {/* The workout as steps, in the order you do them: each set, then the rest after it, one
@@ -773,4 +789,20 @@ function SayPrompt(props: {
       }
     />
   );
+}
+
+/** A duration as big-number parts: [[20, 'MIN']], [[19, 'MIN'], [43, 'SEC']], [[45, 'SEC']]. */
+function durationParts(sec: number): [number, string][] {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  if (!m) return [[s, 'SEC']];
+  return s ? [[m, 'MIN'], [s, 'SEC']] : [[m, 'MIN']];
+}
+
+/** The same in words, for notices: "20 minutes", "1 minute 30 seconds", "45 seconds". */
+function durationWords(sec: number): string {
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  return durationParts(sec)
+    .map(([n, u]) => plural(n, u === 'MIN' ? 'minute' : 'second'))
+    .join(' ');
 }

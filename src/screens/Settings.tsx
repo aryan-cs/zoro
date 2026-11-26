@@ -15,7 +15,7 @@ import { useNav } from '../ui/nav';
 import { addSleepShortcut } from './LogSleep';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
 
-type NumKey = 'benchMax' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
+type NumKey = 'benchMax' | 'benchGoal' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
 type TargetKey = 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'fiberTarget' | 'waterTargetOz' | 'sleepTargetMin';
 
 /** 70 → 5′10″ */
@@ -43,8 +43,10 @@ function TargetSetting({ label, k, settings, scale = 1 }: { label: string; k: Ta
 }
 
 function NumSetting({ label, k, settings }: { label: string; k: NumKey; settings: Settings }) {
-  const [v, setV] = useState(String(settings[k]));
-  useEffect(() => setV(String(settings[k])), [settings, k]);
+  // The bench goal is 225 until you change it.
+  const shown = () => String(settings[k] ?? (k === 'benchGoal' ? 225 : ''));
+  const [v, setV] = useState(shown);
+  useEffect(() => setV(shown()), [settings, k]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Field
       label={label}
@@ -54,7 +56,7 @@ function NumSetting({ label, k, settings }: { label: string; k: NumKey; settings
       onBlur={() => {
         const n = parseFloat(v);
         if (Number.isFinite(n)) void saveSettings({ [k]: n } as Partial<Settings>);
-        else setV(String(settings[k]));
+        else setV(shown());
       }}
     />
   );
@@ -344,12 +346,16 @@ export function SettingsScreen() {
       </Section>
 
       {/* The lifting program. */}
-      <Section title="Training" footer="Your program starts on a Monday, and your bench weights are worked out from your training max.">
+      <Section
+        title="Training"
+        footer="Your program starts on a Monday. Week 1’s first bench set works out your real max, and each test day raises it. With 4 days a week, Saturday’s arm day is optional; with 5 it’s part of the week."
+      >
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
         <Row title="Days per Week" right={<Seg className="is-compact w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
-        <NumSetting label="Bench Training Max (lb)" k="benchMax" settings={settings} />
-        <Field label="Bench Cycle Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
-        <NumSetting label="Dumbbell Max (lb)" k="dumbbellMax" settings={settings} />
+        <NumSetting label="Bench Starting Max (lb)" k="benchMax" settings={settings} />
+        <NumSetting label="Bench Goal (lb)" k="benchGoal" settings={settings} />
+        <Field label="Bench Plan Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
+        <NumSetting label="Heaviest Dumbbells (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
       {/* Connections: food search and Apple Health. */}

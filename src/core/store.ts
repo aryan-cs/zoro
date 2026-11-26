@@ -44,6 +44,8 @@ export async function loadHistory(db: ZoroDB = getDB(), sinceDays = 400): Promis
       deload: s.deload,
       benchStep: s.benchStep,
       sample: s.sample,
+      finishedAt: s.finishedAt,
+      plannedSets: s.plannedSets,
       sets: bySession.get(s.id!) ?? [],
     }))
     .sort((a, b) => b.date.localeCompare(a.date) || b.sessionId - a.sessionId);
@@ -69,6 +71,7 @@ export async function startSession(plan: WorkoutPlan, date: ISODate = today(), d
     startedAt: Date.now(),
     deload: plan.deload,
     benchStep: plan.benchStep,
+    plannedSets: plan.exercises.reduce((n, e) => n + e.sets.length, 0),
   };
   return (await db.sessions.add(session)) as number;
 }
@@ -87,13 +90,9 @@ export async function unlogSet(sessionId: number, exerciseId: string, setIndex: 
 }
 
 export async function finishSession(sessionId: number, db: ZoroDB = getDB()): Promise<void> {
-  const settings = await getSettings(db);
+  // The bench plan reads its max from the logged sets (week 1's estimate, then each test), so
+  // there's nothing else to update here.
   await db.sessions.update(sessionId, { finishedAt: Date.now() });
-  // A finished max-test week rolls the bench table into a new block.
-  const plan = await buildPlan('upperA', addDays(today(), 1), db);
-  if (plan.newBenchMax && plan.newBenchMax !== settings.benchMax) {
-    await db.settings.put({ ...settings, benchMax: plan.newBenchMax, benchBlockStart: addDays(today(), 1) });
-  }
 }
 
 export async function deleteSession(sessionId: number, db: ZoroDB = getDB()): Promise<void> {

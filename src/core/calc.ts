@@ -47,7 +47,10 @@ export function programWeek(programStart: ISODate, today: ISODate, deloadWeeks: 
   if (week < 1) return { week, blockWeek: 0, block: 0, deload: false };
   const blockWeek = ((week - 1) % 12) + 1;
   const block = Math.floor((week - 1) / 12) + 1;
-  return { week, blockWeek, block, deload: deloadWeeks.includes(blockWeek) };
+  // Listed weeks are easy; past the last one, every sixth week is.
+  const last = Math.max(0, ...deloadWeeks);
+  const deload = deloadWeeks.includes(week) || (week > last + 4 && (week - last - 4) % 6 === 0);
+  return { week, blockWeek, block, deload };
 }
 
 // ---------- Lifting ----------

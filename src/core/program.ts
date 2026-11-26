@@ -230,48 +230,100 @@ export function templateFor(id: TemplateId, daysPerWeek: 4 | 5): WorkoutTemplate
   return t;
 }
 
+/** Sets at a fraction of the current bench max ("Top set", "Back-off"...). */
+export interface BenchGroup {
+  sets: number;
+  reps: number;
+  pct: number;
+  label?: string;
+}
+
+/**
+ * One week of the bench plan: the heavy day (a top set, then back-off sets), the volume day
+ * (moderate weight, more reps) and the variation day (paused or close-grip). Percentages are of
+ * the current max: the week-1 estimate for weeks 1–11, the week-12 test after that.
+ */
 export interface BenchStep {
-  /** Each group is a number of sets at a fraction of the block's max. */
-  groups: { sets: number; reps: number; pct: number; label?: string }[];
+  heavy: BenchGroup[];
+  volume?: BenchGroup[];
+  variation?: { exerciseId: 'pausedBench' | 'closeGripBench'; groups: BenchGroup[] };
+  /** An easy week (deload or taper): it always counts as done. */
   easy?: boolean;
+  /** Week 1: the first set is as many reps as you can (stop with one left); it sets the max. */
+  calibrate?: boolean;
+  /** Ends with a max attempt; the best set becomes the max for what follows. */
   test?: boolean;
   note?: string;
 }
 
-/** The 12-step Monday bench table. Percentages are of the block's starting max. */
+const g = (sets: number, reps: number, load: number, base: number, label?: string): BenchGroup => ({ sets, reps, pct: load / base, label });
+const A = (sets: number, reps: number, load: number, label?: string) => g(sets, reps, load, 195, label);
+const B = (sets: number, reps: number, load: number, label?: string) => g(sets, reps, load, 210, label);
+const paused = (groups: BenchGroup[]) => ({ exerciseId: 'pausedBench' as const, groups });
+const close = (groups: BenchGroup[]) => ({ exerciseId: 'closeGripBench' as const, groups });
+
+/**
+ * 27 weeks from about 195 to 225 (late November to the end of May), built from the research:
+ * a heavy top set plus back-off sets (Androulakis-Korakakis 2021), heavier loads for strength
+ * (Schoenfeld 2017), bench two or three times a week for practice and volume (Ralston 2018,
+ * Grgic 2018), RPE caps on singles (Helms 2018), and a slow cut that keeps strength (Garthe 2011).
+ * Loads written for a 195 max (weeks 1–12) and a 210 max (weeks 13–27); they scale to yours.
+ */
 export const BENCH_STEPS: BenchStep[] = [
-  { groups: [{ sets: 4, reps: 5, pct: 150 / 195 }] },
-  { groups: [{ sets: 4, reps: 5, pct: 155 / 195 }] },
-  { groups: [{ sets: 4, reps: 5, pct: 160 / 195 }] },
-  { groups: [{ sets: 5, reps: 3, pct: 165 / 195 }] },
-  { groups: [{ sets: 5, reps: 3, pct: 170 / 195 }] },
-  { groups: [{ sets: 3, reps: 5, pct: 135 / 195 }], easy: true, note: 'Easy week.' },
-  { groups: [{ sets: 4, reps: 3, pct: 175 / 195 }] },
-  { groups: [{ sets: 4, reps: 2, pct: 180 / 195 }] },
-  { groups: [{ sets: 3, reps: 2, pct: 185 / 195 }], note: 'Use the safety arms.' },
+  // Block 1: find the real max, then build toward heavy singles.
   {
-    groups: [
-      { sets: 1, reps: 1, pct: 1, label: 'Top single' },
-      { sets: 3, reps: 3, pct: 165 / 195, label: 'Back-off' },
-    ],
-    note: 'Use the safety arms.',
+    heavy: [A(1, 8, 165, 'As many as you can'), A(3, 5, 145, 'Back-off')],
+    volume: [A(4, 8, 125)],
+    variation: paused([A(3, 5, 125)]),
+    calibrate: true,
+    note: 'First set: as many good reps as you can, stopping with one left. That sets your max.',
   },
+  { heavy: [A(1, 3, 155, 'Top set'), A(4, 5, 145, 'Back-off')], volume: [A(4, 8, 130)], variation: paused([A(3, 5, 130)]) },
+  { heavy: [A(1, 3, 160, 'Top set'), A(4, 5, 145, 'Back-off')], volume: [A(4, 8, 135)], variation: paused([A(3, 5, 135)]) },
+  { heavy: [A(1, 3, 165, 'Top set'), A(4, 5, 150, 'Back-off')], volume: [A(4, 7, 140)], variation: close([A(3, 6, 135)]) },
+  { heavy: [A(1, 3, 170, 'Top set'), A(4, 4, 155, 'Back-off')], volume: [A(4, 6, 145)], variation: close([A(3, 6, 140)]) },
+  { heavy: [A(3, 3, 145)], volume: [A(3, 5, 125)], easy: true, note: 'Easy week.' },
+  { heavy: [A(1, 1, 175, 'Top single'), A(3, 4, 155, 'Back-off')], volume: [A(4, 6, 145)], variation: paused([A(3, 4, 145)]) },
+  { heavy: [A(1, 1, 180, 'Top single'), A(3, 3, 165, 'Back-off')], volume: [A(4, 5, 150)], variation: paused([A(3, 3, 150)]) },
+  { heavy: [A(1, 1, 185, 'Top single'), A(3, 3, 165, 'Back-off')], volume: [A(4, 5, 155)], variation: close([A(3, 5, 145)]), note: 'Use the safety arms.' },
+  { heavy: [A(1, 1, 190, 'Top single'), A(3, 2, 170, 'Back-off')], volume: [A(3, 5, 155)], variation: close([A(3, 5, 150)]), note: 'Single: leave a rep in the tank.' },
+  { heavy: [A(1, 1, 175, 'Top single'), A(2, 3, 155, 'Back-off')], volume: [A(3, 3, 145)], easy: true, note: 'Light week before the test. Move the bar fast.' },
   {
-    groups: [
-      { sets: 1, reps: 1, pct: 1.03, label: 'Top single' },
-      { sets: 2, reps: 3, pct: 165 / 195, label: 'Back-off' },
-    ],
-    note: 'Only go for the top single if last week’s single moved fast.',
-  },
-  {
-    groups: [{ sets: 1, reps: 1, pct: 1.05, label: 'Max attempt' }],
+    heavy: [A(1, 5, 135, 'Warm-up'), A(1, 3, 155, 'Warm-up'), A(1, 1, 175, 'Warm-up'), A(1, 1, 190, 'Warm-up'), A(1, 1, 200, 'Warm-up'), A(1, 1, 210, 'Max attempt')],
+    volume: [A(3, 5, 0.7 * 195)],
+    variation: paused([A(3, 5, 0.65 * 195)]),
     test: true,
-    note: 'Light week, then test. Warm up: bar ×10, then build up in 3–4 sets.',
+    note: 'Test day. Use the safety arms; go for the last single only if 200 moved well.',
+  },
+  // Block 2: from the tested max to 225.
+  { heavy: [B(1, 3, 175, 'Top set'), B(4, 5, 155, 'Back-off')], volume: [B(4, 8, 140)], variation: paused([B(3, 5, 145)]) },
+  { heavy: [B(1, 3, 180, 'Top set'), B(4, 5, 165, 'Back-off')], volume: [B(4, 7, 145)], variation: paused([B(3, 5, 150)]) },
+  { heavy: [B(1, 3, 185, 'Top set'), B(4, 4, 170, 'Back-off')], volume: [B(4, 6, 150)], variation: close([B(3, 6, 145)]) },
+  { heavy: [B(1, 2, 190, 'Top set'), B(4, 4, 170, 'Back-off')], volume: [B(4, 6, 155)], variation: close([B(3, 5, 155)]) },
+  { heavy: [B(1, 1, 195, 'Top single'), B(3, 3, 180, 'Back-off')], volume: [B(4, 5, 165)], variation: close([B(3, 5, 165)]) },
+  { heavy: [B(3, 3, 155)], volume: [B(3, 5, 135)], easy: true, note: 'Easy week.' },
+  { heavy: [B(1, 1, 195, 'Top single'), B(3, 3, 180, 'Back-off')], volume: [B(4, 5, 165)], variation: paused([B(3, 4, 155)]) },
+  { heavy: [B(1, 1, 200, 'Top single'), B(3, 3, 180, 'Back-off')], volume: [B(4, 4, 170)], variation: paused([B(3, 3, 165)]) },
+  { heavy: [B(1, 1, 205, 'Top single'), B(3, 2, 185, 'Back-off')], volume: [B(3, 4, 175)], variation: close([B(3, 4, 165)]), note: 'Use the safety arms.' },
+  { heavy: [B(1, 1, 210, 'Top single'), B(3, 2, 185, 'Back-off')], volume: [B(3, 4, 175)], variation: close([B(3, 4, 170)]), note: 'Single: leave a rep in the tank.' },
+  { heavy: [B(1, 1, 180, 'Top single'), B(2, 3, 155, 'Back-off')], volume: [B(3, 4, 145)], easy: true, note: 'Easy week.' },
+  { heavy: [B(1, 1, 205, 'Single'), B(1, 1, 215, 'Top single'), B(3, 2, 185, 'Back-off')], volume: [B(3, 4, 175)], variation: paused([B(3, 3, 165)]), note: 'Leave a rep in the tank on both singles.' },
+  { heavy: [B(1, 1, 210, 'Single'), B(1, 1, 217.5, 'Top single'), B(2, 2, 190, 'Back-off')], volume: [B(3, 3, 180)], variation: close([B(2, 4, 170)]), note: 'Leave a rep in the tank on both singles.' },
+  { heavy: [B(1, 1, 200, 'Single'), B(2, 2, 180, 'Back-off')], volume: [B(3, 3, 155)], easy: true, note: 'Light week before the test. Move the bar fast.' },
+  {
+    heavy: [B(1, 5, 135, 'Warm-up'), B(1, 3, 165, 'Warm-up'), B(1, 1, 185, 'Warm-up'), B(1, 1, 200, 'Warm-up'), B(1, 1, 210, 'Warm-up'), B(1, 1, 225, 'Max attempt')],
+    test: true,
+    note: 'Test day: 225. Use the safety arms.',
   },
 ];
+/** After the last week, the plan carries on from here (block 2) with the newly tested max. */
+export const BENCH_REPEAT_FROM = 12;
 
-/** Weeks 6 and 12 of each 12-week block are easy weeks. */
-export const DELOAD_BLOCK_WEEKS = [6, 12];
+/**
+ * Easy weeks (half the sets, lighter effort), lined up with the bench plan's: weeks 6, 12 (the
+ * first test), 18 and 23 of the 27, then every sixth week after.
+ */
+export const DELOAD_WEEKS = [6, 12, 18, 23];
 
 /**
  * How far through the day's workouts you are, 0–100: each workout counts the share of its

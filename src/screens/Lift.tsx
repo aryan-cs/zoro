@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { addDays, nextMonday, programWeek } from '../core/calc';
-import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
+import { addDays, programWeek } from '../core/calc';
+import { DELOAD_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
 import { loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
 import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
@@ -22,10 +22,14 @@ const SPAN = 26; // weeks you can swipe back and ahead
  * tap a day to pick it. Today's number is blue, the picked day sits in a filled circle, and a dot
  * marks each workout day (green once done).
  */
-function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => void; daysPerWeek: 4 | 5; doneDates: Set<string> }) {
+/** A day's workout: done in full, started but left partway, or (once it's past) missed. */
+type DayStatus = 'complete' | 'partial';
+
+function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => void; daysPerWeek: 4 | 5; status: Map<string, DayStatus>; programStart: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const thisMonday = nextMonday(addDays(props.date, -6));
-  const weeks = Array.from({ length: SPAN * 2 + 1 }, (_, i) => addDays(thisMonday, (i - SPAN) * 7));
+  // Weeks run Sunday to Saturday, like Calendar.
+  const thisSunday = addDays(props.date, -new Date(`${props.date}T12:00`).getDay());
+  const weeks = Array.from({ length: SPAN * 2 + 1 }, (_, i) => addDays(thisSunday, (i - SPAN) * 7));
   // Start on this week, and come back to the picked day's week when it changes elsewhere (Today button).
   const selWeek = weeks.findIndex((m) => props.sel >= m && props.sel <= addDays(m, 6));
   useLayoutEffect(() => {
@@ -66,24 +70,28 @@ function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => 
         drag.current = null;
       }}
     >
-      {weeks.map((monday) => (
-        <div key={monday} className="lift-week">
+      {weeks.map((sunday) => (
+        <div key={sunday} className="lift-week">
           {Array.from({ length: 7 }, (_, i) => {
-            const d = addDays(monday, i);
-            const wd = (i + 1) % 7;
+            const d = addDays(sunday, i);
+            const wd = i;
             const t = templateForWeekday(wd, props.daysPerWeek);
-            const done = props.doneDates.has(d);
+            const st = props.status.get(d);
+            // Planned and past with nothing logged: missed (from the program's start on).
+            const missed = !!t && !st && d < props.date && d >= props.programStart;
+            const dot = st === 'complete' ? 'is-done' : st === 'partial' ? 'is-partial' : missed ? 'is-missed' : t ? 'is-planned' : '';
+            const said = st === 'complete' ? ', done' : st === 'partial' ? ', partly done' : missed ? ', missed' : '';
             return (
               <button
                 type="button"
                 key={d}
                 className={`lift-day ${d === props.date ? 'is-today' : ''} ${d === props.sel ? 'is-sel' : ''}`}
                 onClick={() => props.onSelect(d)}
-                aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${t ? TEMPLATES[t].name : 'rest'}${done ? ', done' : ''}`}
+                aria-label={`${new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${t ? TEMPLATES[t].name : 'rest'}${said}`}
               >
                 <span className="lift-day-letter">{DAY[wd]}</span>
                 <span className="lift-day-num">{Number(d.slice(8))}</span>
-                <span className={`lift-day-dot ${t ? (done ? 'is-done' : 'is-planned') : ''}`} />
+                <span className={`lift-day-dot ${dot}`} />
               </button>
             );
           })}
@@ -117,7 +125,7 @@ export function LiftScreen() {
   const isToday = sel === date;
   const weekday = new Date(`${sel}T12:00`).getDay();
   const mainId = templateForWeekday(weekday, settings.daysPerWeek);
-  const deload = programWeek(settings.programStart, sel, DELOAD_BLOCK_WEEKS).deload;
+  const deload = programWeek(settings.programStart, sel, DELOAD_WEEKS).deload;
   const secondId = !deload ? SECOND_BY_WEEKDAY[weekday] : undefined;
   // Each workout's exercises (counted on its card; listed on the workout's own screen).
   const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
@@ -155,7 +163,15 @@ export function LiftScreen() {
     const sessionId = await startWorkout(id, sel);
     nav.push({ name: 'workout', sessionId });
   };
-  const doneDates = new Set(history.filter((h) => !TEMPLATES[h.templateId].secondary && h.sets.length).map((h) => h.date));
+  // Each day's workouts: all planned sets logged (or finished, for older ones) is done in full;
+  // any sets short of that is partway.
+  const status = new Map<string, DayStatus>();
+  for (const h of history) {
+    if (!h.sets.length) continue;
+    const full = h.plannedSets !== undefined ? h.sets.length >= h.plannedSets : !!h.finishedAt;
+    if (full) status.set(h.date, 'complete');
+    else if (status.get(h.date) !== 'complete') status.set(h.date, 'partial');
+  }
   const allowed = ALL_SESSIONS.filter((id) => settings.daysPerWeek === 5 || id !== 'arms');
 
   return (
@@ -169,7 +185,7 @@ export function LiftScreen() {
           </IconBtn>
         }
       />
-      <WeekStrip date={date} sel={sel} onSelect={pick} daysPerWeek={settings.daysPerWeek} doneDates={doneDates} />
+      <WeekStrip date={date} sel={sel} onSelect={pick} daysPerWeek={settings.daysPerWeek} status={status} programStart={settings.programStart} />
 
       {/* The day's workouts and exercises slide in from the side of the day you picked. */}
       <div className="slide-clip">

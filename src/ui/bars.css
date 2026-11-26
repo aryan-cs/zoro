@@ -659,8 +659,15 @@ button.meal-row:not(:disabled):active {
 .lift-day-dot.is-planned {
   background: #8d8d93;
 }
+/* Done in full: green. Started but left partway: yellow. Missed: red. Still to come: gray. */
 .lift-day-dot.is-done {
-  background: var(--ios-green);
+  background: #30d158;
+}
+.lift-day-dot.is-partial {
+  background: #ffd60a;
+}
+.lift-day-dot.is-missed {
+  background: #ff453a;
 }
 
 /* ---------- Bottom scroll edge (iOS 26): content fades and blurs out behind the tab bar ---------- */
@@ -2698,4 +2705,13 @@ button.water-oz:active {
     opacity: 0.35;
     transform: scale(0.75);
   }
+}
+/* A duration in the set's big numbers: "19 MIN 43 SEC". */
+.step-dur {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.step-dur.is-more {
+  margin-left: 8px;
 }

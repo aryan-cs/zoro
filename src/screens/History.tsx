@@ -4,7 +4,7 @@ import { createContext, useContext, useMemo, useRef, useState } from 'react';
 import { addDays, averageSleep, carbTarget, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
-import { benchProgress } from '../core/progression';
+import { benchState } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { Settings } from '../core/types';
 import { hrMin } from '../core/say';
@@ -151,7 +151,7 @@ function Lifts() {
   }, [points]);
 
   // The max your bench weights come from (it steps up as you finish 12-step blocks).
-  const trainingMax = benchProgress(settings, history.filter((h) => !h.sample)).newMax ?? settings.benchMax;
+  const trainingMax = benchState(settings, history.filter((h) => !h.sample)).max;
   return (
     <>
       <div className="fit-stack">

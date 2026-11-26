@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXERCISES, TEMPLATES, templateFor } from './program';
-import { benchProgress, planDouble, planWorkout, type HistorySession } from './progression';
+import { benchState, planBenchVariation, planBenchVolume, planDouble, planWorkout, type HistorySession } from './progression';
 import { DEFAULT_SETTINGS } from './settings';
 import type { PrescribedExercise, SetLog, Settings } from './types';
 
@@ -91,40 +91,55 @@ describe('double progression', () => {
   });
 });
 
-describe('bench table', () => {
-  it('starts at 4×5 @ 150 for a 195 max', () => {
+describe('bench plan', () => {
+  const sets = (n: number, w: number, r: number, t = r) => Array.from({ length: n }, () => ['bench', w, r, t] as [string, number, number, number]);
+
+  it('opens with an as-many-as-you-can set at 165 for a 195 max, then 3×5 at 145', () => {
     const plan = planWorkout({ template: TEMPLATES.upperA, settings, today: '2026-11-30', history: [] });
-    const bench = plan.exercises[0];
+    const bench = plan.exercises.find((e) => e.exerciseId === 'bench')!;
     expect(plan.benchStep).toBe(0);
-    expect(bench.sets).toHaveLength(4);
-    expect(bench.sets.every((s) => s.weight === 150 && s.reps === 5)).toBe(true);
+    expect(bench.sets.map((x) => [x.weight, x.reps])).toEqual([[165, 8], [145, 5], [145, 5], [145, 5]]);
+    expect(bench.sets[0].label).toBe('As many as you can');
   });
 
-  it('advances only when every rep is hit', () => {
-    const ok = session('2026-11-30', 'upperA', [['bench', 150, 5, 5], ['bench', 150, 5, 5], ['bench', 150, 5, 5], ['bench', 150, 5, 5]], { benchStep: 0 });
-    expect(benchProgress(settings, [ok]).step).toBe(1);
-    const miss = session('2026-12-07', 'upperA', [['bench', 155, 5, 5], ['bench', 155, 5, 5], ['bench', 155, 4, 5], ['bench', 155, 4, 5]], { benchStep: 1 });
-    expect(benchProgress(settings, [ok, miss]).step).toBe(1);
+  it('sets the max from week 1’s first set, counting the rep left in reserve', () => {
+    const wk1 = session('2026-11-30', 'upperA', [['bench', 165, 10, 8], ...sets(3, 145, 5)], { benchStep: 0 });
+    const st = benchState(settings, [wk1]);
+    expect(st).toEqual({ step: 1, max: 225 }); // 165 × (1 + 11/30) = 225.5
+    const plan = planWorkout({ template: TEMPLATES.upperA, settings, today: '2026-12-07', history: [wk1] });
+    expect(plan.exercises.find((e) => e.exerciseId === 'bench')!.sets[0]).toMatchObject({ weight: 180, reps: 3, label: 'Top set' });
   });
 
-  it('starts a new block from the tested max after step 12', () => {
-    // Steps 1–11, each with enough passing sets.
-    const history: HistorySession[] = Array.from({ length: 11 }, (_, step) =>
-      session(`2026-12-${String(step + 1).padStart(2, '0')}`, 'upperA', Array.from({ length: 6 }, () => ['bench', 150, 5, 5] as [string, number, number, number]), {
-        benchStep: step,
-      }),
-    );
-    history.push(session('2027-02-15', 'upperA', [['bench', 210, 1, 1]], { benchStep: 11 }));
-    const out = benchProgress(settings, history);
-    expect(out.step).toBe(0);
-    expect(out.newMax).toBe(210);
+  it('moves on with at most one set short, and repeats the week with two', () => {
+    const wk1 = session('2026-11-30', 'upperA', [['bench', 165, 8, 8], ...sets(3, 145, 5)], { benchStep: 0 });
+    const ok = session('2026-12-07', 'upperA', [...sets(1, 155, 3), ...sets(3, 145, 5), ['bench', 145, 4, 5]], { benchStep: 1 });
+    expect(benchState(settings, [wk1, ok]).step).toBe(2);
+    const rough = session('2026-12-07', 'upperA', [...sets(1, 155, 3), ...sets(2, 145, 5), ['bench', 145, 4, 5], ['bench', 145, 3, 5]], { benchStep: 1 });
+    expect(benchState(settings, [wk1, rough]).step).toBe(1);
   });
 
-  it('goes light during calendar easy weeks without using up a step', () => {
-    const plan = planWorkout({ template: TEMPLATES.upperA, settings, today: '2027-01-04', history: [] });
+  it('raises the max to the test day’s best and carries on into block 2', () => {
+    const history: HistorySession[] = [session('2026-11-30', 'upperA', [['bench', 165, 8, 8], ...sets(3, 145, 5)], { benchStep: 0 })];
+    for (let step = 1; step <= 10; step++) history.push(session(`2026-12-${String(step + 1).padStart(2, '0')}`, 'upperA', sets(6, 150, 5), { benchStep: step }));
+    history.push(session('2027-02-15', 'upperA', [['bench', 200, 1, 1], ['bench', 212.5, 1, 1]], { benchStep: 11 }));
+    expect(benchState(settings, history)).toEqual({ step: 12, max: 215 });
+  });
+
+  it('keeps the volume and variation days on the same week as the heavy day', () => {
+    const wk1 = session('2026-11-30', 'upperA', [['bench', 165, 8, 8], ...sets(3, 145, 5)], { benchStep: 0 });
+    expect(planBenchVolume(0, 195, false).sets.map((x) => [x.weight, x.reps])).toEqual([[125, 8], [125, 8], [125, 8], [125, 8]]);
+    expect(planBenchVariation(0, 195, false)?.exerciseId).toBe('pausedBench');
+    // The easy week has no variation day.
+    expect(planBenchVariation(5, 195, false)).toBeNull();
+    expect(benchState(settings, [wk1]).step).toBe(1);
+  });
+
+  it('goes light in a program easy week without using up a bench week', () => {
+    const wk1 = session('2026-11-30', 'upperA', [['bench', 165, 8, 8], ...sets(3, 145, 5)], { benchStep: 0 });
+    const plan = planWorkout({ template: TEMPLATES.upperA, settings, today: '2027-01-04', history: [wk1] });
     expect(plan.deload).toBe(true);
     expect(plan.benchStep).toBeUndefined();
-    expect(plan.exercises[0].sets[0].weight).toBe(135);
+    expect(plan.exercises.find((e) => e.exerciseId === 'bench')!.sets).toHaveLength(3);
   });
 });
 

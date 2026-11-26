@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, programWeek, roundTo, weightTrend } from '../core/calc';
-import { DELOAD_BLOCK_WEEKS, templateForWeekday, workoutDayPercent } from '../core/program';
+import { DELOAD_WEEKS, templateForWeekday, workoutDayPercent } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
@@ -99,7 +99,7 @@ export function TodayScreen() {
   const workoutPct = useMemo(() => {
     const weekday = new Date(`${date}T12:00`).getDay();
     const main = templateForWeekday(weekday, settings.daysPerWeek);
-    const second = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS).deload ? undefined : SECOND_BY_WEEKDAY[weekday];
+    const second = programWeek(settings.programStart, date, DELOAD_WEEKS).deload ? undefined : SECOND_BY_WEEKDAY[weekday];
     const planned = [main, second].filter((x): x is TemplateId => !!x);
     return workoutDayPercent(planned, todaySessions, todaySets, settings.daysPerWeek);
   }, [date, settings.daysPerWeek, settings.programStart, todaySessions, todaySets]);

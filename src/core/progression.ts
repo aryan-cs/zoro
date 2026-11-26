@@ -1,5 +1,5 @@
 import { e1rm, programWeek, roundTo, type ProgramWeek } from './calc';
-import { BENCH_STEPS, DELOAD_BLOCK_WEEKS, EXERCISES } from './program';
+import { BENCH_REPEAT_FROM, BENCH_STEPS, DELOAD_WEEKS, EXERCISES, type BenchGroup, type BenchStep } from './program';
 import type {
   ExerciseDef,
   ExercisePlan,
@@ -19,8 +19,11 @@ export interface HistorySession {
   templateId: TemplateId;
   deload?: boolean;
   benchStep?: number;
-  /** A Settings › Sample Data workout (History shows it; planning never loads it). */
+  /** Left by the old sample week. */
   sample?: boolean;
+  finishedAt?: number;
+  /** How many sets its plan had, when known. */
+  plannedSets?: number;
   sets: SetLog[];
 }
 
@@ -31,8 +34,8 @@ export interface WorkoutPlan {
   deload: boolean;
   /** Bench table step this session is (undefined if it shouldn't count toward the table). */
   benchStep?: number;
-  /** The test week is done: start a new 12-step block at this max. */
-  newBenchMax?: number;
+  /** The bench max the plan's weights come from right now (week 1's estimate, then each test). */
+  benchMax?: number;
   exercises: ExercisePlan[];
 }
 
@@ -86,7 +89,9 @@ export function planDouble(
 
   if (def.timed) {
     const best = last ? Math.max(...last.sets.map((s) => s.reps)) : 0;
-    const target = deload ? rx.repMin : best ? Math.min(Math.max(best + TIMED_STEP_SEC, rx.repMin), rx.repMax * 2) : rx.repMin;
+    // Holds go up 5 seconds at a time; walks and other long ones a minute at a time.
+    const stepSec = rx.repMin >= 300 ? 60 : TIMED_STEP_SEC;
+    const target = deload ? rx.repMin : best ? Math.min(Math.max(best + stepSec, rx.repMin), rx.repMax * 2) : rx.repMin;
     return { sets: make(null, [target], rx.repMax), notes };
   }
 
@@ -152,67 +157,98 @@ export function planDouble(
   return { sets: make(noLoad ? 0 : lastWeight, reps, effMax), notes };
 }
 
-/** Did a heavy bench session hit every prescribed rep? */
-export function benchSessionSucceeded(s: HistorySession): boolean {
+/**
+ * Did a heavy bench day go to plan? Every prescribed set logged, and no more than one set short
+ * of its reps (missing reps on two or more sets repeats the week).
+ */
+export function benchSessionSucceeded(s: HistorySession, def: BenchStep | undefined = s.benchStep !== undefined ? BENCH_STEPS[s.benchStep] : undefined): boolean {
   const bench = s.sets.filter((x) => x.exerciseId === 'bench');
   if (!bench.length) return false;
-  const step = s.benchStep !== undefined ? BENCH_STEPS[s.benchStep] : undefined;
-  const prescribed = step ? step.groups.reduce((n, g) => n + g.sets, 0) : bench.length;
+  const prescribed = def ? def.heavy.reduce((n, g) => n + g.sets, 0) : bench.length;
   if (bench.length < prescribed) return false;
-  return bench.every((x) => x.targetReps === undefined || x.reps >= x.targetReps);
+  const short = bench.filter((x) => x.targetReps !== undefined && x.reps < x.targetReps).length;
+  return short <= 1;
 }
 
 /**
- * Where you are in the 12-step bench table. A step only advances when every rep was hit
- * (or it was an easy week), so a missed week repeats the same weights.
+ * Where the bench plan stands: the week (step) the next heavy day is, and the max its weights
+ * come from. Week 1's first set (as many reps as you can, one left) sets the max; each test day
+ * raises it to the best set. A week only moves on when it went to plan, so a rough week repeats.
+ * After the last week the plan carries on from block 2 with the new max.
  */
-export function benchProgress(settings: Settings, history: HistorySession[]): { step: number; newMax?: number } {
-  const inBlock = history
+export function benchState(settings: Settings, history: HistorySession[]): { step: number; max: number } {
+  const heavyDays = history
     .filter((h) => h.templateId === 'upperA' && h.benchStep !== undefined && h.date >= settings.benchBlockStart)
     .sort((a, b) => a.date.localeCompare(b.date) || a.sessionId - b.sessionId);
   let step = 0;
-  let testSession: HistorySession | undefined;
-  for (const s of inBlock) {
+  let max = settings.benchMax;
+  for (const s of heavyDays) {
     if (s.benchStep !== step) continue;
     const def = BENCH_STEPS[step];
-    if (def.test) {
-      testSession = s;
+    const bench = s.sets.filter((x) => x.exerciseId === 'bench').sort((a, b) => a.setIndex - b.setIndex);
+    if (def.calibrate) {
+      const first = bench[0];
+      if (!first) continue;
+      // Reps done plus the one left in reserve (Epley), within reason of the starting max.
+      const est = first.weight * (1 + (first.reps + 1) / 30);
+      max = Math.floor(Math.min(settings.benchMax * 1.2, Math.max(settings.benchMax * 0.8, est)) / 5) * 5;
       step += 1;
-      break;
-    }
-    if (def.easy || benchSessionSucceeded(s)) step += 1;
+    } else if (def.test) {
+      const best = bench.reduce((m, x) => Math.max(m, e1rm(x.weight, x.reps)), 0);
+      max = roundTo(Math.max(best, max), 5);
+      step += 1;
+    } else if (def.easy || benchSessionSucceeded(s, def)) step += 1;
+    if (step >= BENCH_STEPS.length) step = BENCH_REPEAT_FROM;
   }
-  if (step >= BENCH_STEPS.length && testSession) {
-    const best = testSession.sets
-      .filter((x) => x.exerciseId === 'bench')
-      .reduce((m, x) => Math.max(m, e1rm(x.weight, x.reps)), 0);
-    return { step: 0, newMax: roundTo(Math.max(best, settings.benchMax), 5) };
-  }
-  return { step };
+  return { step, max };
 }
 
-export function planBenchHeavy(
-  step: number,
-  max: number,
-  deload: boolean,
-): { sets: SetTarget[]; notes: string[]; countsAsStep: boolean } {
+const loadSets = (groups: BenchGroup[], max: number, scale = 1): SetTarget[] =>
+  groups.flatMap((g) => Array.from({ length: Math.max(1, Math.round(g.sets * scale)) }, () => ({ weight: roundTo(max * g.pct, 5), reps: g.reps, label: g.label })));
+
+/** The heavy day: the week's top set (or single) and back-off sets. */
+export function planBenchHeavy(step: number, max: number, deload: boolean): { sets: SetTarget[]; notes: string[]; countsAsStep: boolean } {
   const def = BENCH_STEPS[step];
-  if (deload && !def.easy && !def.test) {
-    const easy = BENCH_STEPS.find((s) => s.easy)!;
-    const g = easy.groups[0];
+  if (deload && !def.easy && !def.test && !def.calibrate) {
     return {
-      sets: Array.from({ length: g.sets }, () => ({ weight: roundTo(max * g.pct, 5), reps: g.reps })),
-      notes: ['Easy week for everything, so bench is light too. Your table picks up where it left off next week.'],
+      sets: loadSets([{ sets: 3, reps: 3, pct: 145 / 195 }], max),
+      notes: ['Easy week for everything, so bench is light too. The plan picks up where it left off next week.'],
       countsAsStep: false,
     };
   }
-  const sets: SetTarget[] = def.groups.flatMap((g) =>
-    Array.from({ length: g.sets }, () => ({ weight: roundTo(max * g.pct, 5), reps: g.reps, label: g.label })),
-  );
-  const notes = [`Bench table step ${step + 1} of ${BENCH_STEPS.length}.`];
+  const notes = [`Bench week ${step + 1} of ${BENCH_STEPS.length}.`];
   if (def.note) notes.push(def.note);
-  notes.push('Miss any reps and this step repeats next week.');
-  return { sets, notes, countsAsStep: true };
+  if (!def.easy && !def.test && !def.calibrate) notes.push('Miss reps on two or more sets and this week repeats.');
+  return { sets: loadSets(def.heavy, max), notes, countsAsStep: true };
+}
+
+/** The volume day: more reps at a moderate weight, the same week as the last heavy day. */
+export function planBenchVolume(step: number, max: number, deload: boolean): { sets: SetTarget[]; notes: string[] } {
+  const def = BENCH_STEPS[step];
+  const groups = def.volume ?? [{ sets: 3, reps: 5, pct: 0.65 }];
+  const light = deload && !def.easy;
+  return { sets: loadSets(groups, max, light ? 0.5 : 1), notes: light ? ['Easy week: half the sets.'] : [] };
+}
+
+/** The variation day (paused or close-grip), or nothing in an easy week. */
+export function planBenchVariation(step: number, max: number, deload: boolean): { exerciseId: string; sets: SetTarget[]; notes: string[] } | null {
+  const def = BENCH_STEPS[step];
+  if (!def.variation || deload) return null;
+  const notes = def.variation.exerciseId === 'pausedBench' ? ['Pause two seconds on your chest, dead still, then press.'] : ['Hands about shoulder-width, elbows tucked.'];
+  return { exerciseId: def.variation.exerciseId, sets: loadSets(def.variation.groups, max), notes };
+}
+
+/** The bench week the volume and variation days follow: this week's heavy day if it's done, else the next one. */
+function benchWeekFor(today: ISODate, history: HistorySession[], state: { step: number }): number {
+  const monday = (() => {
+    const d = new Date(`${today}T12:00`);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  })();
+  const heavy = history
+    .filter((h) => h.templateId === 'upperA' && h.benchStep !== undefined && h.date >= monday && h.date <= today)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  return heavy?.benchStep ?? state.step;
 }
 
 export function planWorkout(args: {
@@ -222,39 +258,39 @@ export function planWorkout(args: {
   history: HistorySession[];
 }): WorkoutPlan {
   const { template, settings, today, history } = args;
-  const week = programWeek(settings.programStart, today, DELOAD_BLOCK_WEEKS);
+  const week = programWeek(settings.programStart, today, DELOAD_WEEKS);
   const deload = week.deload;
   let benchStep: number | undefined;
-  let newBenchMax: number | undefined;
+  const bench = benchState(settings, history);
+  // Week 1 eases in: one set fewer on everything but bench.
+  const easeIn = week.week === 1 && !deload;
 
-  const exercises: ExercisePlan[] = template.exercises.map((rx) => {
-    const def = EXERCISES[rx.exerciseId];
-    const sessions = sessionsFor(rx.exerciseId, history);
+  const exercises: ExercisePlan[] = [];
+  for (const rx of template.exercises) {
+    let exerciseId = rx.exerciseId;
     let sets: SetTarget[];
     let notes: string[];
     if (rx.scheme === 'bench-heavy') {
-      const prog = benchProgress(settings, history);
-      const max = prog.newMax ?? settings.benchMax;
-      newBenchMax = prog.newMax;
-      const planned = planBenchHeavy(prog.step, max, deload);
-      sets = planned.sets;
-      notes = planned.notes;
-      if (prog.newMax) notes.unshift(`New block! Your tested max is ${prog.newMax} lb, so every weight went up.`);
-      benchStep = planned.countsAsStep ? prog.step : undefined;
+      const planned = planBenchHeavy(bench.step, bench.max, deload);
+      ({ sets, notes } = planned);
+      benchStep = planned.countsAsStep ? bench.step : undefined;
+    } else if (rx.scheme === 'bench-volume') {
+      ({ sets, notes } = planBenchVolume(benchWeekFor(today, history, bench), bench.max, deload));
+    } else if (rx.scheme === 'bench-variation') {
+      const planned = planBenchVariation(benchWeekFor(today, history, bench), bench.max, deload);
+      if (!planned) continue; // an easy week: no variation day
+      ({ exerciseId, sets, notes } = planned);
     } else {
-      ({ sets, notes } = planDouble(rx, def, sessions, template.id, settings, deload));
+      const def = EXERCISES[exerciseId];
+      const r = easeIn ? { ...rx, sets: Math.max(2, rx.sets - 1) } : rx;
+      ({ sets, notes } = planDouble(r, def, sessionsFor(exerciseId, history), template.id, settings, deload));
+      if (easeIn && rx.sets > 2) notes.push('Week 1: one set fewer while you ease in.');
     }
+    const def = EXERCISES[exerciseId];
     if (def.cue) notes.push(def.cue);
-    return {
-      exerciseId: rx.exerciseId,
-      name: def.name,
-      sets,
-      restSec: rx.restSec,
-      superset: rx.superset,
-      notes,
-      last: lastSummary(sessions),
-    };
-  });
+    const sessions = sessionsFor(exerciseId, history);
+    exercises.push({ exerciseId, name: def.name, sets, restSec: rx.restSec, superset: rx.superset, notes, last: lastSummary(sessions) });
+  }
 
-  return { templateId: template.id, name: template.name, week, deload, benchStep, newBenchMax, exercises };
+  return { templateId: template.id, name: template.name, week, deload, benchStep, benchMax: bench.max, exercises };
 }
