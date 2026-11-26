@@ -2248,3 +2248,19 @@ button.water-oz:active {
   right: 0;
   pointer-events: none;
 }
+
+/* Tabs while they slide: no live blur inside them (see useTabPager), and each one on its own
+ * compositor layer so moving it is just moving a picture. */
+/* Only the blurred things are named (a catch-all selector would restyle the whole app twice per
+ * swipe). */
+.tab-panes.is-paging .ios-glass,
+.tab-panes.is-paging .ios-segmented,
+.tab-panes.is-paging .ios-btn,
+.tab-panes.is-paging .ios-navbar::after,
+.tab-panes.is-paging .status-edge::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.tab-panes.is-paging > * {
+  will-change: transform;
+}

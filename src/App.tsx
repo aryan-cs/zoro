@@ -293,21 +293,29 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   const live = useRef({ pushed, current });
   live.current = { pushed, current };
 
+  // Width of a page, kept up to date without measuring every frame (which forces a layout).
+  const width = useRef(window.innerWidth);
+  // What each tab was last given, so a frame only touches what actually changes.
+  const applied = useRef<{ t: string; v: string }[]>([]);
   const paint = () => {
     const s = st.current;
-    const W = root.current?.clientWidth || 1;
-    const atRest = !s.raf && !s.dragging;
+    const W = width.current || 1;
+    const moving = !!s.raf || s.dragging;
+    // While the tabs move, their glass stops blurring what's behind it: re-blurring every frame as
+    // a whole screen slides is what makes paging stutter on iPhone. (Over the dark app it looks the same.)
+    root.current?.classList.toggle('is-paging', moving);
     panes.current?.forEach((el, i) => {
       if (!el) return;
       const off = i - s.p;
-      if (atRest && Math.abs(off) < 1e-4) {
-        // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
-        el.style.transform = '';
-        el.style.visibility = 'visible';
-        return;
-      }
-      el.style.transform = `translate3d(${off * W}px, 0, 0)`;
-      el.style.visibility = Math.abs(off) < 0.999 ? 'visible' : 'hidden';
+      // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
+      const t = !moving && Math.abs(off) < 1e-4 ? '' : `translate3d(${Math.round(off * W * 2) / 2}px, 0, 0)`;
+      // The tabs either side stay drawn (just off screen) so a swipe has nothing to paint first.
+      const v = Math.abs(off) < 1.999 ? 'visible' : 'hidden';
+      const was = applied.current[i];
+      if (was?.t === t && was?.v === v) return;
+      el.style.transform = t;
+      el.style.visibility = v;
+      applied.current[i] = { t, v };
     });
   };
   const step = (t: number) => {
@@ -347,7 +355,16 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
     s.last = 0;
   };
 
-  useLayoutEffect(paint, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    paint();
+    const onResize = () => {
+      width.current = window.innerWidth;
+      applied.current = [];
+      paint();
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // A tab picked any way (the tab bar, a swipe, a card that opens another tab): go there.
   useLayoutEffect(() => {
     const s = st.current;
@@ -389,7 +406,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
         start = { ...start, x: t.clientX, p: st.current.p };
       }
       e.preventDefault();
-      const W = node.clientWidth || 1;
+      const W = width.current || 1;
       const dt = Math.max(1, e.timeStamp - last.t) / 1000;
       const inst = -((t.clientX - last.x) / W) / dt;
       v = v * 0.4 + inst * 0.6;
@@ -439,7 +456,7 @@ function Shell() {
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
-      <div ref={root} className="absolute inset-0">
+      <div ref={root} className="tab-panes absolute inset-0">
       {TABS.map((t, i) => (
         <TabPane
           key={t.id}
