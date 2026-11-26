@@ -15,19 +15,16 @@ import { useSync } from '../ui/sync';
 export const RUN_URL = 'shortcuts://run-shortcut?name=Connect%20Zoro%20to%20Health';
 
 /**
- * Where Zoro Health installs from: the signed copy this app serves. Adding it asks for the backup
- * key, so nothing personal is in the file.
+ * Connect Zoro to Health, shared from Shortcuts as an iCloud link (made on the Mac with Share ›
+ * Copy iCloud Link; it opens Shortcuts' Add Shortcut screen). It's a snapshot: after changing the
+ * shortcut (scripts/make-health-shortcut.py), add the new build and share a fresh link. The shared
+ * copy asks for the backup key when added; no key is in it.
  */
-const FILE_URL = new URL(`${import.meta.env.BASE_URL}ZoroHealth.shortcut`, location.origin).href;
+const ICLOUD_URL = 'https://www.icloud.com/shortcuts/d3c267607b4f443995db3821e5994f86';
 
-/**
- * Add Zoro Health to Shortcuts: open the file in Safari itself (x-safari-https, iOS 17+), which
- * downloads it; opening the download hands it to Shortcuts. Shortcuts' own import link only takes
- * iCloud links now ("The shortcut URL provided was invalid"), and the in-app browser a Home Screen
- * app opens can't download files at all.
- */
+/** Add Connect Zoro to Health to Shortcuts, for the automation to run. */
 export function addHealthAutomation() {
-  window.location.href = FILE_URL.replace(/^https:\/\//, 'x-safari-https://');
+  window.location.href = ICLOUD_URL;
 }
 
 /** "today at 9:02 AM", "yesterday at 9:02 AM" or "Nov 24 at 9:02 AM". */
@@ -59,12 +56,8 @@ export function HealthSetupScreen() {
       >
         <Row title="Last Brought In" right={syncedAt ? whenWas(syncedAt) : 'Not Yet'} />
       </Section>
-      <Section
-        keep
-        title="1. Add Zoro Health"
-        footer="Safari opens and asks to download it. Tap Download, then the downloads arrow by the address and Zoro Health; Shortcuts opens it and asks once for your Cloud Backup key."
-      >
-        <Row accent title="Get Zoro Health" onClick={addHealthAutomation} />
+      <Section keep title="1. Add the Shortcut" footer="Adds Connect Zoro to Health, the steps the automation runs. It asks once for your Cloud Backup key.">
+        <Row accent title="Add to Shortcuts" onClick={addHealthAutomation} />
       </Section>
       <Section
         keep
