@@ -517,6 +517,33 @@ select {
 .k-toast > div > div {
   padding: 12px 20px !important;
 }
+/* In: rises a little and grows to size with a soft spring. Out: sinks and fades. */
+.zoro-toast > div {
+  animation: toast-in 0.42s cubic-bezier(0.25, 1.25, 0.4, 1) both;
+}
+.zoro-toast.is-leaving > div {
+  animation: toast-out 0.24s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+}
 
 /* Switches are green when on, as in iOS Settings. */
 .k-toggle .bg-primary {

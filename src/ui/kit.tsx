@@ -1074,25 +1074,33 @@ export function NumberPrompt(props: {
 const ToastContext = createContext<(msg: string) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [msg, setMsg] = useState<string | null>(null);
+  // The notice showing, and whether it's on its way out. It rises and grows in, then sinks and
+  // fades away (a new one while it's up just changes the words).
+  const [toast, setToast] = useState<{ msg: string; leaving: boolean; id: number } | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  const gone = useRef<number | undefined>(undefined);
   const show = useCallback((m: string) => {
-    setMsg(m);
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setMsg(null), 2200);
+    window.clearTimeout(gone.current);
+    setToast((t) => ({ msg: m, leaving: false, id: t && !t.leaving ? t.id : Date.now() }));
+    timer.current = window.setTimeout(() => {
+      setToast((t) => (t ? { ...t, leaving: true } : t));
+      gone.current = window.setTimeout(() => setToast(null), TOAST_OUT_MS);
+    }, 2200);
   }, []);
   return (
     <ToastContext.Provider value={show}>
       {children}
       {/* Mounted only while showing, so a hidden toast never sits over the page. */}
-      {msg && (
-        <Toast position="center" opened className="!bottom-[calc(var(--k-safe-area-bottom)+76px)]">
-          <span className="shrink">{msg}</span>
+      {toast && (
+        <Toast key={toast.id} position="center" opened className={`zoro-toast ${toast.leaving ? 'is-leaving' : ''} !bottom-[calc(var(--k-safe-area-bottom)+76px)]`}>
+          <span className="shrink">{toast.msg}</span>
         </Toast>
       )}
     </ToastContext.Provider>
   );
 }
+const TOAST_OUT_MS = 240;
 
 export const useToast = () => useContext(ToastContext);
 

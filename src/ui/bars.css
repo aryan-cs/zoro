@@ -2652,3 +2652,17 @@ button.water-oz:active {
   color: #fff;
   pointer-events: none;
 }
+
+/* A timed set counting down fills behind its row like a rest, and its circle shows a stop square. */
+.step-card.is-timing {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.step-check.is-running::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--ios-label);
+}

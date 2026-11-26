@@ -134,6 +134,15 @@ export function LiftScreen() {
     return total ? Math.min(1, logged.size / total) : 0;
   };
   const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
+  // Tapping a workout's card: a finished one opens what you did (any day); otherwise, today, it
+  // does what play does.
+  const openCard = (id: TemplateId) => {
+    if (doneOn(id)) {
+      const s = history.filter((h) => h.date === sel && h.templateId === id && h.sets.length).at(-1);
+      return s ? () => nav.push({ name: 'workout', sessionId: s.sessionId }) : undefined;
+    }
+    return isToday ? () => void start(id) : undefined;
+  };
 
   // A rest counting down in the workout you're doing: its card rings its play button with it.
   const running = useRunningRest(open?.id);
@@ -182,8 +191,7 @@ export function LiftScreen() {
             color={FITNESS.exercise}
             done={doneOn(mainId)}
             onPlay={isToday ? () => void start(mainId) : undefined}
-            // Tapping the card does what play does.
-            onOpen={isToday && !doneOn(mainId) ? () => void start(mainId) : undefined}
+            onOpen={openCard(mainId)}
             rest={restFor(mainId)}
             progress={dayProgress(mainId)}
           />
@@ -197,7 +205,7 @@ export function LiftScreen() {
             color={FITNESS.steps}
             done={doneOn(secondId)}
             onPlay={isToday ? () => void start(secondId) : undefined}
-            onOpen={isToday && !doneOn(secondId) ? () => void start(secondId) : undefined}
+            onOpen={openCard(secondId)}
             rest={restFor(secondId)}
             progress={dayProgress(secondId)}
           />

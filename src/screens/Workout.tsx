@@ -51,6 +51,10 @@ function SetStep(props: {
   index: number;
   /** The exercise's final set (its how-to says to take this one to failure, if that's the plan). */
   last: boolean;
+  /** A timed set (a plank) counting down: when it started and when it ends. */
+  clock?: { startedAt: number; endsAt: number } | null;
+  /** Start a timed set's countdown (ticking a timed set starts it instead of logging it). */
+  onStartClock?: () => void;
   /** Weight used on the previous set, when there's no target yet. */
   fallbackWeight?: number;
   onLog: (weight: number, reps: number) => void;
@@ -85,13 +89,42 @@ function SetStep(props: {
     if (open && (sw.off < -70 || flick)) nav.push({ name: 'exercise', exerciseId: def.id, lastSet: props.last });
   };
   const done = !!props.logged;
+  // A timed set counting down: the seconds left take the place of the target, the card fills
+  // behind it like a rest, and at zero it logs itself (tick it before then to stop early).
+  const running = !!props.clock && !done;
+  const [now, setNow] = useState(Date.now());
+  const finishClock = useRef<() => void>(() => {});
+  const fired = useRef(0);
+  const endsAt = props.clock?.endsAt;
+  useEffect(() => {
+    if (!running || !endsAt) return;
+    const tick = () => {
+      const n = Date.now();
+      setNow(n);
+      if (n >= endsAt && fired.current !== endsAt) {
+        fired.current = endsAt;
+        finishClock.current();
+      }
+    };
+    tick();
+    const t = window.setInterval(tick, 200);
+    return () => window.clearInterval(t);
+  }, [running, endsAt]);
   const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
   const reps = props.logged?.reps ?? edit.r ?? props.target.reps;
   const repUnit = def.timed ? 'sec' : def.perSide ? 'each' : 'reps';
 
   const log = (w: number | undefined, r: number) => props.onLog(noLoad ? 0 : (w ?? 0), r);
+  finishClock.current = () => log(weight, reps);
+  const clockLeft = running && props.clock ? Math.max(0, Math.ceil((props.clock.endsAt - now) / 1000)) : reps;
+  const clockPassed = running && props.clock ? Math.min(1, Math.max(0, (now - props.clock.startedAt) / Math.max(1, props.clock.endsAt - props.clock.startedAt))) : 0;
   const toggle = () => {
     if (done) return props.onUnlog();
+    if (props.onStartClock) {
+      // Stopped early: log the seconds held.
+      if (running && props.clock) return log(weight, Math.max(1, Math.min(reps, Math.round((Date.now() - props.clock.startedAt) / 1000))));
+      return props.onStartClock();
+    }
     if (!noLoad && weight === undefined) return setPrompt('w');
     log(weight, reps);
   };
@@ -104,7 +137,7 @@ function SetStep(props: {
   return (
     <section
       data-step={props.stepId}
-      className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}
+      className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''} ${running ? 'is-timing' : ''}`}
       ref={card}
       onPointerDown={(e) => {
         if ((e.target as Element).closest('.step-check')) return;
@@ -156,6 +189,7 @@ function SetStep(props: {
         hold.current.fired = false;
       }}
     >
+      {running && <span className="step-rest-fill" style={{ width: `${clockPassed * 100}%` }} aria-hidden />}
       <div className="step-head">
         <h3 className="step-title">
           {/* Always one line: a long name steps down in size instead of wrapping. */}
@@ -163,7 +197,12 @@ function SetStep(props: {
             {`${props.ex.name}, Set ${props.index + 1} of ${props.ex.sets.length}`}
           </FitText>
         </h3>
-        <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
+        <button
+          type="button"
+          className={`step-check ${done ? 'is-done' : ''} ${running ? 'is-running' : ''}`}
+          onClick={toggle}
+          aria-label={`${done ? 'Undo' : running ? 'Stop' : props.onStartClock ? 'Start' : 'Log'} ${def.name}`}
+        >
           {done && <Sym name="checkmark" size={13} />}
         </button>
       </div>
@@ -184,7 +223,7 @@ function SetStep(props: {
           </>
         )}
         <button type="button" className="step-num" onClick={() => setPrompt('r')} aria-label={`Change ${repUnit}`}>
-          {reps}
+          {clockLeft}
           <small>{def.timed ? 'SEC' : def.perSide ? 'REPS EACH' : 'REPS'}</small>
         </button>
       </div>
@@ -358,6 +397,25 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
       /* kept until the screen closes */
     }
   };
+  // A timed set counting down (which set, when it started and ends), kept the same way, so leaving
+  // mid-plank and coming back still has it (and logs it if it ran out meanwhile).
+  const clockStore = `zoro.clock.${sessionId}`;
+  const [clock, setClockState] = useState<{ key: string; startedAt: number; endsAt: number } | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(clockStore) ?? 'null');
+    } catch {
+      return null;
+    }
+  });
+  const setClock = (c: { key: string; startedAt: number; endsAt: number } | null) => {
+    setClockState(c);
+    try {
+      if (c) localStorage.setItem(clockStore, JSON.stringify(c));
+      else localStorage.removeItem(clockStore);
+    } catch {
+      /* kept until the screen closes */
+    }
+  };
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   useEffect(() => {
@@ -435,12 +493,14 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
 
   const finish = async () => {
     setRest(null);
+    setClock(null);
     await finishSession(sessionId, db);
     toast('Workout saved');
     nav.pop();
   };
   const discard = async () => {
     setRest(null);
+    setClock(null);
     await deleteSession(sessionId, db);
     setConfirmDiscard(false);
     nav.pop();
@@ -506,7 +566,17 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
               current={key === currentKey}
               logged={byKey.get(key)}
               fallbackWeight={i > 0 ? byKey.get(`${ex.exerciseId}:${i - 1}`)?.weight || undefined : undefined}
+              clock={clock?.key === key ? clock : null}
+              onStartClock={
+                EXERCISES[ex.exerciseId].timed
+                  ? () => {
+                      setRest(null);
+                      setClock({ key, startedAt: Date.now(), endsAt: Date.now() + t.reps * 1000 });
+                    }
+                  : undefined
+              }
               onLog={(weight, reps) => {
+                if (clock?.key === key) setClock(null);
                 void logSet({ sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps }, db);
                 if (step.restAfter && !byKey.get(key)) setRest({ after: key, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000 });
               }}
