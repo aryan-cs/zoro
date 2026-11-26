@@ -33,6 +33,15 @@ textarea,
   user-select: text;
   -webkit-touch-callout: default;
 }
+/* No scroll indicators anywhere: pages still scroll, the bar just never shows. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
 body {
   /* The document never scrolls; each page scrolls inside itself, so screens that fit don't move. */
   position: fixed;
