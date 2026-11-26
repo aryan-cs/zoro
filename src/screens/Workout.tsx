@@ -6,7 +6,8 @@ import { warmVideos } from '../core/guide';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { parseSaid } from '../core/sayParse';
-import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
+import { addExerciseToSession, buildPlan, deleteSession, finishSession, logSet, removeExtraExercise, unlogSet } from '../core/store';
+import { ExercisePicker } from '../ui/ExercisePicker';
 import type { ExercisePlan, ISODate, SetLog, SetTarget, TemplateId, WorkoutSession } from '../core/types';
 import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
@@ -450,6 +451,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
     }
   };
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [saying, setSaying] = useState(false);
   // Tapping the pencil listens straight away; what you say fills the field as you talk.
   const listen = useListen();
@@ -458,8 +460,8 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   useEffect(() => {
     if (!session) return;
     // Targets come from history before this session, so logging sets here doesn't move them.
-    void buildPlan(session.templateId, session.date, db, sessionId).then(setPlan);
-  }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek]);
+    void buildPlan(session.templateId, session.date, db, sessionId, session.extras).then(setPlan);
+  }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek, session?.extras?.join()]);
   // Its exercises' animations, fetched now so swiping to one shows it straight away.
   useEffect(() => {
     if (plan) warmVideos(plan.exercises.map((e) => e.exerciseId));
@@ -710,6 +712,10 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
       </div>
 
       {!planned && <div className="mx-4 mt-6 space-y-2">
+        {/* More exercises than the plan has: done after its own, logged the same way. */}
+        <Btn size="lg" onClick={() => setPicking(true)}>
+          Add Exercise
+        </Btn>
         {!finished ? (
           <>
             <Btn kind="tint" size="lg" onClick={() => void finish()}>
@@ -727,6 +733,18 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
       </div>}
 
 
+      <ExercisePicker
+        opened={picking}
+        onClose={() => setPicking(false)}
+        added={session.extras}
+        onPick={(id) => {
+          setPicking(false);
+          if (!session.extras?.includes(id)) return void addExerciseToSession(sessionId, id, db);
+          // Picking an added one again takes it back out, unless it has sets logged.
+          if (logged.some((x) => x.exerciseId === id)) return toast('It has sets logged');
+          void removeExtraExercise(sessionId, id, db);
+        }}
+      />
       <Dialog
         opened={confirmDiscard}
         title="Delete Workout?"

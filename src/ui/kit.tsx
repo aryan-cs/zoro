@@ -710,10 +710,21 @@ export function WorkoutCard(props: {
   rest?: { startedAt?: number; endsAt: number } | null;
   /** A number on the title's line, at the right (Steps: how many walked). */
   value?: ReactNode;
+  /** Touch and hold the card (Steps: add a walk, run or stairs). */
+  onHold?: () => void;
+  holdLabel?: string;
 }) {
   const style = { '--tint': props.color } as CSSProperties;
+  const hold = useHold(props.onHold);
   return (
-    <section className={`wk-card ${props.onOpen ? 'is-link' : ''}`} style={style} onClick={props.onOpen} role={props.onOpen ? 'button' : undefined}>
+    <section
+      className={`wk-card ${props.onOpen ? 'is-link' : ''} ${props.onHold ? 'is-holdable' : ''}`}
+      style={style}
+      onClick={props.onOpen}
+      role={props.onOpen ? 'button' : undefined}
+      aria-label={props.holdLabel}
+      {...hold}
+    >
       <div className="wk-top">
         <span className="wk-glyph">
           <Sym name={props.glyph} size={30} />
@@ -776,6 +787,49 @@ export function WorkoutCard(props: {
       )}
     </section>
   );
+}
+
+/**
+ * Touch and hold, as on iOS: half a second without moving, then `onHold` (with a tap of haptics
+ * where there are any). The click that ends a hold doesn't count as a tap. Nothing when `onHold`
+ * isn't given.
+ */
+export function useHold(onHold?: () => void) {
+  const timer = useRef(0);
+  const from = useRef<[number, number] | null>(null);
+  const fired = useRef(false);
+  if (!onHold) return {};
+  const cancel = () => {
+    window.clearTimeout(timer.current);
+    from.current = null;
+  };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      if ((e.target as Element).closest('button, a, input, select, textarea')) return;
+      fired.current = false;
+      from.current = [e.clientX, e.clientY];
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => {
+        fired.current = true;
+        from.current = null;
+        navigator.vibrate?.(10);
+        onHold();
+      }, 500);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (from.current && Math.hypot(e.clientX - from.current[0], e.clientY - from.current[1]) > 8) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onPointerLeave: cancel,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    onClickCapture: (e: React.MouseEvent) => {
+      if (!fired.current) return;
+      fired.current = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+  };
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */

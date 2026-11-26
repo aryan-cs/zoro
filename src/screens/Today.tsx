@@ -3,7 +3,7 @@ import { Page } from 'konsta/react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, roundTo, weightTrend } from '../core/calc';
 import { templateForWeekday, workoutDayPercent } from '../core/program';
-import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
+import { dayTotals, metricsOf, saveMetric, stepsOn, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { hrMin } from '../core/say';
@@ -78,7 +78,8 @@ export function TodayScreen() {
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
-  const steps = useLiveQuery(() => db.metrics.where('[type+date]').equals(['steps', date]).first(), [date])?.value ?? 0;
+  // Apple Health's steps plus walks, runs and stairs added on Lift.
+  const steps = useLiveQuery(async () => (await stepsOn(date, db)).total, [date]) ?? 0;
   // Today's workouts as one percentage: each planned workout counts the share of its exercises
   // you've started (on exercise 3 of 10 is 30%; finished is 100%), averaged over the day's
   // workouts (one done and one halfway is 75%). Any other workout you start today joins in.

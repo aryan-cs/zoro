@@ -3,9 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, programWeek } from '../core/calc';
 import { DELOAD_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
-import { loadHistory, today } from '../core/store';
+import { addExtraExercise, loadHistory, stepsOn, today } from '../core/store';
 import type { TemplateId } from '../core/types';
 import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
+import { ActivitySheet, STEPS_ORANGE } from '../ui/ActivitySheet';
+import { ExercisePicker } from '../ui/ExercisePicker';
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
@@ -16,8 +18,6 @@ const SECONDARY: TemplateId[] = ['pmCardio'];
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const SPAN = 26; // weeks you can swipe back and ahead
-/** Steps' color: Activity's orange. */
-const STEPS_ORANGE = '#ff9f0a';
 
 /**
  * Calendar-style week strip: swipe sideways (or drag with a mouse) to page a week at a time;
@@ -161,8 +161,15 @@ export function LiftScreen() {
   // can be logged after the fact; a day still to come shows its workout as planned.
   const play = (id: TemplateId) => (sel > date ? () => nav.push({ name: 'plannedWorkout', templateId: id, date: sel }) : () => void start(id));
 
-  // The day's steps (brought in from Apple Health with sleep).
-  const steps = useLiveQuery(async () => (await db.metrics.where('[type+date]').equals(['steps', sel]).first())?.value, [sel]);
+  // The day's steps: Apple Health's (brought in with sleep), plus walks, runs and stairs added by
+  // holding the card.
+  const steps = useLiveQuery(async () => (await stepsOn(sel, db)).total, [sel]);
+  const [addingSteps, setAddingSteps] = useState(false);
+  // Exercises added on top of the day's workout: + › Add Exercise.
+  const [picking, setPicking] = useState(false);
+  const extras = history.filter((h) => h.date === sel && h.templateId === 'extra').at(-1);
+  const extraSession = useLiveQuery(async () => (extras ? db.sessions.get(extras.sessionId) : undefined), [extras?.sessionId]);
+  const extraList = (extraSession?.extras ?? []).map((id) => ({ id, name: EXERCISES[id]?.name ?? id, done: !!extras?.sets.some((x) => x.exerciseId === id) }));
 
   // A rest counting down in the workout you're doing: its card rings its play button with it.
   const running = useRunningRest(open?.id);
@@ -176,7 +183,8 @@ export function LiftScreen() {
   // any sets short of that is partway.
   const status = new Map<string, DayStatus>();
   for (const h of history) {
-    if (!h.sets.length) continue;
+    // Extra exercises don't make a day's workout done or not.
+    if (!h.sets.length || h.templateId === 'extra') continue;
     const full = h.plannedSets !== undefined ? h.sets.length >= h.plannedSets : !!h.finishedAt;
     if (full) status.set(h.date, 'complete');
     else if (status.get(h.date) !== 'complete') status.set(h.date, 'partial');
@@ -189,7 +197,7 @@ export function LiftScreen() {
         title="Lift"
         left={!isToday ? <NavText onClick={() => pick(date)}>Today</NavText> : undefined}
         right={
-          <IconBtn label="Start another workout" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
+          <IconBtn label="Start a workout or add an exercise" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())}>
             <Sym name="plus" size={18.3} />
           </IconBtn>
         }
@@ -201,7 +209,7 @@ export function LiftScreen() {
       <div ref={dayRef}>
       <div className="fit-stack lift-day-cards">
         <h2 className="lift-heading">{isToday ? 'Today’s Workout' : `${new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}’s Workout`}</h2>
-        {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && (
+        {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && open.templateId !== 'extra' && (
           <WorkoutCard
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
@@ -238,13 +246,26 @@ export function LiftScreen() {
             progress={dayProgress(secondId)}
           />
         )}
-        {/* Steps, every day: from Apple Health (the automation), against the daily goal. */}
+        {extras && extraList.length > 0 && (
+          <WorkoutCard
+            title={TEMPLATES.extra.name}
+            glyph={TEMPLATE_GLYPH.extra}
+            color={FITNESS.exercise}
+            sub={extraList.map((e) => e.name).join(', ')}
+            progress={extraList.filter((e) => e.done).length / extraList.length}
+            onOpen={() => nav.push({ name: 'workout', sessionId: extras.sessionId })}
+          />
+        )}
+        {/* Steps, every day: from Apple Health (the automation), against the daily goal. Hold it to
+            add a walk, run or stairs you did without your phone. */}
         <WorkoutCard
           title="Steps"
           glyph="figure.walk"
           color={STEPS_ORANGE}
           value={(steps ?? 0).toLocaleString()}
           progress={Math.min(1, (steps ?? 0) / Math.max(1, settings.stepsTarget))}
+          onHold={sel <= date ? () => setAddingSteps(true) : undefined}
+          holdLabel="Steps. Touch and hold to add a walk, run or stairs."
         />
       </div>
 
@@ -254,8 +275,22 @@ export function LiftScreen() {
       <Menu
         anchor={menu}
         onClose={() => setMenu(null)}
-        items={allowed.map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void start(id) }))}
+        items={[
+          ...allowed.map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void start(id) })),
+          { label: 'Add Exercise', icon: <Sym name="plus" size={15} />, onClick: () => setPicking(true), group: true },
+        ]}
       />
+      <ExercisePicker
+        opened={picking}
+        onClose={() => setPicking(false)}
+        added={extraSession?.extras}
+        onPick={(id) => {
+          setPicking(false);
+          // On the day you're looking at (today for a day still to come).
+          void addExtraExercise(sel > date ? date : sel, id).then((sessionId) => nav.push({ name: 'workout', sessionId }));
+        }}
+      />
+      <ActivitySheet opened={addingSteps} date={sel} onClose={() => setAddingSteps(false)} />
     </Page>
   );
 }

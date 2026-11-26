@@ -215,6 +215,13 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
       p('deadBug', 2, 8, 8, 30),
     ],
   },
+  extra: {
+    id: 'extra',
+    name: 'Extra Exercises',
+    short: 'Added on top of the day',
+    secondary: true,
+    exercises: [],
+  },
   // Earlier versions' second sessions, kept so old workouts still show their names.
   pmForearms: {
     id: 'pmForearms',
@@ -259,6 +266,27 @@ export function optionalForWeekday(weekday: number, daysPerWeek: 4 | 5): Templat
 /** A workout as planned (the same every week; the number of days only moves Saturday). */
 export function templateFor(id: TemplateId, _daysPerWeek: 4 | 5): WorkoutTemplate {
   return TEMPLATES[id];
+}
+
+/**
+ * How an exercise added by hand is done: as the program does it wherever it has it (the same rep
+ * range, so its weights carry over), otherwise three sets in a range that suits the kind of move.
+ */
+export function prescriptionFor(exerciseId: string): PrescribedExercise {
+  for (const t of Object.values(TEMPLATES)) {
+    const found = t.exercises.find((x) => x.exerciseId === exerciseId && x.scheme === 'double');
+    if (found) return { ...found, superset: undefined };
+  }
+  const def = EXERCISES[exerciseId];
+  if (def?.timed) return p(exerciseId, 3, 30, 60, 60);
+  if (def?.kind === 'barbell') return p(exerciseId, 3, 6, 10, 150);
+  return p(exerciseId, 3, 10, 15, 90);
+}
+
+/** A workout with exercises added to the end of it. */
+export function withExtras(template: WorkoutTemplate, extras: string[] | undefined): WorkoutTemplate {
+  const more = (extras ?? []).filter((id) => EXERCISES[id]);
+  return more.length ? { ...template, exercises: [...template.exercises, ...more.map(prescriptionFor)] } : template;
 }
 
 /** Sets at a fraction of the current bench max ("Top set", "Back-off"...). */
@@ -367,7 +395,8 @@ export function workoutDayPercent(
   sets: { sessionId: number; exerciseId: string }[],
   daysPerWeek: 4 | 5,
 ): number | null {
-  const ids = [...new Set([...planned, ...sessions.map((x) => x.templateId)])];
+  // Extra exercises are on top of the day's workouts: they don't make it more or less done.
+  const ids = [...new Set([...planned, ...sessions.map((x) => x.templateId)])].filter((id) => id !== 'extra');
   if (!ids.length) return null;
   let sum = 0;
   for (const id of ids) {

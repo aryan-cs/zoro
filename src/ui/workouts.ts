@@ -79,6 +79,7 @@ export const TEMPLATE_GLYPH: Record<TemplateId, SFName> = {
   pmAbs: 'figure.core.training',
   pmArms: 'figure.strengthtraining.functional',
   pmCardio: 'figure.walk',
+  extra: 'figure.strengthtraining.functional',
 };
 
 /** The optional workout offered by weekday (0 = Sunday): see optionalForWeekday. */

@@ -1516,6 +1516,12 @@ button.water-oz:active {
 .ios-menu-item:active {
   background: rgba(255, 255, 255, 0.12);
 }
+/* A gap between groups of items, as iOS menus have (a band of the darker glass behind). */
+.ios-menu-sep {
+  height: 8px;
+  margin: 4px -6px;
+  background: rgba(0, 0, 0, 0.18);
+}
 /* Menu icons sit in a fixed column, each centered in it, so different symbols line up. */
 .ios-menu-icon {
   display: flex;
@@ -3038,4 +3044,98 @@ button.water-oz:active {
 .pl-source.is-estimate {
   display: block;
   color: #8d8d93;
+}
+
+/* ---------- Adding a walk, run or stairs to the day's steps (ActivitySheet) ---------- */
+.act-rows > .amt-row + .amt-row {
+  box-shadow: inset 0 0.5px 0 rgba(84, 84, 88, 0.65);
+}
+.act-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.act-field input {
+  width: 96px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  text-align: right;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ios-label);
+}
+.act-field input::placeholder {
+  color: rgba(235, 235, 245, 0.3);
+}
+.act-unit {
+  min-width: 34px;
+  color: #98989f;
+}
+.act-field .ios-popup {
+  min-width: 34px;
+}
+.act-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.act-result-value {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 50px;
+  font-variant-numeric: tabular-nums;
+}
+.act-result-value small {
+  margin-left: 0.2em;
+  font-size: 0.4em;
+}
+.act-result-note {
+  font-size: 15px;
+  line-height: 20px;
+  color: #98989f;
+}
+.act-logged {
+  gap: 10px;
+}
+.act-logged-what {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ios-label);
+}
+.act-logged-what svg {
+  flex-shrink: 0;
+  color: #ff9f0a;
+}
+.act-logged-steps {
+  font-variant-numeric: tabular-nums;
+  color: #98989f;
+}
+.act-remove {
+  display: flex;
+  margin-right: -4px;
+  padding: 4px;
+  color: rgba(235, 235, 245, 0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+.act-remove:active {
+  opacity: 0.5;
+}
+/* The exercise list's search, under its sheet's bar. */
+.exercise-search {
+  padding: 4px 16px 8px;
+}
+/* A card you can touch and hold (Lift's Steps): no text selection or callout while held. */
+.wk-card.is-holdable {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }

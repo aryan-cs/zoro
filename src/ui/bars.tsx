@@ -1,5 +1,5 @@
 import { Sym } from './Sym';
-import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { InStack, useNav } from './nav';
 import './bars.css';
@@ -123,7 +123,7 @@ export function NavButtonGroup({ items }: { items: { label: string; icon: ReactN
  * iOS 26 pull-down menu: a glass panel that grows out of the button that opened it, with
  * white 17pt items and their symbols on the right. Tapping outside closes it.
  */
-export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => void; items: { label: string; icon?: ReactNode; onClick: () => void }[] }) {
+export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => void; items: { label: string; icon?: ReactNode; onClick: () => void; /** Starts a new group (a gap above it). */ group?: boolean }[] }) {
   // Closing plays the open animation in reverse (back into the button), then tells the parent.
   const [closing, setClosing] = useState(false);
   if (!props.anchor) return null;
@@ -153,10 +153,13 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
         onClick={(e) => e.stopPropagation()}
       >
         {props.items.map((i) => (
-          <button key={i.label} type="button" role="menuitem" className="ios-menu-item" onClick={() => close(i.onClick)}>
-            <span>{i.label}</span>
-            {i.icon && <span className="ios-menu-icon">{i.icon}</span>}
-          </button>
+          <Fragment key={i.label}>
+            {i.group && <div className="ios-menu-sep" role="separator" />}
+            <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(i.onClick)}>
+              <span>{i.label}</span>
+              {i.icon && <span className="ios-menu-icon">{i.icon}</span>}
+            </button>
+          </Fragment>
         ))}
       </div>
     </div>,

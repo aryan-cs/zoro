@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { DEFAULT_SETTINGS } from './settings';
-import type { BodyMetric, FoodEntry, FoodItem, LiftEntry, SavedMeal, SetLog, Settings, SleepEntry, WaterEntry, WorkoutSession } from './types';
+import type { ActivityEntry, BodyMetric, FoodEntry, FoodItem, LiftEntry, SavedMeal, SetLog, Settings, SleepEntry, WaterEntry, WorkoutSession } from './types';
 
 export class ZoroDB extends Dexie {
   settings!: EntityTable<Settings, 'key'>;
@@ -13,6 +13,7 @@ export class ZoroDB extends Dexie {
   metrics!: EntityTable<BodyMetric, 'id'>;
   water!: EntityTable<WaterEntry, 'id'>;
   lifts!: EntityTable<LiftEntry, 'id'>;
+  activities!: EntityTable<ActivityEntry, 'id'>;
 
   constructor(name = 'zoro') {
     super(name);
@@ -29,10 +30,11 @@ export class ZoroDB extends Dexie {
     this.version(1).stores(v1);
     this.version(2).stores({ ...v1, water: '++id, date' });
     this.version(3).stores({ ...v1, water: '++id, date', lifts: '++id, date, exerciseId, &[exerciseId+date]' });
+    this.version(4).stores({ ...v1, water: '++id, date', lifts: '++id, date, exerciseId, &[exerciseId+date]', activities: '++id, date' });
   }
 }
 
-export const TABLES = ['settings', 'sessions', 'sets', 'foods', 'entries', 'meals', 'sleep', 'metrics', 'water', 'lifts'] as const;
+export const TABLES = ['settings', 'sessions', 'sets', 'foods', 'entries', 'meals', 'sleep', 'metrics', 'water', 'lifts', 'activities'] as const;
 export type TableName = (typeof TABLES)[number];
 
 let instance: ZoroDB | null = null;

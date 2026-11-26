@@ -2,9 +2,12 @@ import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
 import { parseHealthImport, type DaySteps } from './sleep';
-import { templateFor, templateForWeekday } from './program';
+import { templateFor, templateForWeekday, withExtras } from './program';
+import { activitySteps } from './activity';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
 import type {
+  ActivityEntry,
+  ActivityKind,
   BodyMetric,
   FoodEntry,
   FoodItem,
@@ -81,10 +84,71 @@ export async function scheduledTemplate(date: ISODate, db: ZoroDB = getDB()): Pr
 }
 
 /** Targets for a workout, computed from everything logged before it. */
-export async function buildPlan(templateId: TemplateId, date: ISODate = today(), db: ZoroDB = getDB(), excludeSessionId?: number): Promise<WorkoutPlan> {
+export async function buildPlan(templateId: TemplateId, date: ISODate = today(), db: ZoroDB = getDB(), excludeSessionId?: number, extras?: string[]): Promise<WorkoutPlan> {
   const settings = await getSettings(db);
   const history = (await loadHistory(db, 400)).filter((h) => h.sessionId !== excludeSessionId && h.date <= date);
-  return planWorkout({ template: templateFor(templateId, settings.daysPerWeek), settings, today: date, history });
+  return planWorkout({ template: withExtras(templateFor(templateId, settings.daysPerWeek), extras), settings, today: date, history });
+}
+
+/**
+ * Add an exercise to a day's Extra Exercises (started if there isn't one yet, opened again if it
+ * was finished). Returns that session's id.
+ */
+export async function addExtraExercise(date: ISODate, exerciseId: string, db: ZoroDB = getDB()): Promise<number> {
+  const existing = (await db.sessions.where('date').equals(date).toArray())
+    .filter((s) => s.templateId === 'extra')
+    .sort((a, b) => b.startedAt - a.startedAt)[0];
+  if (existing?.id !== undefined) {
+    await addExerciseToSession(existing.id, exerciseId, db);
+    return existing.id;
+  }
+  const id = await startSession(await buildPlan('extra', date, db, undefined, [exerciseId]), date, db);
+  await db.sessions.update(id, { extras: [exerciseId] });
+  return id;
+}
+
+/** Add an exercise to the end of a workout (opening it again if it was finished). */
+export async function addExerciseToSession(sessionId: number, exerciseId: string, db: ZoroDB = getDB()): Promise<void> {
+  const s = await db.sessions.get(sessionId);
+  if (!s) return;
+  const extras = s.extras ?? [];
+  if (extras.includes(exerciseId)) return;
+  await db.sessions.update(sessionId, { extras: [...extras, exerciseId], finishedAt: undefined });
+}
+
+/** Take an exercise back out of a session's added ones (its logged sets go with it). */
+export async function removeExtraExercise(sessionId: number, exerciseId: string, db: ZoroDB = getDB()): Promise<void> {
+  await db.transaction('rw', db.sessions, db.sets, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s) return;
+    await db.sessions.update(sessionId, { extras: (s.extras ?? []).filter((x) => x !== exerciseId) });
+    await db.sets.where({ sessionId }).filter((x) => x.exerciseId === exerciseId).delete();
+  });
+}
+
+// ---------- Steps ----------
+
+/** A walk, run or stairs added to a day's steps, with the steps worked out from your height. */
+export async function addActivity(
+  a: { date: ISODate; kind: ActivityKind; miles?: number; minutes?: number; floors?: number },
+  db: ZoroDB = getDB(),
+): Promise<number> {
+  const settings = await getSettings(db);
+  const steps = activitySteps(a, { heightIn: settings.heightIn, sex: settings.sex });
+  const row: ActivityEntry = { ...a, steps, loggedAt: Date.now() };
+  return (await db.activities.add(row)) as number;
+}
+
+export async function deleteActivity(id: number, db: ZoroDB = getDB()): Promise<void> {
+  await db.activities.delete(id);
+}
+
+/** A day's steps: what Apple Health counted, plus what you added by hand. */
+export async function stepsOn(date: ISODate, db: ZoroDB = getDB()): Promise<{ health: number; added: number; total: number; activities: ActivityEntry[] }> {
+  const health = (await db.metrics.where('[type+date]').equals(['steps', date]).first())?.value ?? 0;
+  const activities = await db.activities.where('date').equals(date).toArray();
+  const added = activities.reduce((n, x) => n + x.steps, 0);
+  return { health, added, total: health + added, activities };
 }
 
 export async function startSession(plan: WorkoutPlan, date: ISODate = today(), db: ZoroDB = getDB()): Promise<number> {

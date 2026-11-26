@@ -132,7 +132,7 @@ export function backupNow(): Promise<void> {
 /** Anything logged on this phone (an empty, never-started workout doesn't count). */
 async function hasLoggedData(): Promise<boolean> {
   const db = getDB();
-  const counts = await Promise.all([db.sets.count(), db.entries.count(), db.sleep.count(), db.metrics.count(), db.water.count(), db.lifts.count()]);
+  const counts = await Promise.all([db.sets.count(), db.entries.count(), db.sleep.count(), db.metrics.count(), db.water.count(), db.lifts.count(), db.activities.count()]);
   return counts.some((n) => n > 0);
 }
 

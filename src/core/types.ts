@@ -44,7 +44,9 @@ export type TemplateId =
   | 'pmForearms'
   | 'pmAbs'
   | 'pmArms'
-  | 'pmCardio';
+  | 'pmCardio'
+  /** Exercises added on top of the day's workout (Lift's + › Add Exercise). */
+  | 'extra';
 
 export interface WorkoutTemplate {
   id: TemplateId;
@@ -85,6 +87,8 @@ export interface WorkoutSession {
   benchStep?: number;
   /** How many sets the workout's plan had (all of them logged = done in full). */
   plannedSets?: number;
+  /** Exercises added to it by hand, after its own (all of an Extra Exercises session's). */
+  extras?: string[];
   notes?: string;
   /** Left by the old sample week (deleted at startup). */
   sample?: boolean;
@@ -113,6 +117,22 @@ export interface LiftEntry {
   reps: number;
   loggedAt: number;
 }
+
+/** A walk, run or stair session added by hand to a day's steps (hold Lift's Steps card). */
+export interface ActivityEntry {
+  id?: number;
+  date: ISODate;
+  kind: ActivityKind;
+  /** Miles, if a distance was given (entered in km, kept in miles). */
+  miles?: number;
+  minutes?: number;
+  /** Floors climbed, for stairs. */
+  floors?: number;
+  /** The steps it works out to, added to the day's from Apple Health. */
+  steps: number;
+  loggedAt: number;
+}
+export type ActivityKind = 'walk' | 'run' | 'stairs';
 
 export interface Macros {
   kcal: number;
