@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Btn, db, dim, fmtLb, Header, NavText, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, db, dim, fmtLb, Header, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -176,13 +176,6 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
       <Header
         title={TEMPLATES[session.templateId].name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}
         onBack={nav.pop}
-        right={
-          !finished && (
-            <NavText strong onClick={() => void finish()}>
-              Finish
-            </NavText>
-          )
-        }
       />
 
       <Section>

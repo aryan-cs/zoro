@@ -624,8 +624,10 @@ export function WorkoutCard(props: {
   onPlay?: () => void;
   done?: boolean;
   onOpen?: () => void;
-  /** A short line under the title (how many exercises, or how far you've got). */
+  /** A short line under the title. */
   sub?: string;
+  /** How far through the workout you are (0–1), as a bar under the title in the workout's color. */
+  progress?: number;
   /** The workout's exercises, listed in the card: name, sets × reps (and weight), done or not. */
   exercises?: { name: string; detail: string; done?: boolean }[];
 }) {
@@ -658,6 +660,7 @@ export function WorkoutCard(props: {
       </div>
       <h2 className="wk-title">{props.title}</h2>
       {props.sub && <div className="wk-sub">{props.sub}</div>}
+      {props.progress !== undefined && <Bar value={props.progress} target={1} color={props.color} className="wk-progress" />}
       {props.tiles && props.tiles.length > 0 && (
         <div className="wk-tiles" style={{ gridTemplateColumns: `repeat(${props.tiles.length}, minmax(0, 1fr))` }}>
           {props.tiles.map((t) => (

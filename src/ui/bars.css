@@ -2332,3 +2332,8 @@ button.water-oz:active {
 .wk-exercises li.is-done svg {
   color: var(--tint);
 }
+
+/* How far through a workout you are, under its title. */
+.wk-progress {
+  margin-top: 12px;
+}

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { addDays, nextMonday, programWeek } from '../core/calc';
 import { DELOAD_BLOCK_WEEKS, EXERCISES, TEMPLATES, templateFor, templateForWeekday } from '../core/program';
-import { buildPlan, loadHistory, today } from '../core/store';
+import { loadHistory, today } from '../core/store';
 import type { TemplateId } from '../core/types';
 import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard } from '../ui/kit';
 import { useSlideSwap } from '../ui/pager';
@@ -119,19 +119,20 @@ export function LiftScreen() {
   const mainId = templateForWeekday(weekday, settings.daysPerWeek);
   const deload = programWeek(settings.programStart, sel, DELOAD_BLOCK_WEEKS).deload;
   const secondId = !deload ? SECOND_BY_WEEKDAY[weekday] : undefined;
-  const mainSession = history.find((h) => h.date === sel && h.templateId === mainId);
-  const plan = useLiveQuery(
-    () => (mainId ? buildPlan(mainId, sel, db, mainSession?.sessionId) : undefined),
-    [mainId, sel, settings.daysPerWeek, mainSession?.sessionId],
-  );
   // Each workout's exercises (counted on its card; listed on the workout's own screen).
   const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
   const fromTemplate = (id: TemplateId | undefined | null) =>
     id ? templateFor(id, settings.daysPerWeek).exercises.map((e) => ({ id: e.exerciseId, name: EXERCISES[e.exerciseId].name, detail: reps(e.sets, e.repMin, e.repMax, EXERCISES[e.exerciseId].timed) })) : [];
-  const secondList = fromTemplate(secondId);
   // The unfinished workout: which of its exercises already have sets logged.
   const openSets = useLiveQuery(async () => (open?.id !== undefined ? new Set((await db.sets.where('sessionId').equals(open.id).toArray()).map((x) => x.exerciseId)) : new Set<string>()), [open?.id]) ?? new Set<string>();
   const openList = fromTemplate(open?.templateId).map((e) => ({ ...e, done: openSets.has(e.id) }));
+  // How far through each of the day's workouts you are: exercises with sets logged, of all of them.
+  const dayProgress = (id: TemplateId) => {
+    const total = templateFor(id, settings.daysPerWeek).exercises.length;
+    const logged = new Set(history.filter((h) => h.date === sel && h.templateId === id).flatMap((h) => h.sets.map((x) => x.exerciseId)));
+    if (open?.templateId === id && sel === date) openSets.forEach((x) => logged.add(x));
+    return total ? Math.min(1, logged.size / total) : 0;
+  };
   const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
 
   const start = async (id: TemplateId) => {
@@ -164,7 +165,7 @@ export function LiftScreen() {
             title={TEMPLATES[open.templateId].name}
             glyph={TEMPLATE_GLYPH[open.templateId]}
             color={FITNESS.exercise}
-            sub={`In progress · ${openList.filter((e) => e.done).length} of ${openList.length} done`}
+            progress={openList.length ? openList.filter((e) => e.done).length / openList.length : 0}
             onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
           />
@@ -176,7 +177,7 @@ export function LiftScreen() {
             color={FITNESS.exercise}
             done={doneOn(mainId)}
             onPlay={isToday ? () => void start(mainId) : undefined}
-            sub={plan ? `${plan.exercises.length} exercises` : undefined}
+            progress={dayProgress(mainId)}
           />
         ) : (
           <WorkoutCard title="Rest Day" glyph="bed.double.fill" color={FITNESS.sleep} />
@@ -188,7 +189,7 @@ export function LiftScreen() {
             color={FITNESS.steps}
             done={doneOn(secondId)}
             onPlay={isToday ? () => void start(secondId) : undefined}
-            sub={`Add-on · ${secondList.length} exercises`}
+            progress={dayProgress(secondId)}
           />
         )}
       </div>
