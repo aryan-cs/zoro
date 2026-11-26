@@ -6,7 +6,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
-import { Bar, Btn, db, FITNESS, FitText, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Bar, Btn, db, FitText, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 
 function useWakeLock(active: boolean) {
@@ -105,7 +105,7 @@ function SetStep(props: {
           </FitText>
         </h3>
         <button type="button" className={`step-check ${done ? 'is-done' : ''}`} onClick={toggle} aria-label={`${done ? 'Undo' : 'Log'} ${def.name}`}>
-          {done && <Sym name="checkmark" size={15} />}
+          {done && <Sym name="checkmark" size={13} />}
         </button>
       </div>
       <div className="step-presc">
@@ -401,7 +401,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
       {/* How far through the workout (sets done of all of them): a glass bar held just above the
           tab bar, like a toolbar, with nothing but the bar in it. */}
       <div className="wk-progress-dock ios-glass" role="progressbar" aria-label="Sets done" aria-valuemin={0} aria-valuemax={totalSets} aria-valuenow={doneSets}>
-        <Bar value={doneSets} target={totalSets} color={FITNESS.exercise} />
+        <Bar value={doneSets} target={totalSets} color="#fff" />
       </div>
       {plan.deload && (
         <Section>
