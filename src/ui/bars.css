@@ -2333,9 +2333,11 @@ button.water-oz:active {
   color: var(--tint);
 }
 
-/* How far through a workout you are, along the card's bottom: the same 14pt from the card's
- * sides as from its bottom edge (the card pads 20pt, so the bar reaches 6pt past that). */
+/* How far through a workout you are, along the card's bottom, made like the nutrition bars on
+ * Today: 16pt from the card's sides and bottom alike (the card pads 20pt), and the same gray
+ * track they show on a plain card (their see-through track would pick up this card's tint). */
 .wk-progress {
   width: auto !important;
-  margin: 16px -6px -6px;
+  margin: 16px -4px -4px;
+  background-color: #3e3e40 !important;
 }
