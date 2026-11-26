@@ -24,8 +24,10 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
   const video = useRef<HTMLVideoElement>(null);
 
   // Fill the whole screen with the camera, cropping the edges (like object-fit: cover, which iOS
-  // ignores for a live camera video in this sheet, leaving black bands above and below).
+  // ignores for a live camera video in this sheet, leaving black bands above and below). Runs
+  // each time the scanner opens: the video only exists while it's open.
   useEffect(() => {
+    if (!opened) return;
     const v = video.current;
     if (!v) return;
     const cover = () => {
@@ -38,14 +40,21 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
       Object.assign(v.style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` });
     };
     v.addEventListener('loadedmetadata', cover);
+    v.addEventListener('playing', cover);
     v.addEventListener('resize', cover);
     window.addEventListener('resize', cover);
+    // iOS can report the camera's size a moment after it starts playing: check again briefly.
+    const poll = window.setInterval(cover, 200);
+    const stopPoll = window.setTimeout(() => window.clearInterval(poll), 3000);
     return () => {
       v.removeEventListener('loadedmetadata', cover);
+      v.removeEventListener('playing', cover);
       v.removeEventListener('resize', cover);
       window.removeEventListener('resize', cover);
+      window.clearInterval(poll);
+      window.clearTimeout(stopPoll);
     };
-  }, []);
+  }, [opened]);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -110,6 +119,8 @@ export function Scanner({ opened, onClose, onCode }: { opened: boolean; onClose:
     <Popup opened={opened} onBackdropClick={onClose} className="scanner">
       <video ref={video} playsInline muted autoPlay className={`scanner-video ${live ? '' : 'is-off'}`} />
 
+      <div className="scanner-fade is-top" aria-hidden />
+      <div className="scanner-fade is-bottom" aria-hidden />
       <header className="scanner-bar">
         <NavButton label="Close" onClick={onClose}>
           <Sym name="xmark" size={16.5} />

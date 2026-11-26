@@ -1199,6 +1199,24 @@ button.meal-row:not(:disabled):active {
   max-height: none;
   object-fit: cover;
 }
+/* Dark fades behind the bar and the shutter so the controls read over the camera (as in Camera),
+ * the same depth top and bottom. */
+.scanner-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 110px);
+  pointer-events: none;
+}
+.scanner-fade.is-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+}
+.scanner-fade.is-bottom {
+  bottom: 0;
+  height: calc(env(safe-area-inset-bottom, 0px) + 140px);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+}
 .scanner-video.is-off {
   visibility: hidden;
 }
