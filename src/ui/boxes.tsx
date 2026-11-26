@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { saveSettings } from '../core/db';
 import { useSettings } from './kit';
 import { MaskSym } from './Sym';
+import { SMOOTH, SPRING_TOKENS, springEasing, type Spring } from './motion';
 
 /**
  * The boxes on a page (History's cards) can be rearranged like Home Screen apps: touch and hold
@@ -20,8 +21,14 @@ export function Box(props: { id: string; children: ReactNode }) {
 const HOLD_MS = 500;
 /** Holds that start on these do their own thing (a stat explains itself, a chart scrubs, a control works). */
 const OWN_HOLD = '[data-info], .fit-chart, button, a, input, textarea, select, .ios-segmented, [role="button"]';
-/** How boxes slide to new places: UIKit's critically damped spring, as for push and pop. */
-const SLIDE = { duration: 420, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' };
+/** How boxes slide to new places, and come and go: Apple's springs (ui/motion.ts). */
+const timing = (s: Spring) => {
+  const { ms, easing } = springEasing(s);
+  return { duration: ms, easing };
+};
+const SLIDE = timing(SMOOTH);
+const APPEAR = timing(SMOOTH);
+const VANISH = timing(SPRING_TOKENS.quick);
 
 /** Asks a page's boxes to note where they are, just before something changes their order. */
 const CAPTURE = 'zoro:boxes-capture';
@@ -70,7 +77,7 @@ export function Boxes({ page, children }: { page: string; children: ReactNode })
       if (!el) continue;
       const old = was.get(id);
       if (old === undefined) {
-        el.animate([{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], { duration: 340, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' });
+        el.animate([{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], APPEAR);
         continue;
       }
       const dy = old - el.getBoundingClientRect().top;
@@ -89,7 +96,7 @@ export function Boxes({ page, children }: { page: string; children: ReactNode })
       save(state.pinned.filter((x) => x !== id), [...state.hidden, id]);
     };
     // Fade and shrink away first; then the boxes below slide up into its place.
-    if (el) el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9)' }], { duration: 240, easing: 'ease-in', fill: 'forwards' }).finished.then(done, done);
+    if (el) el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9)' }], { ...VANISH, fill: 'forwards' }).finished.then(done, done);
     else done();
   };
 
@@ -181,7 +188,7 @@ function HoldBox({ children, onHold, pinned, boxRef }: { children: ReactNode; on
   );
 }
 
-const CLOSE_MS = 240;
+const CLOSE_MS = 300;
 
 
 /**

@@ -12,6 +12,7 @@ import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, 
 import { useNav } from '../ui/nav';
 import { useListen } from '../ui/listen';
 import { restKey } from '../ui/workouts';
+import { SNAPPY, project, rubberBand, springEasing } from '../ui/motion';
 
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -76,21 +77,25 @@ function SetStep(props: {
   const card = useRef<HTMLElement>(null);
   const swipe = useRef<{ x: number; y: number; mode: 'undecided' | 'swipe' | 'off'; off: number; v: number; t: number; lx: number } | null>(null);
   const swallow = useRef(0);
-  const settle = (from: number) => {
+  /** Back to rest from `from` px, carrying on at the finger's speed `v` (px per ms) at first. */
+  const settle = (from: number, v: number) => {
     const el = card.current;
     if (!el) return;
     el.style.transform = '';
-    el.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' });
+    if (Math.abs(from) < 0.5) return;
+    const { ms, easing } = springEasing(SNAPPY, Math.max(-40, Math.min(40, (-v * 1000) / from)));
+    el.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], { duration: ms, easing });
   };
   const endSwipe = (open: boolean, at: number) => {
     const sw = swipe.current;
     swipe.current = null;
     if (sw?.mode !== 'swipe') return;
     swallow.current = performance.now() + 400; // the click that ends a swipe isn't a tap
-    settle(sw.off);
-    // Far enough, or a quick flick that's still moving when you let go.
-    const flick = sw.off < -24 && sw.v < -0.8 && at - sw.t < 80;
-    if (open && (sw.off < -70 || flick)) nav.push({ name: 'exercise', exerciseId: def.id, lastSet: props.last });
+    // A finger that had stopped before lifting isn't flicking.
+    const v = at - sw.t < 80 ? sw.v : 0;
+    settle(sw.off, v);
+    // Where the set would coast to decides: most of the way out (70pt), and it opens.
+    if (open && sw.off < -24 && sw.off + project(v) < -70) nav.push({ name: 'exercise', exerciseId: def.id, lastSet: props.last });
   };
   const done = !!props.logged;
   // A timed set counting down: the seconds left take the place of the target, the card fills
@@ -178,9 +183,9 @@ function SetStep(props: {
             return;
           }
         }
-        // With your finger to about 90pt, then with resistance.
+        // With your finger to about 90pt, then giving less and less.
         const d = Math.min(0, e.clientX - sw.x);
-        sw.off = d > -90 ? d : -90 + (d + 90) * 0.35;
+        sw.off = d > -90 ? d : -90 + rubberBand(d + 90, 90);
         sw.v = sw.v * 0.4 + ((e.clientX - sw.lx) / Math.max(1, e.timeStamp - sw.t)) * 0.6;
         sw.t = e.timeStamp;
         sw.lx = e.clientX;

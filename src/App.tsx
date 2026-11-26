@@ -16,7 +16,8 @@ import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { DIM, InStack, NavProvider, PARALLAX, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { project, springEasing, velocityTracker } from './ui/motion';
+import { DIM, InStack, NavProvider, PARALLAX, RELEASE_SPRING, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -143,24 +144,34 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
   // Slide in once: hidden tabs are display:none, which would replay the animation on return.
   const [landed, setLanded] = useState(false);
   const el = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number; t: number; active: boolean; dead: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; active: boolean; dead: boolean; speed: ReturnType<typeof velocityTracker> } | null>(null);
   const under = () => el.current?.previousElementSibling as HTMLElement | null;
 
-  /** Put this screen `dx` px in from the left and the one under it where that leaves it. */
-  const follow = (dx: number, animate: boolean) => {
+  /** Put this screen `dx` px in from the left and the one under it where that leaves it, at once or on `spring`. */
+  const follow = (dx: number, spring?: { ms: number; easing: string }) => {
     const node = el.current;
     const u = under();
     if (!node) return;
     const p = Math.min(1, Math.max(0, dx / node.offsetWidth)); // 0 = fully shown, 1 = gone
-    const t = animate ? `transform ${RELEASE_MS}ms ${RELEASE_EASE}` : 'none';
+    const t = spring ? `transform ${spring.ms}ms ${spring.easing}` : 'none';
     node.style.transition = t;
     node.style.transform = `translateX(${p * 100}%)`;
     if (u) {
       u.style.transition = t;
       u.style.transform = `translateX(${-PARALLAX * (1 - p)}%)`;
       u.style.setProperty('--dim', String(DIM * (1 - p)));
-      u.style.setProperty('--dim-ms', animate ? `${RELEASE_MS}ms` : '0ms');
+      u.style.setProperty('--dim-ms', spring ? `${spring.ms}ms` : '0ms');
+      if (spring) u.style.setProperty('--dim-ease', spring.easing);
     }
+  };
+  /** Let go at `dx`, moving at `v` (px per ms): on to `to`, carrying on at that speed. Returns how long it takes. */
+  const fling = (dx: number, to: number, v: number) => {
+    const left = to - dx;
+    // The finger's speed as a share of the way left to go, per second (a spring's starting speed).
+    const v0 = Math.abs(left) < 1 ? 0 : Math.max(-40, Math.min(40, (v * 1000) / left));
+    const spring = springEasing(RELEASE_SPRING, v0);
+    follow(to, spring);
+    return spring.ms;
   };
   /** Hand both screens back to their classes once an animation has landed. */
   const release = () => {
@@ -170,13 +181,16 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
       n.style.removeProperty('transform');
       n.style.removeProperty('--dim');
       n.style.removeProperty('--dim-ms');
+      n.style.removeProperty('--dim-ease');
     }
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (covered || e.touches.length !== 1 || (e.target as Element).closest?.(NO_SWIPE)) return;
     const t = e.touches[0];
-    drag.current = { x: t.clientX, y: t.clientY, t: Date.now(), active: false, dead: false };
+    const speed = velocityTracker();
+    speed.add(t.clientX, e.timeStamp);
+    drag.current = { x: t.clientX, y: t.clientY, active: false, dead: false, speed };
   };
   const onTouchMove = (e: React.TouchEvent) => {
     const d = drag.current;
@@ -193,24 +207,25 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
         return;
       }
     }
-    follow(Math.max(0, dx), false);
+    d.speed.add(t.clientX, e.timeStamp);
+    follow(Math.max(0, dx));
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     const d = drag.current;
     const node = el.current;
     drag.current = null;
     if (!d?.active || !node) return;
-    const dx = e.changedTouches[0].clientX - d.x;
-    const fast = dx / Math.max(1, Date.now() - d.t) > 0.5;
-    if (dx > node.offsetWidth * 0.3 || (fast && dx > 40)) {
-      follow(node.offsetWidth, true);
+    const dx = Math.max(0, e.changedTouches[0].clientX - d.x);
+    const v = d.speed.velocity(e.timeStamp);
+    // Where it would coast to decides, as UIKit's interactive pop does: past halfway, it goes.
+    if (dx + project(v) > node.offsetWidth / 2) {
+      const ms = fling(dx, node.offsetWidth, v);
       setTimeout(() => {
         release();
         pop(true);
-      }, RELEASE_MS);
+      }, ms);
     } else {
-      follow(0, true);
-      setTimeout(release, RELEASE_MS);
+      setTimeout(release, fling(dx, 0, v));
     }
   };
 
@@ -226,8 +241,9 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
       onTouchEnd={onTouchEnd}
       onTouchCancel={() => {
         if (drag.current?.active) {
-          follow(0, true);
-          setTimeout(release, RELEASE_MS);
+          const spring = springEasing(RELEASE_SPRING);
+          follow(0, spring);
+          setTimeout(release, spring.ms);
         }
         drag.current = null;
       }}

@@ -18,6 +18,7 @@ import { carbTarget } from '../core/calc';
 import { planHero, type HeroPlan } from '../core/heroMotion';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { InStack } from './nav';
+import { SMOOTH, project, rubberBand, settleTime, springAt, springEasing, velocityTracker, type Spring } from './motion';
 import { Sym } from './Sym';
 import { SF, type SFName } from './sf';
 import { getDB, getSettings } from '../core/db';
@@ -299,27 +300,34 @@ function onRing(cx: number, cy: number, r: number, deg: number) {
  * a shadow.
  */
 /**
- * A number that glides to each new value (ease-out over `ms`) instead of jumping: rings fill and
- * empty smoothly. Starts at its first value without animating.
+ * A number that glides to each new value on a spring instead of jumping: rings fill and empty
+ * smoothly. A new value mid-glide carries on from where it is, at the speed it's going (a spring,
+ * not a restart). Starts at its first value without animating.
  */
-export function useTweened(target: number, ms = 600): number {
+export function useTweened(target: number, spring: Spring = SMOOTH): number {
   const [shown, setShown] = useState(target);
-  const current = useRef(target);
+  // Where it is and how fast it's moving (per second).
+  const live = useRef({ x: target, v: 0 });
   useEffect(() => {
-    const from = current.current;
-    if (from === target) return;
+    const from = live.current.x;
+    const dist = target - from;
+    if (Math.abs(dist) < 1e-9) return;
+    const v0 = live.current.v / dist;
+    const total = settleTime(spring, v0) * 1000;
     const start = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const k = Math.min(1, (now - start) / ms);
-      const v = from + (target - from) * (1 - Math.pow(1 - k, 3));
-      current.current = v;
-      setShown(v);
+      const t = Math.min(total, now - start) / 1000;
+      const k = t * 1000 >= total ? 1 : springAt(spring, t, v0);
+      const x = from + dist * k;
+      // Speed from the curve's slope over the next few ms.
+      live.current = { x, v: k === 1 ? 0 : ((springAt(spring, t + 0.004, v0) - k) / 0.004) * dist };
+      setShown(x);
       if (k < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [target, ms]);
+  }, [target, spring]);
   return shown;
 }
 
@@ -332,10 +340,12 @@ export function useTweened(target: number, ms = 600): number {
  */
 /** Degrees the drum turns per digit: steep enough that a leaving digit visibly tips into the screen. */
 const STEP_DEG = 60;
+/** An odometer's count: a little slower than a ring, and never past the number (no bounce). */
+const COUNT_SPRING: Spring = { duration: 0.7, bounce: 0 };
 
 export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
   const target = Math.round(value);
-  const v = useTweened(target, 800);
+  const v = useTweened(target, COUNT_SPRING);
   const a = Math.abs(v);
   const places = String(Math.max(Math.round(a), Math.abs(target))).length;
   const resting = Math.abs(v - target) < 0.001;
@@ -1130,11 +1140,24 @@ export function Note({ children, className }: { children: ReactNode; className?:
 }
 
 /**
+ * An iOS sheet runs on past the bottom of the screen, so pulling it up shows more sheet, never the
+ * page behind it. Ours ends at the screen's edge, so paint its own background on below it: copies
+ * of the sheet as shadows, each starting under the last one's rounded top corners (a box's shadow
+ * shows only outside the box, so they never cover it).
+ */
+function extendBelow(sheet: HTMLElement) {
+  const cs = getComputedStyle(sheet);
+  const step = Math.max(1, sheet.offsetHeight - (parseFloat(cs.borderTopLeftRadius) || 0));
+  const bg = cs.backgroundColor;
+  sheet.style.boxShadow = [1, 2, 3].map((k) => `0 ${k * step}px 0 0 ${bg}`).join(', ');
+}
+
+/**
  * Drag a sheet down to close it, as on iOS: it follows the finger down (and rubber-bands if pulled
  * up), and on release closes if the flick would carry it past halfway (the release velocity
- * projected as UIScrollView decelerates, rate 0.998 per ms), or springs back. A drag starts only
- * when what's under the finger is scrolled to its top, so scrolling the sheet still scrolls.
- * Attach the returned ref to any element inside the sheet.
+ * projected as UIScrollView decelerates), carrying on at the finger's speed, or springs back from
+ * that speed. A drag starts only when what's under the finger is scrolled to its top, so scrolling
+ * the sheet still scrolls. Attach the returned ref to any element inside the sheet.
  */
 function useSwipeToClose(opened: boolean, onClose: () => void) {
   const anchor = useRef<HTMLDivElement>(null);
@@ -1147,7 +1170,7 @@ function useSwipeToClose(opened: boolean, onClose: () => void) {
     let start: { y: number; x: number; scroller: HTMLElement | null } | null = null;
     let engaged = false;
     let offset = 0;
-    let samples: { y: number; t: number }[] = [];
+    const speed = velocityTracker();
     let settle = 0;
     const scrollerOf = (el: Element | null): HTMLElement | null => {
       for (let n = el as HTMLElement | null; n && n !== sheet.parentElement; n = n.parentElement) {
@@ -1156,8 +1179,6 @@ function useSwipeToClose(opened: boolean, onClose: () => void) {
       }
       return null;
     };
-    // Past the edge it gives less and less, as iOS's rubber band does.
-    const rubber = (x: number, d: number) => (1 - 1 / ((Math.abs(x) * 0.55) / d + 1)) * d * Math.sign(x);
     const place = (y: number, how: string) => {
       sheet.style.transition = how;
       sheet.style.transform = `translateY(${y}px)`;
@@ -1180,7 +1201,8 @@ function useSwipeToClose(opened: boolean, onClose: () => void) {
       const t = e.touches[0];
       start = { y: t.clientY, x: t.clientX, scroller: scrollerOf(e.target as Element) };
       engaged = false;
-      samples = [{ y: t.clientY, t: e.timeStamp }];
+      speed.reset();
+      speed.add(t.clientY, e.timeStamp);
     };
     const move = (e: TouchEvent) => {
       if (!start) return;
@@ -1197,38 +1219,44 @@ function useSwipeToClose(opened: boolean, onClose: () => void) {
         }
         engaged = true;
         start.y = t.clientY; // follow from here, so it doesn't jump
+        extendBelow(sheet);
       }
       e.preventDefault();
       const d = t.clientY - start.y;
-      offset = d >= 0 ? d : rubber(d, sheet.offsetHeight);
+      offset = d >= 0 ? d : rubberBand(d, sheet.offsetHeight);
       place(offset, 'none');
-      samples.push({ y: t.clientY, t: e.timeStamp });
-      if (samples.length > 6) samples.shift();
+      speed.add(t.clientY, e.timeStamp);
     };
-    const up = () => {
+    const up = (e: TouchEvent) => {
       if (!start || !engaged) {
         start = null;
         return;
       }
       start = null;
       engaged = false;
-      const a = samples[0];
-      const b = samples[samples.length - 1];
-      const v = b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0; // pt per ms
-      const projected = offset + (v * 0.998) / (1 - 0.998);
-      if (offset > 0 && projected > sheet.offsetHeight / 2) {
-        // Closing slides on from where the finger left it.
-        place(offset, '');
+      const h = sheet.offsetHeight || 1;
+      const v = speed.velocity(e.timeStamp); // pt per ms, down
+      if (offset > 0 && offset + project(v) > h / 2) {
+        // Closing carries on from where the finger left it, at its speed: Konsta slides the sheet
+        // its whole height (translate), on top of where the drag has it (transform).
+        const { ms, easing } = springEasing(SMOOTH, Math.max(0, (v * 1000) / h));
+        sheet.style.transition = `translate ${ms}ms ${easing}`;
         if (backdrop) {
-          backdrop.style.transition = 'opacity 0.35s ease-out';
+          backdrop.style.transition = `opacity ${ms}ms ${easing}`;
           backdrop.style.opacity = '0';
         }
         close.current();
-        settle = window.setTimeout(reset, 450);
+        settle = window.setTimeout(reset, ms);
+      } else if (Math.abs(offset) < 1) {
+        reset();
       } else {
-        place(0, 'transform 0.5s cubic-bezier(0.2, 0.9, 0.25, 1)');
-        settle = window.setTimeout(reset, 500);
+        // Back up (or down) to rest from the finger's speed, toward rest as a share of the way.
+        const v0 = Math.max(-40, Math.min(40, (-v * 1000) / offset));
+        const { ms, easing } = springEasing(SMOOTH, v0);
+        place(0, `transform ${ms}ms ${easing}`);
+        settle = window.setTimeout(reset, ms);
       }
+      offset = 0;
     };
     sheet.addEventListener('touchstart', down, { passive: true });
     sheet.addEventListener('touchmove', move, { passive: false });
@@ -1447,7 +1475,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
-const TOAST_OUT_MS = 240;
+const TOAST_OUT_MS = 300;
 
 export const useToast = () => useContext(ToastContext);
 

@@ -163,7 +163,7 @@ export function PullDownMenu(props: { anchor: DOMRect | null; onClose: () => voi
     document.body,
   );
 }
-const MENU_CLOSE_MS = 220;
+const MENU_CLOSE_MS = 300;
 
 /** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
 export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {

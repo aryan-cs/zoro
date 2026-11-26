@@ -14,6 +14,7 @@ import { AmountSheet, QuickAddSheet } from './AddFood';
 import { PhotoLogSheet } from './PhotoLog';
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
+import { SPRING_TOKENS, springEasing } from '../ui/motion';
 
 /** Meals in the order they're shown. Food added without a meal goes to Other ('unsorted' in the data). */
 export const MEALS: { id: Meal; label: string }[] = [
@@ -60,7 +61,9 @@ interface Drop {
 /** Order within a meal: where you dragged it, otherwise when you logged it. */
 const sortKey = (e: FoodEntry) => e.order ?? e.loggedAt;
 
-const SLIDE = '0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
+/** Rows and cards moving aside for a dragged food: quick, on a spring (no bounce). */
+const SLIDE_SPRING = springEasing(SPRING_TOKENS.quick);
+const SLIDE = `${SLIDE_SPRING.ms}ms ${SLIDE_SPRING.easing}`;
 /** Vertical translation an element currently has from a transform (FLIP or otherwise). */
 const shiftY = (el: Element | null) => (el ? new DOMMatrixReadOnly(getComputedStyle(el).transform).m42 || 0 : 0);
 
@@ -111,7 +114,7 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
         window.setTimeout(() => {
           el.style.height = '';
           el.style.transition = '';
-        }, 320);
+        }, SLIDE_SPRING.ms);
       } else {
         // Rows move within their card; the card's own move is animated on the card.
         const card = el.closest<HTMLElement>('[data-flip^="c"]')?.dataset.flip;
@@ -233,7 +236,7 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
           dropRef.current(d);
           before.current = null;
           setDrop(null);
-        }, 200);
+        }, 280);
       } else if (ghost) {
         ghost.remove();
         ghost = null;

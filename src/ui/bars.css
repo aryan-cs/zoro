@@ -75,8 +75,8 @@
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
   transform: translateX(calc(var(--index) * 100%));
   transition:
-    transform 0.42s cubic-bezier(0.25, 1.1, 0.35, 1),
-    scale 0.3s ease-out;
+    transform var(--spring-snappy),
+    scale var(--spring-snappy);
 }
 .ios-tabbar-pill.is-holding {
   scale: 1.12;
@@ -117,7 +117,7 @@
   height: 24px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--spring-quick);
   background: linear-gradient(to bottom, var(--ios-bg), rgba(0, 0, 0, 0));
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -187,7 +187,7 @@
   border-radius: 999px;
   color: var(--ios-label);
   font-size: 17px;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
   -webkit-tap-highlight-color: transparent;
 }
 .ios-navbtn:active {
@@ -298,7 +298,7 @@
   font-size: 13px;
 }
 .ios-segmented.is-ready .ios-segmented-thumb {
-  transition: transform 0.3s cubic-bezier(0.25, 1, 0.35, 1);
+  transition: transform var(--spring-snappy);
 }
 .ios-segmented-item {
   position: relative;
@@ -347,7 +347,7 @@ body > .meal-drag-ghost {
   background: #2c2c2e;
   scale: 1.03;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-  animation: meal-lift 0.18s ease-out both;
+  animation: meal-lift var(--spring-quick) both;
 }
 @keyframes meal-lift {
   from {
@@ -358,9 +358,9 @@ body > .meal-drag-ghost {
 /* Letting go: the lifted row settles into its gap. */
 body > .meal-drag-ghost.is-dropping {
   transition:
-    top 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-    scale 0.2s ease-out,
-    box-shadow 0.2s ease-out;
+    top var(--spring-quick),
+    scale var(--spring-quick),
+    box-shadow var(--spring-quick);
   scale: 1;
   box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
@@ -554,8 +554,8 @@ button.meal-row:not(:disabled):active {
   white-space: nowrap;
   color: var(--ios-label);
   transition:
-    transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1),
-    background-color 0.2s;
+    transform var(--spring-press),
+    background-color var(--spring-quick);
   -webkit-tap-highlight-color: transparent;
 }
 .ios-btn.is-sm {
@@ -766,7 +766,7 @@ button.meal-row:not(:disabled):active {
  * screen's 16pt margins. */
 .fit-card,
 .wk-card {
-  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform var(--spring-snappy);
 }
 /* Every card responds the same way (History's too), except while you're scrubbing its chart or
  * pressing a control inside it. */
@@ -975,7 +975,7 @@ button.meal-row:not(:disabled):active {
   background: var(--tint);
   color: #000;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
 }
 .wk-play:active {
   transform: scale(0.92);
@@ -1070,7 +1070,7 @@ button.meal-row:not(:disabled):active {
     inset 0 -1px 0 rgba(255, 255, 255, 0.1);
   color: var(--ios-label);
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
 }
 .amt-step:active {
   transform: scale(0.92);
@@ -1362,17 +1362,23 @@ button.water-oz:active {
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-  transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2), background-color 0.2s;
+  transition:
+    transform var(--spring-bouncy),
+    background-color var(--spring-quick);
 }
 /* Holding: the button sinks slowly, then pops up like a context menu before the editor opens. */
 .water-preset.is-pressing {
   transform: scale(0.92);
-  transition-duration: 0.45s;
+  transition:
+    transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1),
+    background-color var(--spring-quick);
 }
 .water-preset.is-popped {
   transform: scale(1.08);
   background: rgba(255, 255, 255, 0.22) !important;
-  transition-duration: 0.18s;
+  transition:
+    transform var(--spring-press),
+    background-color var(--spring-quick);
 }
 .water-other {
   display: block;
@@ -1447,7 +1453,7 @@ button.water-oz:active {
   height: 62px;
   border-radius: 999px;
   background: #fff;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
 }
 .scanner-shutter:active span {
   transform: scale(0.9);
@@ -1472,7 +1478,7 @@ button.water-oz:active {
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.08),
     0 12px 40px rgba(0, 0, 0, 0.5);
   transform-origin: top right;
-  animation: ios-menu-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  animation: ios-menu-in var(--spring-bouncy) both;
 }
 @keyframes ios-menu-in {
   from {
@@ -1482,7 +1488,7 @@ button.water-oz:active {
 }
 /* Closing: shrinks and fades back into the button it came from. */
 .ios-menu.is-closing {
-  animation: ios-menu-out 0.22s cubic-bezier(0.4, 0, 0.6, 1) both;
+  animation: ios-menu-out var(--spring-quick) both;
 }
 .ios-menu-scrim.is-closing {
   pointer-events: none;
@@ -1678,7 +1684,7 @@ button.water-oz:active {
   background: color-mix(in srgb, var(--tint) 22%, #1c1c1e);
   color: var(--tint);
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
 }
 .wk-circle:active {
   transform: scale(0.92);
@@ -1901,7 +1907,7 @@ button.water-oz:active {
   top: 100%;
   height: 24px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--spring-quick);
   background: linear-gradient(to bottom, var(--ios-bg), rgba(0, 0, 0, 0));
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -2016,7 +2022,7 @@ button.water-oz:active {
   background: #3a3a3c;
   color: #fff;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s;
+  transition: opacity var(--spring-quick);
 }
 .card-glyph-btn:active {
   opacity: 0.5;
@@ -2061,13 +2067,13 @@ button.water-oz:active {
 }
 /* The reading fades out 3 seconds after the finger lifts (LineChart.tsx). */
 .chart-callout {
-  transition: opacity 0.3s ease-out;
+  transition: opacity var(--spring-quick);
 }
 .chart-wrap.is-fading .chart-callout,
 .chart-wrap.is-fading .chart-rule,
 .chart-wrap.is-fading .chart-dot {
   opacity: 0 !important;
-  transition: opacity 0.3s ease-out;
+  transition: opacity var(--spring-quick);
 }
 .chart-callout {
   position: absolute;
@@ -2213,7 +2219,7 @@ button.water-oz:active {
   top: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s ease-out;
+  transition: opacity var(--spring-quick);
   will-change: transform;
 }
 .chart-rule {
@@ -2245,12 +2251,12 @@ button.water-oz:active {
   background: rgba(0, 0, 0, 0.32);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  animation: ctx-fade 0.22s ease-out both;
+  animation: ctx-fade var(--spring-quick) both;
 }
 /* Closing has its own keyframes: re-running the opening ones in reverse doesn't restart them, so
  * the blur would vanish at once instead of fading. */
 .ctx-scrim.is-closing {
-  animation: ctx-fade-out 0.24s ease-in both;
+  animation: ctx-fade-out var(--spring-quick) both;
 }
 @keyframes ctx-fade {
   from {
@@ -2278,7 +2284,7 @@ button.water-oz:active {
 }
 /* The held box's copy fades out with the blur as the real one returns. */
 .ctx-lift.is-closing {
-  animation: ctx-fade-out 0.24s ease-in both;
+  animation: ctx-fade-out var(--spring-quick) both;
 }
 /* A pinned box: a small gray pin in its top-right corner. */
 .hold-box {
@@ -2355,7 +2361,7 @@ button.water-oz:active {
 /* A ring's filled part fading in when it first appears (its value going up from zero): the value
  * passes the first few percent too fast for that alone to read as a fade. */
 .ring-fill {
-  animation: ring-fill-in 0.45s ease-out;
+  animation: ring-fill-in var(--spring-smooth);
 }
 @keyframes ring-fill-in {
   from {
@@ -2454,7 +2460,7 @@ button.water-oz:active {
 }
 /* Ticking a set glides the bar along instead of snapping it (Konsta's own 0.2s reads as a jump). */
 .wk-progress-dock .k-progressbar > span {
-  transition: transform 0.6s cubic-bezier(0.2, 0.85, 0.25, 1);
+  transition: transform var(--spring-smooth);
 }
 /* A page with that capsule scrolls far enough for its last sets to clear it. */
 .k-page.tab-safe.has-dock {
@@ -2471,7 +2477,7 @@ button.water-oz:active {
   padding: 10px 16px 6px; /* the name hugs the top and the numbers the bottom, about 16pt from each edge */
   border-radius: 26px; /* the list groups' corners (Settings): one row reads as a single rounded row */
   background: var(--ios-cell);
-  transition: opacity 0.25s;
+  transition: opacity var(--spring-quick);
 }
 
 /* A set: tall, with its name at the top and what to do at the bottom. */
@@ -2929,7 +2935,7 @@ button.water-oz:active {
     inset 0 -1px 0 rgba(255, 255, 255, 0.1);
   color: var(--ios-label);
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--spring-press);
 }
 .pl-qty-btn::after {
   content: '';

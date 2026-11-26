@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ISODate, Meal, TemplateId } from '../core/types';
+import { springEasing, type Spring } from './motion';
 
 export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
 
@@ -27,23 +28,25 @@ export interface Entry {
  * iOS push/pop, measured from Fitness and Settings on iOS 27 (both are UIKit's stock transition):
  * a critically damped spring (response ~260 ms) that lands in ~420 ms, sampled here as a CSS
  * linear() curve; the screen underneath moves 30% of its width and takes a 10% black dim, both
- * in step with progress. Releasing a swipe-back uses a slightly bouncy spring (damping 0.85) over
- * 500 ms, and finishes the pop from 30% across. Mirrored as --push-ms / --push-ease in index.css.
+ * in step with progress. Releasing a swipe-back uses a slightly bouncy spring (damping 0.85)
+ * that starts at the finger's speed, and finishes the pop if the swipe would coast past halfway. Mirrored as --push-ms / --push-ease in index.css.
  */
 export const SLIDE_MS = 420;
 
 /**
- * Sliding sideways between pages (tabs, History's sections): about half a second to the next
- * page, a little longer for each one passed, easing in and out so a long trip glides past the
- * pages between instead of flicking across them.
+ * Sliding sideways between pages (History's sections, Food's days): on the same spring as the
+ * tabs, a little longer for each page passed, so a long trip glides past the pages between
+ * instead of flicking across them.
  */
 export function pageSlide(distance: number): { ms: number; ease: string } {
   const d = Math.max(1, Math.abs(distance));
-  return { ms: Math.round(500 + 140 * (d - 1)), ease: d > 1 ? 'cubic-bezier(0.42, 0, 0.2, 1)' : 'cubic-bezier(0.25, 0.8, 0.25, 1)' };
+  // The tabs' own spring (useTabPager): critically damped, 0.42 s to the next page, 0.11 s more per page passed.
+  const { ms, easing } = springEasing({ duration: 0.42 + 0.11 * (d - 1), bounce: 0 });
+  return { ms, ease: easing };
 }
 export const PUSH_EASE = 'linear(0, 0.079, 0.237, 0.404, 0.553, 0.673, 0.765, 0.834, 0.884, 0.92, 0.945, 0.963, 0.975, 0.983, 0.989, 0.992, 0.995, 0.997, 0.998, 0.999, 1)';
-export const RELEASE_MS = 500;
-export const RELEASE_EASE = 'linear(0, 0.104, 0.309, 0.517, 0.688, 0.814, 0.899, 0.951, 0.981, 0.997, 1.004, 1.006, 1.006, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1)';
+/** Letting go of a swipe-back: a slightly bouncy spring (damping 0.85), from the finger's speed. */
+export const RELEASE_SPRING: Spring = { duration: 0.3, bounce: 0.15 };
 export const PARALLAX = 30;
 export const DIM = 0.1;
 
