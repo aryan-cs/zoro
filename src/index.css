@@ -63,6 +63,27 @@ body {
   html {
     min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
   }
+  /* iOS 26's scroll edge effect then blurs the top of the app (status bar and ~40pt below) unless
+   * it finds an opaque, fixed box across the top edge; with one, it fills the status bar solid
+   * instead. The app is already black there, so this changes nothing else. */
+  .status-fill {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: max(env(safe-area-inset-top, 0px), 20px);
+    background: #000;
+    z-index: 9000;
+    pointer-events: none;
+  }
+}
+.status-fill {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .status-fill {
+    display: block;
+  }
 }
 .k-page {
   background: #000 !important;
