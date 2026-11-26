@@ -143,6 +143,9 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
     const text = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)'; // iOS secondary label
     // No data yet: still draw the chart area (gridlines and dates), just without values.
     const empty = !series.some((s) => s.data.some((v) => v !== null && v !== undefined));
+    // One value (a first weigh-in): give it room above and below, or the axis has nothing to span.
+    const values = series.flatMap((s) => s.data).filter((v): v is number => typeof v === 'number');
+    const flat = values.length > 0 && Math.max(...values) - Math.min(...values) < 1e-6 ? values[0] : null;
     chart.current?.destroy();
     chart.current = new Chart(canvas.current, {
       type: 'line',
@@ -204,7 +207,8 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
         scales: {
           // No axis lines: just the horizontal gridlines, as in Health.
           x: { grid: { display: false }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, maxRotation: 0 } },
-          y: { grid: { color: grid }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, display: !empty } },
+          // Labels rounded: with a single reading, Chart.js steps around it by floats (195.60000000000002).
+          y: { ...(flat !== null && { suggestedMin: flat - 2, suggestedMax: flat + 2 }), grid: { color: grid }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, display: !empty, callback: (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) } },
         },
       },
     });

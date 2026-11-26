@@ -1957,6 +1957,33 @@ button.water-oz:active {
 .chart-head .wt-change {
   padding-bottom: 6px;
 }
+/* The weight card's top right: its add/edit button, with the change under it at the value's line. */
+.chart-head:has(.wt-head-side) {
+  position: relative;
+}
+/* Level with the card's label line (20pt), centered on it, so it doesn't push the label down. */
+.wt-head-side .card-glyph-btn {
+  position: absolute;
+  top: -5px;
+  right: 0;
+}
+/* A small round button inside a card (gray fill, white glyph), like Health's and Fitness's. */
+.card-glyph-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #3a3a3c;
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.card-glyph-btn:active {
+  opacity: 0.5;
+}
 
 /* A card title that's also a menu (History's lift): the name, then a small up-down chevron. */
 .lift-picker {

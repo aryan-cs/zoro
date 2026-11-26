@@ -208,7 +208,7 @@ export function TodayScreen() {
           <NutritionRow label="Fat" value={totals.fat} target={settings.fatTarget} unit="g" color={FITNESS.steps} info="Fat eaten today against your target. You need a steady amount for your hormones and to absorb some vitamins." />
         </FitCard>
 
-        <FitCard bare title="Weight" onOpen={() => (weighedToday ? nav.push({ name: 'screen', tab: 'history', section: 'body' }) : setWeighing(true))}>
+        <FitCard bare title="Weight" onOpen={() => nav.push({ name: 'screen', tab: 'history', section: 'body' })}>
           <ChartHead
             label={weighedToday || !latest ? 'Weight' : `Weight · ${longDate(latest.date)}`}
             color={FITNESS.body}
@@ -223,12 +223,27 @@ export function TodayScreen() {
               )
             }
             right={
-              change ? (
-                <span className={`wt-change ${changeTone(change, settings.phase)}`}>
-                  <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
-                  {fmt(Math.abs(change), 1)} LB
-                </span>
-              ) : undefined
+              // Top right: a plus to weigh in today, or a pencil to fix today's weigh-in. Under it,
+              // the change since the weigh-in before.
+              <span className="wt-head-side">
+                <button
+                  type="button"
+                  className="card-glyph-btn"
+                  aria-label={weighedToday ? 'Edit Today’s Weight' : 'Add Today’s Weight'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setWeighing(true);
+                  }}
+                >
+                  <Sym name={weighedToday ? 'pencil' : 'plus'} size={13} />
+                </button>
+                {change ? (
+                  <span className={`wt-change ${changeTone(change, settings.phase)}`}>
+                    <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
+                    {fmt(Math.abs(change), 1)} LB
+                  </span>
+                ) : null}
+              </span>
             }
           />
           <div className="fit-chart">
