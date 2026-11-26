@@ -103,6 +103,17 @@ export interface SetLog {
   completedAt: number;
 }
 
+/** A set entered by hand on History's Lifts card, outside any workout: it counts toward that
+ * lift's estimated max and best set, not toward a workout or the program's progression. */
+export interface LiftEntry {
+  id?: number;
+  date: ISODate;
+  exerciseId: string;
+  weight: number;
+  reps: number;
+  loggedAt: number;
+}
+
 export interface Macros {
   kcal: number;
   protein: number;

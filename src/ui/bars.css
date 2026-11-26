@@ -2628,6 +2628,32 @@ button.water-oz:active {
   font-size: 15px;
   color: #8d8d93;
 }
+/* A lift entered by hand: the max its weight and reps work out to, lined up under the fields. */
+.lift-entry-max {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding-top: 4px;
+  font-size: 17px;
+  white-space: nowrap;
+  color: var(--ios-label);
+}
+.lift-entry-max > span:first-child {
+  flex: 1;
+}
+.lift-entry-max strong {
+  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.lift-entry-delete {
+  justify-self: center;
+  margin-top: 2px;
+  padding: 4px 8px;
+  font-size: 15px;
+  color: #ff453a;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* A running rest fills from the left as the time passes, like a progress bar behind its row. */
 .step-card.is-rest {

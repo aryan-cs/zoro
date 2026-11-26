@@ -1,17 +1,19 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Page } from 'konsta/react';
-import { createContext, useContext, useMemo, useRef, useState } from 'react';
+import { Dialog, DialogButton, Page } from 'konsta/react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { addDays, averageSleep, carbTarget, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchState } from '../core/progression';
-import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
-import type { Settings } from '../core/types';
+import { dailyIntake, dailyWater, deleteLiftEntry, liftEntries, loadHistory, metricsOf, saveLiftEntry, saveMetric, today } from '../core/store';
+import { bestSetsByDay } from '../core/lifts';
+import type { LiftEntry, Settings } from '../core/types';
 import { hrMin } from '../core/say';
 import { clockLabel, insightNote, nightStats, scoreNote, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets, trendNote } from '../core/sleepStats';
 import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, LogBtn, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, LogBtn, Menu, NumberPrompt, NumField, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { Box, Boxes, ShowHidden } from '../ui/boxes';
 import { Pager } from '../ui/pager';
@@ -97,18 +99,12 @@ const LIFT_KEY = 'zoro.history.lift';
 function Lifts() {
   const nav = useNav();
   const history = useLiveQuery(() => loadHistory(db, 365), []) ?? [];
-  const best = useMemo(() => {
-    const out: Record<string, { date: string; e1rm: number; weight: number; reps: number }[]> = {};
-    for (const h of [...history].reverse()) {
-      for (const id of LIFTS) {
-        const sets = h.sets.filter((s) => s.exerciseId === id && s.weight > 0);
-        if (!sets.length) continue;
-        const top = sets.reduce((a, b) => (e1rm(b.weight, b.reps) > e1rm(a.weight, a.reps) ? b : a));
-        (out[id] ??= []).push({ date: h.date, e1rm: e1rm(top.weight, top.reps), weight: top.weight, reps: top.reps });
-      }
-    }
-    return out;
-  }, [history]);
+  // Sets entered by hand (the card's + button) count the same as sets from workouts.
+  const manual = useLiveQuery(() => liftEntries(365, db), []) ?? [];
+  const best = useMemo(
+    () => bestSetsByDay([...history.flatMap((h) => h.sets), ...manual.map((m) => ({ ...m, manual: true }))], LIFTS),
+    [history, manual],
+  );
   // The lift being followed, picked from the card's title menu and remembered.
   const [lift, setLift] = useState<string>(() => {
     try {
@@ -120,6 +116,8 @@ function Lifts() {
   });
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [editingGoal, setEditingGoal] = useState(false);
+  const [entering, setEntering] = useState(false);
+  const todays = manual.find((m) => m.exerciseId === lift && m.date === today());
   const settings = useSettings();
   const toast = useToast();
   const isBench = lift === 'bench';
@@ -169,6 +167,7 @@ function Lifts() {
               <Sym name="chevron.up.chevron.down" size={13} />
             </button>
           }
+          trailing={<LogBtn logged={!!todays} what={`Today’s ${TRACKED[lift]}`} onClick={() => setEntering(true)} />}
         >
           <StatGrid
             color={FITNESS.exercise}
@@ -195,6 +194,22 @@ function Lifts() {
         </Box>
         </Boxes>
       </div>
+      <LiftEntryPrompt
+        opened={entering}
+        title={TRACKED[lift]}
+        entry={todays}
+        onCancel={() => setEntering(false)}
+        onDelete={async () => {
+          setEntering(false);
+          if (todays?.id !== undefined) await deleteLiftEntry(todays.id);
+          toast('Removed');
+        }}
+        onSave={async (weight, reps) => {
+          setEntering(false);
+          await saveLiftEntry({ date: today(), exerciseId: lift, weight, reps });
+          toast(`Estimated max: ${fmt(Math.round(e1rm(weight, reps)))} lb`);
+        }}
+      />
       <NumberPrompt
         opened={editingGoal}
         title={`${TRACKED[lift]} Goal`}
@@ -250,6 +265,73 @@ function Lifts() {
       )}
       <ShowHidden page="history-lifts" />
     </>
+  );
+}
+
+/**
+ * Enter a set you did outside a workout (a test, a gym visit off the plan): its weight and reps,
+ * with the one-rep max they work out to shown as you type (Epley, as for every set). An alert
+ * with two fields, like a set's own edit; today's entry opens again to change or remove.
+ */
+function LiftEntryPrompt(props: {
+  opened: boolean;
+  title: string;
+  entry?: LiftEntry;
+  onCancel: () => void;
+  onSave: (weight: number, reps: number) => void;
+  onDelete: () => void;
+}) {
+  const [w, setW] = useState('');
+  const [r, setR] = useState('');
+  useEffect(() => {
+    if (!props.opened) return;
+    setW(props.entry ? String(props.entry.weight) : '');
+    setR(props.entry ? String(props.entry.reps) : '');
+  }, [props.opened]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wn = parseFloat(w);
+  const rn = Math.round(parseFloat(r));
+  const valid = Number.isFinite(wn) && wn > 0 && wn <= 2000 && Number.isFinite(rn) && rn >= 1 && rn <= 100;
+  const max = valid ? Math.round(e1rm(wn, rn)) : null;
+  // At the app's root: inside History's sliding pages a fixed alert is placed relative to them.
+  return createPortal(
+    <Dialog
+      opened={props.opened}
+      onBackdropClick={props.onCancel}
+      title={props.title}
+      content={
+        <div className="set-edit">
+          <label>
+            <span>Weight</span>
+            <NumField value={w} onChange={setW} label="Weight" width="w-24" placeholder="lb" />
+            <span className="set-edit-unit">lb</span>
+          </label>
+          <label>
+            <span>Reps</span>
+            <NumField value={r} onChange={setR} label="Reps" width="w-24" />
+            <span className="set-edit-unit" />
+          </label>
+          <div className="lift-entry-max" aria-live="polite">
+            <span>Estimated 1RM</span>
+            <strong>{max === null ? '—' : fmt(max)}</strong>
+            <span className="set-edit-unit">{max === null ? '' : 'lb'}</span>
+          </div>
+          {props.entry && (
+            <button type="button" className="lift-entry-delete" onClick={props.onDelete}>
+              Delete Entry
+            </button>
+          )}
+        </div>
+      }
+      buttons={
+        <>
+          <DialogButton onClick={props.onCancel}>Cancel</DialogButton>
+          <DialogButton strong disabled={!valid} onClick={() => valid && props.onSave(wn, rn)}>
+            Save
+          </DialogButton>
+        </>
+      }
+    />,
+    document.querySelector('.k-app') ?? document.body,
   );
 }
 

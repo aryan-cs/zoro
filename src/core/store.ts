@@ -9,6 +9,7 @@ import type {
   FoodEntry,
   FoodItem,
   ISODate,
+  LiftEntry,
   Macros,
   Meal,
   Settings,
@@ -51,6 +52,26 @@ export async function loadHistory(db: ZoroDB = getDB(), sinceDays = 400): Promis
       sets: bySession.get(s.id!) ?? [],
     }))
     .sort((a, b) => b.date.localeCompare(a.date) || b.sessionId - a.sessionId);
+}
+
+/** Sets entered by hand on the Lifts card in the last `sinceDays` days. */
+export async function liftEntries(sinceDays = 400, db: ZoroDB = getDB()): Promise<LiftEntry[]> {
+  return db.lifts.where('date').aboveOrEqual(addDays(today(), -sinceDays)).toArray();
+}
+
+/** Enter (or change) a lift's set for a day by hand: one per lift per day. */
+export async function saveLiftEntry(entry: { date: ISODate; exerciseId: string; weight: number; reps: number }, db: ZoroDB = getDB()): Promise<number> {
+  const existing = await db.lifts.where('[exerciseId+date]').equals([entry.exerciseId, entry.date]).first();
+  const row = { ...entry, loggedAt: Date.now() };
+  if (existing?.id !== undefined) {
+    await db.lifts.update(existing.id, row);
+    return existing.id;
+  }
+  return (await db.lifts.add(row)) as number;
+}
+
+export async function deleteLiftEntry(id: number, db: ZoroDB = getDB()): Promise<void> {
+  await db.lifts.delete(id);
 }
 
 export async function scheduledTemplate(date: ISODate, db: ZoroDB = getDB()): Promise<TemplateId | null> {

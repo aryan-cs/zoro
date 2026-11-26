@@ -163,7 +163,8 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           borderWidth: s.dots ? 0 : REFERENCE.test(s.label) ? 1.5 : 2.5,
           // Goal and target lines are dashed, so they read as references rather than data.
           borderDash: REFERENCE.test(s.label) ? [6, 5] : undefined,
-          pointRadius: s.dots ? 2.5 : 0,
+          // A line with only one value yet (a first entry) has nothing to draw: show that value as a dot.
+          pointRadius: s.dots ? 2.5 : !REFERENCE.test(s.label) && s.data.filter((v) => v !== null && v !== undefined).length === 1 ? 3.5 : 0,
           // The picked point is drawn over the chart (see the glide below), not by Chart.js.
           pointHoverRadius: 0,
           tension: 0.3,
