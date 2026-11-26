@@ -217,22 +217,22 @@ export function TodayScreen() {
                 <>
                   {fmt(latest.value, 1)}
                   <small>LB</small>
+                  {/* The change since the weigh-in before, right after the weight. */}
+                  {change ? (
+                    <span className={`wt-change is-inline ${changeTone(change, settings.phase)}`}>
+                      <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
+                      {fmt(Math.abs(change), 1)} LB
+                    </span>
+                  ) : null}
                 </>
               ) : (
                 <span className="text-[#8d8d93]">—</span>
               )
             }
             right={
-              // Top right: a plus to weigh in today, or a pencil to fix today's weigh-in. Under it,
-              // the change since the weigh-in before.
+              // Top right: a plus to weigh in today, or a pencil to fix today's weigh-in.
               <span className="wt-head-side">
                 <LogBtn logged={weighedToday} what="Today’s Weight" onClick={() => setWeighing(true)} />
-                {change ? (
-                  <span className={`wt-change ${changeTone(change, settings.phase)}`}>
-                    <Sym name={change > 0 ? 'arrow.up' : 'arrow.down'} size={13} />
-                    {fmt(Math.abs(change), 1)} LB
-                  </span>
-                ) : null}
               </span>
             }
           />

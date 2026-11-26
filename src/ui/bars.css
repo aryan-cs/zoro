@@ -1957,6 +1957,11 @@ button.water-oz:active {
 .chart-head .wt-change {
   padding-bottom: 6px;
 }
+/* Beside the weight, on its baseline. */
+.chart-head .wt-change.is-inline {
+  margin: 0 0 0 12px;
+  padding: 0;
+}
 /* The weight card's top right: its add/edit button, with the change under it at the value's line. */
 .chart-head:has(.wt-head-side) {
   position: relative;
