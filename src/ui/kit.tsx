@@ -616,6 +616,40 @@ export function FitCard(props: { title: ReactNode; onOpen?: () => void; trailing
  * color, a large glyph and a round play button on top, a bold one-line title, then a row of
  * small tinted tiles with one short fact each. Measured from Fitness (iOS 27).
  */
+/**
+ * A rest counting down, as a ring around a workout's play button with a little gap between them:
+ * it starts as a full circle and runs down like a stopwatch (the end sweeping back to 12 o'clock),
+ * then is simply gone when the rest is over. Played by the browser, so it stays smooth.
+ */
+function RestRing({ startedAt, endsAt }: { startedAt?: number; endsAt: number }) {
+  const ref = useRef<SVGCircleElement>(null);
+  const [over, setOver] = useState(() => Date.now() >= endsAt);
+  const R = 26.5; // 22 (the button) + a 3pt gap + half the 3pt line
+  const C = 2 * Math.PI * R;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || over) return;
+    const from = startedAt ?? endsAt - 60_000;
+    const total = Math.max(1, endsAt - from);
+    const anim = el.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: C }], { duration: total, easing: 'linear', fill: 'forwards' });
+    anim.currentTime = Math.min(total, Math.max(0, Date.now() - from));
+    const done = () => setOver(true);
+    void anim.finished.then(done, () => {});
+    // In case the page was asleep when it should have ended.
+    const t = window.setTimeout(done, Math.max(0, endsAt - Date.now()) + 50);
+    return () => {
+      anim.cancel();
+      window.clearTimeout(t);
+    };
+  }, [startedAt, endsAt, over, C]);
+  if (over) return null;
+  return (
+    <svg className="wk-rest-ring" viewBox="0 0 58 58" aria-hidden>
+      <circle ref={ref} cx={29} cy={29} r={R} strokeDasharray={C} />
+    </svg>
+  );
+}
+
 export function WorkoutCard(props: {
   title: string;
   glyph: SFName;
@@ -630,6 +664,8 @@ export function WorkoutCard(props: {
   progress?: number;
   /** The workout's exercises, listed in the card: name, sets × reps (and weight), done or not. */
   exercises?: { name: string; detail: string; done?: boolean }[];
+  /** A rest counting down in this workout: a ring around play that runs down with it. */
+  rest?: { startedAt?: number; endsAt: number } | null;
 }) {
   const style = { '--tint': props.color } as CSSProperties;
   return (
@@ -644,17 +680,20 @@ export function WorkoutCard(props: {
           </span>
         ) : (
           props.onPlay && (
-            <button
-              type="button"
-              aria-label={`Start ${props.title}`}
-              className="wk-play"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onPlay?.();
-              }}
-            >
-              <Sym name="play.fill" size={17} />
-            </button>
+            <span className="wk-play-wrap">
+              {props.rest && <RestRing key={props.rest.endsAt} startedAt={props.rest.startedAt} endsAt={props.rest.endsAt} />}
+              <button
+                type="button"
+                aria-label={`Start ${props.title}`}
+                className="wk-play"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onPlay?.();
+                }}
+              >
+                <Sym name="play.fill" size={17} />
+              </button>
+            </span>
           )
         )}
       </div>

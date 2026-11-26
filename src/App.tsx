@@ -10,6 +10,7 @@ import { SleepSetupScreen } from './screens/SleepSetup';
 import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
+import { ExerciseScreen } from './screens/Exercise';
 import { useAutoTargets } from './ui/autoTargets';
 import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
@@ -29,6 +30,8 @@ function RouteScreen({ route }: { route: Route }) {
   switch (route.name) {
     case 'workout':
       return <WorkoutScreen key={route.sessionId} sessionId={route.sessionId} />;
+    case 'exercise':
+      return <ExerciseScreen exerciseId={route.exerciseId} />;
     case 'addFood':
       return <AddFoodScreen meal={route.meal} date={route.date} barcode={route.barcode} />;
     case 'logSleep':

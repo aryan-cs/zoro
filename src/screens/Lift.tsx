@@ -9,7 +9,7 @@ import { db, FITNESS, Header, IconBtn, Menu, NavText, useSettings, WorkoutCard }
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
-import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH } from '../ui/workouts';
+import { activeSession, SECOND_BY_WEEKDAY, startWorkout, TEMPLATE_GLYPH, useRunningRest } from '../ui/workouts';
 
 const MAIN: TemplateId[] = ['upperA', 'lowerA', 'arms', 'upperB', 'lowerB'];
 const SECONDARY: TemplateId[] = ['pmForearms', 'pmAbs', 'pmArms', 'pmCardio'];
@@ -135,6 +135,10 @@ export function LiftScreen() {
   };
   const doneOn = (id: TemplateId) => history.some((h) => h.date === sel && h.templateId === id && h.sets.length) && open?.templateId !== id;
 
+  // A rest counting down in the workout you're doing: its card rings its play button with it.
+  const running = useRunningRest(open?.id);
+  const restFor = (id: TemplateId) => (isToday && open?.templateId === id ? running : null);
+
   const start = async (id: TemplateId) => {
     const sessionId = await startWorkout(id);
     nav.push({ name: 'workout', sessionId });
@@ -168,6 +172,7 @@ export function LiftScreen() {
             progress={openList.length ? openList.filter((e) => e.done).length / openList.length : 0}
             onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
             onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
+            rest={running}
           />
         )}
         {mainId ? (
@@ -177,6 +182,9 @@ export function LiftScreen() {
             color={FITNESS.exercise}
             done={doneOn(mainId)}
             onPlay={isToday ? () => void start(mainId) : undefined}
+            // Tapping the card does what play does.
+            onOpen={isToday && !doneOn(mainId) ? () => void start(mainId) : undefined}
+            rest={restFor(mainId)}
             progress={dayProgress(mainId)}
           />
         ) : (
@@ -189,6 +197,8 @@ export function LiftScreen() {
             color={FITNESS.steps}
             done={doneOn(secondId)}
             onPlay={isToday ? () => void start(secondId) : undefined}
+            onOpen={isToday && !doneOn(secondId) ? () => void start(secondId) : undefined}
+            rest={restFor(secondId)}
             progress={dayProgress(secondId)}
           />
         )}

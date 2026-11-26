@@ -8,6 +8,7 @@ import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../co
 import type { ExercisePlan, SetLog, SetTarget, WorkoutSession } from '../core/types';
 import { Bar, Btn, db, FitText, fmtLb, Header, NumberPrompt, NumField, Row, Section, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
+import { restKey } from '../ui/workouts';
 
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -56,6 +57,28 @@ function SetStep(props: {
   const [prompt, setPrompt] = useState<'w' | 'r' | 'both' | null>(null);
   // Touch and hold the set to change what you did (more or less than it said).
   const hold = useRef<{ timer?: number; x: number; y: number; fired: boolean }>({ x: 0, y: 0, fired: false });
+  // Swipe it to the left to see how to do the exercise: the set follows your finger, and letting
+  // go far enough (or with a flick) opens the exercise's screen as the set slides back.
+  const nav = useNav();
+  const card = useRef<HTMLElement>(null);
+  const swipe = useRef<{ x: number; y: number; mode: 'undecided' | 'swipe' | 'off'; off: number; v: number; t: number; lx: number } | null>(null);
+  const swallow = useRef(0);
+  const settle = (from: number) => {
+    const el = card.current;
+    if (!el) return;
+    el.style.transform = '';
+    el.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' });
+  };
+  const endSwipe = (open: boolean, at: number) => {
+    const sw = swipe.current;
+    swipe.current = null;
+    if (sw?.mode !== 'swipe') return;
+    swallow.current = performance.now() + 400; // the click that ends a swipe isn't a tap
+    settle(sw.off);
+    // Far enough, or a quick flick that's still moving when you let go.
+    const flick = sw.off < -24 && sw.v < -0.8 && at - sw.t < 80;
+    if (open && (sw.off < -70 || flick)) nav.push({ name: 'exercise', exerciseId: def.id });
+  };
   const done = !!props.logged;
   const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
   const reps = props.logged?.reps ?? edit.r ?? props.target.reps;
@@ -77,8 +100,10 @@ function SetStep(props: {
     <section
       data-step={props.stepId}
       className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}
+      ref={card}
       onPointerDown={(e) => {
         if ((e.target as Element).closest('.step-check')) return;
+        swipe.current = { x: e.clientX, y: e.clientY, mode: 'undecided', off: 0, v: 0, t: e.timeStamp, lx: e.clientX };
         hold.current = { x: e.clientX, y: e.clientY, fired: false };
         hold.current.timer = window.setTimeout(() => {
           hold.current.fired = true;
@@ -87,12 +112,41 @@ function SetStep(props: {
       }}
       onPointerMove={(e) => {
         if (Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > 8) window.clearTimeout(hold.current.timer);
+        const sw = swipe.current;
+        if (!sw || sw.mode === 'off') return;
+        if (sw.mode === 'undecided') {
+          const dx = e.clientX - sw.x;
+          const dy = e.clientY - sw.y;
+          if (Math.hypot(dx, dy) < 8) return;
+          // Mostly leftward: a swipe. Anything else is a scroll (or the other way, nothing).
+          if (dx < 0 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+            sw.mode = 'swipe';
+            sw.x = e.clientX;
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } else {
+            sw.mode = 'off';
+            return;
+          }
+        }
+        // With your finger to about 90pt, then with resistance.
+        const d = Math.min(0, e.clientX - sw.x);
+        sw.off = d > -90 ? d : -90 + (d + 90) * 0.35;
+        sw.v = sw.v * 0.4 + ((e.clientX - sw.lx) / Math.max(1, e.timeStamp - sw.t)) * 0.6;
+        sw.t = e.timeStamp;
+        sw.lx = e.clientX;
+        if (card.current) card.current.style.transform = `translateX(${sw.off}px)`;
       }}
-      onPointerUp={() => window.clearTimeout(hold.current.timer)}
-      onPointerCancel={() => window.clearTimeout(hold.current.timer)}
+      onPointerUp={(e) => {
+        window.clearTimeout(hold.current.timer);
+        endSwipe(true, e.timeStamp);
+      }}
+      onPointerCancel={(e) => {
+        window.clearTimeout(hold.current.timer);
+        endSwipe(false, e.timeStamp);
+      }}
       onContextMenu={(e) => e.preventDefault()}
       onClickCapture={(e) => {
-        if (!hold.current.fired) return;
+        if (!hold.current.fired && performance.now() > swallow.current) return;
         e.stopPropagation();
         hold.current.fired = false;
       }}
@@ -282,10 +336,10 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   // The rest running now: which set it follows, and when it ends. Saved for the session, so
   // leaving the workout and coming back picks the countdown up where it should be.
-  const restKey = `zoro.rest.${sessionId}`;
+  const restStore = restKey(sessionId);
   const [rest, setRestState] = useState<{ after: string; endsAt: number; startedAt?: number } | null>(() => {
     try {
-      return JSON.parse(localStorage.getItem(restKey) ?? 'null');
+      return JSON.parse(localStorage.getItem(restStore) ?? 'null');
     } catch {
       return null;
     }
@@ -293,8 +347,8 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   const setRest = (r: { after: string; endsAt: number; startedAt?: number } | null) => {
     setRestState(r);
     try {
-      if (r) localStorage.setItem(restKey, JSON.stringify(r));
-      else localStorage.removeItem(restKey);
+      if (r) localStorage.setItem(restStore, JSON.stringify(r));
+      else localStorage.removeItem(restStore);
     } catch {
       /* kept until the screen closes */
     }
