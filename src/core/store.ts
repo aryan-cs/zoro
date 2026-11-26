@@ -1,6 +1,7 @@
 import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
+import { parseHealthImport, type DaySteps } from './sleep';
 import { templateFor, templateForWeekday } from './program';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
 import type {
@@ -222,6 +223,20 @@ export async function logSavedMeal(mealId: number, meal: Meal, date: ISODate = t
 export async function saveSleep(entry: SleepEntry, db: ZoroDB = getDB()): Promise<void> {
   const existing = await db.sleep.where('date').equals(entry.date).first();
   await db.sleep.put({ ...entry, id: existing?.id });
+}
+
+/**
+ * Save what the Zoro Health shortcut sends: last night's sleep and each day's steps. A night you
+ * logged yourself stays as you set it. Returns what it found.
+ */
+export async function saveHealthImport(text: string, db: ZoroDB = getDB()): Promise<{ sleep: SleepEntry | null; steps: DaySteps[] }> {
+  const found = parseHealthImport(text);
+  for (const d of found.steps) await saveMetric('steps', d.steps, d.date, db);
+  if (found.sleep) {
+    const existing = await db.sleep.where('date').equals(found.sleep.date).first();
+    if (existing?.source !== 'manual') await saveSleep(found.sleep, db);
+  }
+  return found;
 }
 
 export async function saveMetric(type: MetricType, value: number, date: ISODate = today(), db: ZoroDB = getDB()): Promise<void> {

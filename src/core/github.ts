@@ -98,6 +98,39 @@ export async function writeRemote(cfg: GitHubConfig, backup: RemoteBackup, sha?:
   return data.content.sha;
 }
 
+/** A file in the repo. */
+export interface RepoFile {
+  name: string;
+  path: string;
+  sha: string;
+}
+
+/** The files in one folder of the repo (none if the folder isn't there yet). */
+export async function listFolder(cfg: GitHubConfig, folder: string): Promise<RepoFile[]> {
+  const res = await call(cfg, `/repos/${cfg.repo}/contents/${folder}`);
+  if (res.status === 404) return [];
+  if (!res.ok) throw new SyncError(`GitHub error (${res.status}).`, 'other');
+  const items = (await res.json()) as { type?: string; name: string; path: string; sha: string }[];
+  return Array.isArray(items) ? items.filter((i) => i.type === 'file').map(({ name, path, sha }) => ({ name, path, sha })) : [];
+}
+
+/** A text file's contents. */
+export async function readText(cfg: GitHubConfig, path: string): Promise<string> {
+  const res = await call(cfg, `/repos/${cfg.repo}/contents/${path}`, { headers: { Accept: 'application/vnd.github.raw' } });
+  if (!res.ok) throw new SyncError(`GitHub error (${res.status}).`, 'other');
+  return res.text();
+}
+
+/** Delete a file (already gone is fine). */
+export async function deleteFile(cfg: GitHubConfig, file: RepoFile, message: string): Promise<void> {
+  const res = await call(cfg, `/repos/${cfg.repo}/contents/${file.path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, sha: file.sha }),
+  });
+  if (!res.ok && res.status !== 404) throw new SyncError(`GitHub error (${res.status}).`, 'other');
+}
+
 /** Just the sha of the current backup, or null if there isn't one. */
 export async function remoteSha(cfg: GitHubConfig): Promise<string | null> {
   const res = await call(cfg, contentsPath(cfg));

@@ -9,6 +9,7 @@ import {
   importAll,
   logFood,
   mergeBackup,
+  saveHealthImport,
   logSet,
   saveMetric,
   saveSleep,
@@ -107,5 +108,19 @@ describe('store', () => {
     expect(metrics.find((m) => m.type === 'weight')?.value).toBe(194);
     expect(metrics.find((m) => m.type === 'arm')?.value).toBe(16.25);
     expect(await db.entries.count()).toBe(1);
+  });
+
+  it('brings in Health uploads without overwriting a night you logged yourself', async () => {
+    const text = (bed: string, wake: string) =>
+      ['ZORO-HEALTH1', bed, '---', wake, '---', 'Asleep Core', '---', '2026-11-26T08:00:00', '---', '1250', '---', 'iPhone'].join('\n');
+    await saveHealthImport(text('2026-11-25T23:30:00', '2026-11-26T07:00:00'), db);
+    expect((await db.sleep.toArray())[0]).toMatchObject({ date: '2026-11-26', minutes: 450, source: 'shortcut' });
+    expect((await db.metrics.where('type').equals('steps').toArray())[0]).toMatchObject({ date: '2026-11-26', value: 1250 });
+    // A later upload of the same night replaces it; a night logged by hand stays.
+    await saveHealthImport(text('2026-11-25T23:00:00', '2026-11-26T07:00:00'), db);
+    expect((await db.sleep.toArray())[0].minutes).toBe(480);
+    await db.sleep.update((await db.sleep.toArray())[0].id!, { source: 'manual', minutes: 400 });
+    await saveHealthImport(text('2026-11-25T22:00:00', '2026-11-26T07:00:00'), db);
+    expect((await db.sleep.toArray())[0].minutes).toBe(400);
   });
 });

@@ -231,6 +231,9 @@ export function disconnect(): void {
 }
 
 let started = false;
+let checked: Promise<void> = Promise.resolve();
+/** Resolves once the startup check of GitHub's copy is done (it may have restored it). */
+export const whenChecked = (): Promise<void> => checked;
 export function startSync(): void {
   if (started) return;
   started = true;
@@ -242,5 +245,5 @@ export function startSync(): void {
     }
   });
   if (cfg && meta.dirty) schedule(3000);
-  void checkRemote();
+  checked = checkRemote();
 }

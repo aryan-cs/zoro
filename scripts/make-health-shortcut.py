@@ -1,16 +1,19 @@
 """Build and sign the "Zoro Health" shortcut: last night's sleep and the last two days' steps
-from Apple Health, copied in one go.
+from Apple Health, sent to Zoro on their own.
 
 Run on a Mac: python3 scripts/make-health-shortcut.py
-Writes public/ZoroHealth.shortcut (signed so anyone can add it).
+Writes public/ZoroHealth.shortcut (signed so anyone can add it). Nothing personal is in it: adding
+it asks for the backup key and repo (Import Questions), which stay on that iPhone.
 
 The shortcut finds Sleep samples from the last day and Steps samples from the last two days,
-and copies one block of text:
+builds one block of text:
     ZORO-HEALTH1
     <sleep start dates> --- <sleep end dates> --- <sleep values (Asleep Core, Awake, ...)>
     --- <step start dates> --- <step counts> --- <step sources (iPhone, Apple Watch)>
-(each list one item per line, each "---" on its own line). Zoro reads it from the clipboard
-(see parseHealthImport in src/core/sleep.ts).
+(each list one item per line, each "---" on its own line), and saves it to the backup repo as
+health/<yyyyMMdd-HHmmss>.txt through GitHub's API. A Shortcuts automation runs it (when an app you
+open every morning opens: Apple Health can't be read while the iPhone is locked), and Zoro brings
+the files in when it opens (src/ui/healthSync.ts, parseHealthImport in src/core/sleep.ts).
 """
 import plistlib
 import subprocess
@@ -22,6 +25,10 @@ from pathlib import Path
 FIND = str(uuid.uuid4()).upper()
 STEPS = str(uuid.uuid4()).upper()
 TEXT = str(uuid.uuid4()).upper()
+KEY = str(uuid.uuid4()).upper()
+REPO = str(uuid.uuid4()).upper()
+B64 = str(uuid.uuid4()).upper()
+PUT = str(uuid.uuid4()).upper()
 
 
 def samples(prop: str, iso: bool, uid: str = FIND) -> dict:
@@ -72,7 +79,45 @@ for p in parts:
         vi += 1
     pos += len(p.encode('utf-16-le')) // 2
 
+def output(uid: str, name: str) -> dict:
+    return {'Type': 'ActionOutput', 'OutputUUID': uid, 'OutputName': name}
+
+
+def tokens(*parts) -> dict:
+    """Text with variables in it: plain strings and attachments (dicts), in order."""
+    string, attachments = '', {}
+    for part in parts:
+        if isinstance(part, str):
+            string += part
+        else:
+            attachments[f'{{{len(string.encode("utf-16-le")) // 2}, 1}}'] = part
+            string += OBJ
+    return {'Value': {'string': string, 'attachmentsByRange': attachments}, 'WFSerializationType': 'WFTextTokenString'}
+
+
+def dictionary(items: dict) -> dict:
+    """A dictionary of text values (a request's headers or its JSON body)."""
+    return {
+        'Value': {
+            'WFDictionaryFieldValueItems': [
+                {'WFItemType': 0, 'WFKey': tokens(k), 'WFValue': v if isinstance(v, dict) and 'WFSerializationType' in v else tokens(v)}
+                for k, v in items.items()
+            ]
+        },
+        'WFSerializationType': 'WFDictionaryFieldValue',
+    }
+
+
+def text_action(uid: str, value: str) -> dict:
+    return {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': uid, 'WFTextActionText': value}}
+
+
+now = {'Type': 'CurrentDate', 'Aggrandizements': [{'Type': 'WFDateFormatVariableAggrandizement', 'WFDateFormatStyle': 'Custom', 'WFDateFormat': 'yyyyMMdd-HHmmss'}]}
+
 actions = [
+    # 0, 1: filled in when the shortcut is added (Import Questions below).
+    text_action(KEY, ''),
+    text_action(REPO, 'aryan-cs/zoro-data'),
     find(FIND, 'Sleep', 1),
     find(STEPS, 'Steps', 2),
     {
@@ -86,20 +131,32 @@ actions = [
         },
     },
     {
-        'WFWorkflowActionIdentifier': 'is.workflow.actions.setclipboard',
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.base64encode',
         'WFWorkflowActionParameters': {
-            'WFInput': {
-                'Value': {'Type': 'ActionOutput', 'OutputUUID': TEXT, 'OutputName': 'Text'},
-                'WFSerializationType': 'WFTextTokenAttachment',
-            },
+            'UUID': B64,
+            'WFEncodeMode': 'Encode',
+            'WFBase64LineBreakMode': 'None',
+            'WFInput': {'Value': output(TEXT, 'Text'), 'WFSerializationType': 'WFTextTokenAttachment'},
         },
     },
     {
-        'WFWorkflowActionIdentifier': 'is.workflow.actions.notification',
+        # PUT /repos/<repo>/contents/health/<now>.txt — a new file each run, so no sha is needed.
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.downloadurl',
         'WFWorkflowActionParameters': {
-            'WFNotificationActionTitle': 'Sleep and steps copied',
-            'WFNotificationActionBody': 'Go back to Zoro and tap Paste.',
-            'WFNotificationActionSound': False,
+            'UUID': PUT,
+            'WFURL': tokens('https://api.github.com/repos/', output(REPO, 'Text'), '/contents/health/', now, '.txt'),
+            'WFHTTPMethod': 'PUT',
+            'ShowHeaders': True,
+            'WFHTTPHeaders': dictionary({
+                'Authorization': tokens('Bearer ', output(KEY, 'Text')),
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+            }),
+            'WFHTTPBodyType': 'JSON',
+            'WFJSONValues': dictionary({
+                'message': 'Apple Health from iPhone',
+                'content': tokens(output(B64, 'Base64 Encoded')),
+            }),
         },
     },
 ]
@@ -110,7 +167,10 @@ shortcut = {
     'WFWorkflowMinimumClientVersion': 900,
     'WFWorkflowMinimumClientVersionString': '900',
     'WFWorkflowIcon': {'WFWorkflowIconStartColor': 1440408063, 'WFWorkflowIconGlyphNumber': 59446},
-    'WFWorkflowImportQuestions': [],
+    'WFWorkflowImportQuestions': [
+        {'ActionIndex': 0, 'Category': 'Parameter', 'DefaultValue': '', 'ParameterKey': 'WFTextActionText', 'Text': 'Paste the key you use for Zoro’s Cloud Backup (github_pat_…).'},
+        {'ActionIndex': 1, 'Category': 'Parameter', 'DefaultValue': 'aryan-cs/zoro-data', 'ParameterKey': 'WFTextActionText', 'Text': 'Your backup repo, as in Zoro’s Settings.'},
+    ],
     'WFWorkflowInputContentItemClasses': [],
     'WFWorkflowOutputContentItemClasses': [],
     'WFWorkflowTypes': [],

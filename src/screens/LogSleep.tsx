@@ -1,10 +1,12 @@
-import { ListInput, Page } from 'konsta/react';
+import { Page } from 'konsta/react';
 import { useEffect, useState } from 'react';
 import { formatMinutes } from '../core/calc';
-import { parseHealthImport, sleepFromTimes } from '../core/sleep';
-import { saveMetric, saveSleep, today } from '../core/store';
+import { sleepFromTimes } from '../core/sleep';
+import { saveSleep, today } from '../core/store';
 import { hrMin } from '../core/say';
-import { Btn, db, FitCard, Header, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, db, FitCard, Header, useSettings, useToast } from '../ui/kit';
+import { useHealthSyncedAt } from '../ui/healthSync';
+import { useSync } from '../ui/sync';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
 /** "8 hr 15 min", as Health writes durations. */
@@ -26,23 +28,22 @@ import { useNav } from '../ui/nav';
 const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Health';
 const INSTALLED_KEY = 'zoro.healthShortcut'; // new name: the old sleep-only shortcut has to be swapped
 
-/** 'tried' once you've been sent to add it, 'ok' once a paste from it worked. */
-function shortcutState(): 'none' | 'tried' | 'ok' {
+/** Remember that you've been sent to add the shortcut. */
+function setShortcutState(v: 'tried') {
   try {
-    const v = localStorage.getItem(INSTALLED_KEY);
-    return v === 'ok' ? 'ok' : v ? 'tried' : 'none';
+    localStorage.setItem(INSTALLED_KEY, v);
   } catch {
-    return 'none';
+    // Storage blocked: nothing depends on it.
   }
 }
-function setShortcutState(v: 'tried' | 'ok') {
-  try {
-    if (v === 'ok' || shortcutState() !== 'ok') localStorage.setItem(INSTALLED_KEY, v);
-  } catch {
-    // Storage blocked: we'll just offer to add it again.
-  }
+
+/** "today at 9:02 AM", "yesterday at 9:02 AM" or "Nov 24 at 9:02 AM". */
+function whenWas(t: number): string {
+  const d = new Date(t);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const day = d.toDateString() === new Date().toDateString() ? 'today' : d.toDateString() === new Date(Date.now() - 86_400_000).toDateString() ? 'yesterday' : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return `${day} at ${time}`;
 }
-export const shortcutInstalled = () => shortcutState() === 'ok';
 
 /**
  * Where Zoro Health installs from (it brings in sleep and steps). The signed copy this app serves (scripts/make-health-shortcut.py)
@@ -84,43 +85,10 @@ export function LogSleepScreen() {
   }, []);
   const settings = useSettings();
   const span = ((toMin(wake) - toMin(bed) + 1440) % 1440) || 1440;
-  // Until you've set up the shortcut, the card offers only that; after, only Copy and Paste.
-  const [setUp, setSetUp] = useState(shortcutState() !== 'none');
-  const [manualPaste, setManualPaste] = useState(false);
-  const [paste, setPaste] = useState('');
+  // Apple Health comes in on its own once the shortcut and its automation are set up.
+  const connected = useSync().state !== 'off';
+  const syncedAt = useHealthSyncedAt();
 
-  // One paste brings in last night's sleep and the last two days' steps.
-  const importText = async (text: string) => {
-    const { sleep: s, steps } = parseHealthImport(text);
-    for (const d of steps) await saveMetric('steps', d.steps, d.date, db);
-    const todaySteps = steps.find((d) => d.date === today())?.steps;
-    const stepsNote = todaySteps !== undefined ? `${todaySteps.toLocaleString()} steps` : '';
-    if (!s) {
-      if (steps.length) {
-        setShortcutState('ok');
-        setPaste('');
-        toast(`${stepsNote || 'Steps saved'}; no sleep in Apple Health yet`);
-        return nav.pop();
-      }
-      // The shortcut ran but Health had nothing (no watch, or no sleep schedule).
-      if (/^\s*ZORO-(SLEEP2|HEALTH1)/i.test(text) && !/\d{4}-\d{2}-\d{2}/.test(text)) return toast('Nothing in Apple Health yet');
-      return toast(/ZORO-(SLEEP|HEALTH)/i.test(text) ? 'Couldn’t read last night' : 'Run the shortcut first');
-    }
-    await saveSleep(s, db);
-    setShortcutState('ok');
-    setPaste('');
-    toast(`Saved ${formatMinutes(s.minutes)}${stepsNote ? ` and ${stepsNote}` : ''}`);
-    nav.pop();
-  };
-  const pasteFromClipboard = async () => {
-    try {
-      // iOS shows its Paste button for this.
-      const text = await navigator.clipboard.readText();
-      await importText(text);
-    } catch {
-      setManualPaste(true);
-    }
-  };
   const saveManual = async () => {
     const s = sleepFromTimes(today(), bed, wake);
     if (!s) return toast('Those times don’t work');
@@ -156,45 +124,39 @@ export function LogSleepScreen() {
         </FitCard>
       </div>
       <div className="fit-stack">
-        {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
-        <FitCard title="Import from Apple Health" className="is-log">
-          {setUp ? (
-            <div className="sleep-import-btns">
-              <Btn onClick={() => (window.location.href = RUN_URL)}>Copy</Btn>
-              <Btn onClick={() => void pasteFromClipboard()}>Paste</Btn>
-            </div>
+        {/* From Apple Health, on its own: a Shortcuts automation runs Zoro Health, which sends
+            last night's sleep and the last two days' steps through the backup repo. */}
+        <FitCard title="Apple Health" className="is-log">
+          {!connected ? (
+            <>
+              <p className="health-note">Turn on Cloud Backup in Settings first. Your iPhone sends your sleep and steps to Zoro through it.</p>
+              <Btn size="lg" onClick={() => nav.push({ name: 'settings' })}>
+                Open Settings
+              </Btn>
+            </>
           ) : (
-            <Btn
-              size="lg"
-              onClick={() => {
-                addSleepShortcut();
-                setSetUp(true);
-              }}
-            >
-              Set Up Shortcut
-            </Btn>
+            <>
+              <p className="health-note">
+                {syncedAt
+                  ? `Your sleep and steps come in on their own. Last brought in ${whenWas(syncedAt)}.`
+                  : 'Set this up once and your sleep and steps come in on their own.'}
+              </p>
+              {!syncedAt && (
+                <ol className="health-steps">
+                  <li>Add the Zoro Health shortcut. It asks once for the key you use for Cloud Backup.</li>
+                  <li>In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and Is Opened.</li>
+                  <li>Choose Run Immediately, turn off Notify When Run, and pick Zoro Health.</li>
+                </ol>
+              )}
+              <div className="sleep-import-btns">
+                <Btn onClick={addSleepShortcut}>{syncedAt ? 'Add Again' : 'Add Shortcut'}</Btn>
+                <Btn onClick={() => (window.location.href = RUN_URL)}>Run Now</Btn>
+              </div>
+              {!syncedAt && <p className="health-note is-small">It runs when that app opens because Apple Health can’t be read while your iPhone is locked.</p>}
+            </>
           )}
         </FitCard>
       </div>
-      {manualPaste && (
-        <Section>
-          <ListInput
-            type="textarea"
-            label="Sleep Data"
-            value={paste}
-            onChange={(e) => setPaste(e.target.value)}
-            onPaste={(e) => {
-              const text = e.clipboardData.getData('text');
-              if (text) {
-                e.preventDefault();
-                void importText(text);
-              }
-            }}
-            placeholder="Touch and hold to paste"
-          />
-          {paste.trim() && <Row accent title="Import" onClick={() => void importText(paste)} />}
-        </Section>
-      )}
     </Page>
   );
 }
