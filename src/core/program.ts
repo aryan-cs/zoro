@@ -112,7 +112,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     short: 'Heavy bench, pull-ups, arms',
     exercises: [
       p('bench', 4, 1, 8, 210, { scheme: 'bench-heavy' }),
-      p('pullup', 4, 6, 10, 120),
+      p('pullup', 4, 4, 8, 120), // about 4 now: build reps first, then add weight
       p('inclineBarbell', 3, 8, 12, 150),
       p('ohTricepsExt', 3, 8, 12, 75),
       p('inclineCurl', 3, 8, 12, 75),
@@ -129,7 +129,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
       p('rdl', 3, 6, 10, 150),
       p('calfRaise', 3, 8, 15, 30),
       p('bayesianCurl', 3, 10, 15, 30),
-      p('facePull', 3, 12, 20, 60),
+      p('rearDeltFly', 3, 12, 20, 60), // face pulls pull you off balance: rear-delt flies instead
       p('woodchopper', 3, 10, 15, 30),
       p('lateralRaise', 4, 12, 20, 60),
       p('hangingLegRaise', 3, 8, 15, 60),
@@ -177,7 +177,7 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     short: 'Optional, about 40 minutes',
     exercises: [
       p('cableLateral', 3, 12, 20, 30),
-      p('facePull', 3, 12, 20, 60),
+      p('rearDeltFly', 3, 12, 20, 60), // face pulls pull you off balance: rear-delt flies instead
       p('ezCurl', 3, 8, 12, 75),
       p('wristCurl', 3, 12, 20, 45),
       p('reverseWristCurl', 2, 12, 20, 45),
