@@ -6,3 +6,6 @@ dist
 .playwright-mcp
 .playwright-cli
 output
+
+# Agent worktrees
+.claude/worktrees/
