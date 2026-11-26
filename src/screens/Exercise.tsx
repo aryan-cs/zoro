@@ -67,7 +67,7 @@ export function ExerciseScreen({ exerciseId }: { exerciseId: string }) {
               </div>
             )}
           </Section>
-          <Section title="How To" footer={showVideo ? 'Animation from RepCount (repcountapp.com).' : 'Photos from Free Exercise DB, in the public domain.'}>
+          <Section title="How To">
             {guide.tips.map((t) => (
               <li key={t} className="ex-tip">
                 {t}
