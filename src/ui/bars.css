@@ -845,6 +845,22 @@ button.meal-row:not(:disabled):active {
   position: sticky;
   z-index: 1;
 }
+/* Behind the hero, edge to edge: hides the content sliding under it while it collapses, with a
+ * soft 24pt edge (like a navigation bar's) where the content goes under. */
+.ring-hero-backdrop,
+.ring-hero-edge {
+  position: absolute;
+  top: 0;
+}
+.ring-hero-backdrop {
+  background: var(--ios-bg);
+}
+.ring-hero-edge {
+  height: 24px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(to bottom, var(--ios-bg), rgba(0, 0, 0, 0));
+}
 .ring-hero-art,
 .ring-hero-item {
   position: absolute;

@@ -21,15 +21,17 @@ describe('ring hero motion', () => {
           const { ring, items } = plan.frame(p);
           const cx = ring.x + ring.size / 2;
           const cy = ring.y + ring.size / 2;
-          const bound = plan.bigH - p * plan.span; // where the content below has risen to
           items.forEach((a, i) => {
             const ra = { l: a.x, t: a.y, r: a.x + ws[i], b: a.y + hs[i] };
             // Clear of the rings (a circle), by a few points.
             const nx = Math.min(Math.max(cx, ra.l), ra.r);
             const ny = Math.min(Math.max(cy, ra.t), ra.b);
             expect(Math.hypot(cx - nx, cy - ny), `line ${i} vs rings at p=${p}`).toBeGreaterThan(ring.size / 2 + 4);
-            // Above the content below.
-            expect(ra.b, `line ${i} vs content at p=${p}`).toBeLessThanOrEqual(bound + 0.5);
+            // Inside the hero's backdrop.
+            expect(ra.b, `line ${i} vs backdrop at p=${p}`).toBeLessThanOrEqual(plan.frame(p).height + 0.01);
+            // Nearly clear of the content below (which starts about 28pt under the big hero and rises
+            // a point per point scrolled): at most its top few points go under the hero's soft edge.
+            expect(ra.b, `line ${i} vs content at p=${p}`).toBeLessThanOrEqual(plan.bigH - p * plan.span + 32);
             // Clear of every other line.
             items.forEach((b, j) => {
               if (j <= i) return;
@@ -38,7 +40,6 @@ describe('ring hero motion', () => {
               expect(overlap, `lines ${i} and ${j} at p=${p}`).toBe(false);
             });
           });
-          expect(ring.y + ring.size).toBeLessThanOrEqual(bound + 0.5);
         }
       });
     }

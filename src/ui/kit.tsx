@@ -911,12 +911,13 @@ export function RingSummary({ rows, hero }: { rows: RingRow[]; hero?: boolean })
 /**
  * The rings at the top of a page (Today, Food), sized by how far the page is scrolled: full width
  * with the legend two by two under them at the top, the usual card once scrolled, and every step
- * between (core/heroMotion.ts has the motion and why nothing overlaps). Let go partway and they
- * settle into whichever is nearer, as iOS's large titles do.
+ * between (core/heroMotion.ts has the motion). Let go partway and they settle into whichever is
+ * nearer, as iOS's large titles do.
  *
- * The page keeps the big layout's height and the rings stay pinned (sticky) while they shrink, so
- * the content below rises as the hero gets shorter. Everything moves by transform, so scrolling
- * doesn't lay out the page again.
+ * The hero stays pinned (sticky) while it collapses and the content below scrolls at the finger's
+ * speed; where its top would touch the hero, a black backdrop as tall as the hero and a soft edge
+ * under it let it slip just beneath. Everything moves by transform, so scrolling doesn't lay out
+ * the page again.
  */
 function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
   const box = useRef<HTMLDivElement>(null);
@@ -927,7 +928,10 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     const inner = spacer?.firstElementChild as HTMLElement | null;
     const page = spacer?.closest<HTMLElement>('.k-page');
     if (!spacer || !inner || !page) return;
+    const backdrop = inner.querySelector<HTMLElement>('.ring-hero-backdrop');
+    const edge = inner.querySelector<HTMLElement>('.ring-hero-edge');
     let plan: HeroPlan | null = null;
+    let below = 0; // from the hero's bottom (big) to the content under it
 
     const paint = () => {
       if (!plan) return;
@@ -938,6 +942,14 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
         const at = f.items[i];
         if (at) el.style.transform = `translate(${at.x}px, ${at.y}px)`;
       });
+      // The backdrop covers the hero; its soft edge shows only while content is under it.
+      const s = Math.min(page.scrollTop, plan.span);
+      const contentTop = plan.bigH + below - s;
+      if (backdrop) backdrop.style.height = `${f.height + 4}px`;
+      if (edge) {
+        edge.style.transform = `translateY(${f.height + 4}px)`;
+        edge.style.opacity = String(Math.min(1, Math.max(0, (f.height + 4 + 24 - contentTop) / 24)));
+      }
     };
 
     const measure = () => {
@@ -955,6 +967,19 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
         ring.style.width = `${width}px`;
         ring.style.height = `${width}px`;
       }
+      // The backdrop spans the page's width, from edge to edge.
+      const pageBox = page.getBoundingClientRect();
+      const heroBox = spacer.getBoundingClientRect();
+      for (const el of [backdrop, edge]) {
+        if (!el) continue;
+        el.style.left = `${pageBox.left - heroBox.left}px`;
+        el.style.width = `${pageBox.width}px`;
+      }
+      // Where the next thing on the page starts, under the big hero.
+      const card = spacer.closest('.fit-card') ?? spacer;
+      let next = card.nextElementSibling ?? card.parentElement?.nextElementSibling ?? null;
+      while (next && !(next as HTMLElement).offsetHeight) next = next.nextElementSibling;
+      below = next ? next.getBoundingClientRect().top - (heroBox.top + plan.bigH) : 0;
       paint();
     };
     relayout.current = measure;
@@ -1014,6 +1039,8 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
   return (
     <div ref={box} className="ring-hero">
       <div className="ring-hero-inner">
+        <div className="ring-hero-backdrop" aria-hidden />
+        <div className="ring-hero-edge" aria-hidden />
         {art}
         {legend.map((item, i) => (
           <div key={i} className="ring-hero-item">
