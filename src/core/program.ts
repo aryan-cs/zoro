@@ -272,3 +272,30 @@ export const BENCH_STEPS: BenchStep[] = [
 
 /** Weeks 6 and 12 of each 12-week block are easy weeks. */
 export const DELOAD_BLOCK_WEEKS = [6, 12];
+
+/**
+ * How far through the day's workouts you are, 0–100: each workout counts the share of its
+ * exercises with at least one set logged (finished counts as all), averaged over the workouts.
+ * On exercise 3 of 10 is 30%; one done and one halfway is 75%. Null with nothing planned.
+ */
+export function workoutDayPercent(
+  planned: TemplateId[],
+  sessions: { id?: number; templateId: TemplateId; finishedAt?: number }[],
+  sets: { sessionId: number; exerciseId: string }[],
+  daysPerWeek: 4 | 5,
+): number | null {
+  const ids = [...new Set([...planned, ...sessions.map((x) => x.templateId)])];
+  if (!ids.length) return null;
+  let sum = 0;
+  for (const id of ids) {
+    const runs = sessions.filter((x) => x.templateId === id);
+    if (runs.some((x) => x.finishedAt)) {
+      sum += 1;
+      continue;
+    }
+    const total = templateFor(id, daysPerWeek).exercises.length;
+    const started = new Set(sets.filter((x) => runs.some((r) => r.id === x.sessionId)).map((x) => x.exerciseId)).size;
+    sum += total ? Math.min(1, started / total) : 0;
+  }
+  return Math.round((sum / ids.length) * 100);
+}

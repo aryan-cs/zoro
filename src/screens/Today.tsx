@@ -1,15 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { addDays, carbTarget, formatMinutes, nextMonday, roundTo, weightTrend } from '../core/calc';
-import { TEMPLATES } from '../core/program';
+import { addDays, carbTarget, formatMinutes, programWeek, roundTo, weightTrend } from '../core/calc';
+import { DELOAD_BLOCK_WEEKS, templateForWeekday, workoutDayPercent } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
-import type { Meal, Phase } from '../core/types';
+import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, fmt, IconBtn, NumberPrompt, RING_GRADIENT, SingleRing, useSettings, useToast } from '../ui/kit';
 import type { SFName } from '../ui/sf';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
+import { SECOND_BY_WEEKDAY } from '../ui/workouts';
 
 export const longDate = (d: string) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const short = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
@@ -86,9 +87,18 @@ export function TodayScreen() {
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
-  const monday = nextMonday(addDays(date, -6));
-  const weekSessions = useLiveQuery(() => db.sessions.where('date').between(monday, addDays(monday, 6), true, true).toArray(), [monday]) ?? [];
-  const weekDone = new Set(weekSessions.filter((x) => x.finishedAt && !TEMPLATES[x.templateId].secondary).map((x) => x.date)).size;
+  // Today's workouts as one percentage: each planned workout counts the share of its exercises
+  // you've started (on exercise 3 of 10 is 30%; finished is 100%), averaged over the day's
+  // workouts (one done and one halfway is 75%). Any other workout you start today joins in.
+  const todaySessions = useLiveQuery(() => db.sessions.where('date').equals(date).toArray(), [date]) ?? [];
+  const todaySets = useLiveQuery(() => db.sets.where('date').equals(date).toArray(), [date]) ?? [];
+  const workoutPct = useMemo(() => {
+    const weekday = new Date(`${date}T12:00`).getDay();
+    const main = templateForWeekday(weekday, settings.daysPerWeek);
+    const second = programWeek(settings.programStart, date, DELOAD_BLOCK_WEEKS).deload ? undefined : SECOND_BY_WEEKDAY[weekday];
+    const planned = [main, second].filter((x): x is TemplateId => !!x);
+    return workoutDayPercent(planned, todaySessions, todaySets, settings.daysPerWeek);
+  }, [date, settings.daysPerWeek, settings.programStart, todaySessions, todaySets]);
   const weights = useLiveQuery(() => metricsOf('weight', 120, db), []) ?? [];
   const [weighing, setWeighing] = useState(false);
 
@@ -175,9 +185,9 @@ export function TodayScreen() {
           />
           <RingTile
             label="Workouts"
-            value={String(weekDone)}
-            progress={weekDone}
-            goal={settings.daysPerWeek}
+            value={workoutPct === null ? 'Rest' : `${workoutPct}%`}
+            progress={workoutPct ?? 0}
+            goal={100}
             colors={RING_GRADIENT.exercise}
             glyph="figure.run"
             color={FITNESS.exercise}

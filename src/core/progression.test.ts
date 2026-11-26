@@ -136,3 +136,21 @@ describe('4-day split', () => {
     expect(b[1]).toBe('closeGripBench');
   });
 });
+
+describe('workoutDayPercent', () => {
+  it('counts exercises started and averages the day', async () => {
+    const { workoutDayPercent, templateFor } = await import('./program');
+    const n = templateFor('upperA', 5).exercises.length;
+    const ex = templateFor('upperA', 5).exercises.map((e) => e.exerciseId);
+    // Three exercises started of upperA's n.
+    const third = workoutDayPercent(['upperA'], [{ id: 1, templateId: 'upperA' }], ex.slice(0, 3).map((exerciseId) => ({ sessionId: 1, exerciseId })), 5);
+    expect(third).toBe(Math.round((3 / n) * 100));
+    // One finished and one halfway: 75%.
+    const m = templateFor('pmAbs', 5).exercises.length;
+    const half = templateFor('pmAbs', 5).exercises.slice(0, Math.max(1, m / 2)).map((e) => ({ sessionId: 2, exerciseId: e.exerciseId }));
+    const day = workoutDayPercent(['upperA', 'pmAbs'], [{ id: 1, templateId: 'upperA', finishedAt: 1 }, { id: 2, templateId: 'pmAbs' }], half, 5);
+    expect(day).toBe(Math.round(((1 + Math.min(1, half.length / m)) / 2) * 100));
+    expect(workoutDayPercent([], [], [], 5)).toBeNull();
+    expect(workoutDayPercent(['upperA'], [], [], 5)).toBe(0);
+  });
+});

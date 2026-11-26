@@ -285,13 +285,19 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
   // ring, then eases back to the start color so the ends meet without a tip.
   const closed = p >= 1 && p < 1.04;
   const over = p > 1 && !closed ? Math.min(p - 1, 1) * 360 : 0;
+  // Past the goal, the shading runs along the whole length (both laps), so the second lap picks up
+  // exactly where the first left off instead of jumping back to the start color at the top.
+  const total = 360 + over;
   const shade = (a: number) =>
     closed
       ? a < 270
         ? mixColor(colors[0], colors[1], a / 270)
         : mixColor(colors[1], colors[0], (a - 270) / 90)
-      : mixColor(colors[0], colors[1], (a % 360) / 360);
-  const lap = (from: number, to: number, key: string) => {
+      : over > 0
+        ? mixColor(colors[0], colors[1], Math.min(1, a / total))
+        : mixColor(colors[0], colors[1], (a % 360) / 360);
+  // `base` is how far round the ring this lap starts (360 for the second lap).
+  const lap = (from: number, to: number, key: string, base = 0) => {
     // Short arcs with butt ends, each in its own shade, overlapping a hair so no seams show.
     const n = Math.max(2, Math.ceil((to - from) / 5));
     const step = (to - from) / n;
@@ -305,7 +311,7 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
           key={`${key}${i}`}
           d={`M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`}
           fill="none"
-          stroke={shade((a0 + a1) / 2)}
+          stroke={shade(base + (a0 + a1) / 2)}
           strokeWidth={w}
         />
       );
@@ -361,16 +367,17 @@ function Ring({ c: [cx, cy], r, w, value, target, colors, glyph }: { c: [number,
           {!closed && (
             <>
               <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
-              <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+              <circle cx={ex} cy={ey} r={w / 2} fill={over > 0 ? shade(360) : mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
             </>
           )}
         </>
       )}
       {over > 0 && (
         <>
-          <circle cx={ox} cy={oy} r={w / 2} fill={mixColor(colors[0], colors[1], over / 360)} style={{ filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` }} />
-          {lap(0, over, 'b')}
-          <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
+          <circle cx={ox} cy={oy} r={w / 2} fill={shade(total)} style={{ filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` }} />
+          {/* The second lap is drawn over the first, start included: the progressing end is always
+              on top of where the ring began. */}
+          {lap(0, over, 'b', 360)}
         </>
       )}
       {glyphEl}
