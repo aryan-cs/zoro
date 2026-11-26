@@ -1,8 +1,10 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
-import { addSampleWeek, exportAll, importAll, removeSampleData, saveMetric, today } from '../core/store';
+import { addSampleWeek, exportAll, importAll, metricsOf, removeSampleData, saveMetric, today } from '../core/store';
+import { GOAL_METRICS, goalMetric, goalOf, progressTo, setGoal, type GoalMetric } from '../core/goals';
 import { ACTIVITY, defaultRate, weeksToGoal, type Activity } from '../core/targets';
 import { useLatestWeight, useRecommendation } from '../ui/autoTargets';
 import { Sym } from '../ui/Sym';
@@ -208,6 +210,7 @@ export function SettingsScreen() {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   const [prompt, setPrompt] = useState<'height' | 'weight' | 'goal' | 'rate' | null>(null);
   const [activityMenu, setActivityMenu] = useState<DOMRect | null>(null);
+  const [goalMenu, setGoalMenu] = useState<DOMRect | null>(null);
   const weight = useLatestWeight();
   const { profile, rec } = useRecommendation();
 
@@ -215,15 +218,34 @@ export function SettingsScreen() {
   const profileNote = settings.activity
     ? `${ACTIVITY[settings.activity].detail}. Your targets are worked out from these.`
     : 'Your targets are worked out from these.';
-  const weeks = weight && settings.goalWeight ? weeksToGoal(weight, settings.goalWeight, settings.targetRate) : null;
-  const goalNote =
-    settings.phase === 'maintain'
-      ? 'Holding your weight steady.'
-      : weeks !== null && settings.goalWeight
-        ? `About ${weeks} week${weeks === 1 ? '' : 's'} to ${fmt(settings.goalWeight)} lb at ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`
-        : settings.goalWeight && weight
-          ? `${settings.phase === 'cut' ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week. Your goal of ${fmt(settings.goalWeight)} lb is ${settings.goalWeight < weight ? 'below' : 'above'} your weight now.`
-          : `${settings.phase === 'cut' ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`;
+  // The goal: weight by default, or a measurement (waist, arm, forearm, body fat).
+  const metric = goalMetric(settings);
+  const gm = GOAL_METRICS[metric];
+  const goal = goalOf(settings, metric);
+  const measured = useLiveQuery(() => (metric === 'weight' ? Promise.resolve([]) : metricsOf(metric, 365, db)), [metric]) ?? [];
+  const goalText = (v: number) => `${+v.toFixed(gm.digits)}${gm.unit === '%' ? '%' : ` ${gm.unit}`}`;
+  const rate = `${fmt(Math.abs(settings.targetRate), 2)} lb a week`;
+  const verb = settings.phase === 'cut' ? 'Lose' : 'Gain';
+  let goalNote: string;
+  if (metric === 'weight') {
+    const weeks = weight && goal ? weeksToGoal(weight, goal, settings.targetRate) : null;
+    goalNote =
+      settings.phase === 'maintain'
+        ? 'Holding your weight steady.'
+        : weeks !== null && goal
+          ? `About ${weeks} week${weeks === 1 ? '' : 's'} to ${goalText(goal)} at ${rate}.`
+          : goal && weight
+            ? `${verb} ${rate}. Your goal of ${goalText(goal)} is ${goal < weight ? 'below' : 'above'} your weight now.`
+            : `${verb} ${rate}.`;
+  } else {
+    const p = goal !== undefined ? progressTo(measured, goal) : null;
+    const lead = settings.phase === 'maintain' ? 'Holding your weight steady.' : `${verb} ${rate}.`;
+    goalNote = !measured.length
+      ? `${lead} Log your ${gm.label.toLowerCase()} in History › Body to follow it.`
+      : !p
+        ? `${lead} ${gm.label} is ${goalText(measured.at(-1)!.value)} now.`
+        : `${lead} ${gm.label} is ${goalText(p.current)} now, ${goalText(Math.abs(p.toGo))} to go${p.weeks ? `: about ${p.weeks} week${p.weeks === 1 ? '' : 's'} at your recent pace` : ''}.`;
+  }
   const targetsNote = !profile
     ? 'Fill in your profile and weight above and these are set for you.'
     : settings.autoTargets === false
@@ -289,7 +311,16 @@ export function SettingsScreen() {
             onClick={() => setPrompt('rate')}
           />
         )}
-        <Row title="Goal Weight" right={settings.goalWeight ? `${fmt(settings.goalWeight)} lb` : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
+        <Row
+          title="Goal"
+          right={
+            <button type="button" className="row-menu" onClick={(e) => setGoalMenu(e.currentTarget.getBoundingClientRect())}>
+              {gm.label}
+              <Sym name="chevron.up.chevron.down" size={12} />
+            </button>
+          }
+        />
+        <Row title={`Goal ${gm.label}`} right={goal !== undefined ? goalText(goal) : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
       </Section>
 
       {/* Daily targets: recommended from the profile until you set your own. */}
@@ -399,16 +430,26 @@ export function SettingsScreen() {
       />
       <NumberPrompt
         opened={prompt === 'goal'}
-        title="Goal Weight"
-        unit="lb"
-        initial={settings.goalWeight ? String(settings.goalWeight) : undefined}
-        min={60}
-        max={600}
+        title={`Goal ${gm.label}`}
+        unit={gm.unit}
+        initial={goal !== undefined ? String(goal) : undefined}
+        min={gm.min}
+        max={gm.max}
         onCancel={() => setPrompt(null)}
         onSave={(n) => {
-          void saveSettings({ goalWeight: Math.round(n) });
+          const step = 10 ** gm.digits;
+          void saveSettings(setGoal(settings, metric, Math.round(n * step) / step));
           setPrompt(null);
         }}
+      />
+      <Menu
+        anchor={goalMenu}
+        onClose={() => setGoalMenu(null)}
+        items={(Object.keys(GOAL_METRICS) as GoalMetric[]).map((m) => ({
+          label: GOAL_METRICS[m].label,
+          icon: m === metric ? <Sym name="checkmark" size={15} /> : undefined,
+          onClick: () => void saveSettings({ goalMetric: m }),
+        }))}
       />
 
       <Dialog

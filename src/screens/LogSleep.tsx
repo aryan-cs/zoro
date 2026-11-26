@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
-import { Btn, db, Header, Row, Section, useSettings, useToast } from '../ui/kit';
+import { Btn, db, FitCard, Header, Row, Section, useSettings, useToast } from '../ui/kit';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
 /** "8 hr 15 min", as Health writes durations. */
-const hrMin = (min: number) => `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`;
+/** 450 → "7 hr 30 min", 30 → "30 min" (like Health). */
+const hrMin = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`);
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
@@ -64,7 +65,11 @@ export function LogSleepScreen() {
 
   const importText = async (text: string) => {
     const s = parseSleepImport(text);
-    if (!s) return toast("Invalid sleep data");
+    if (!s) {
+      // The shortcut ran but Health had nothing from last night (no watch, or no sleep schedule).
+      if (/^\s*ZORO-SLEEP2/i.test(text) && !/\d{4}-\d{2}-\d{2}/.test(text)) return toast('No sleep in Apple Health yet');
+      return toast(/ZORO-SLEEP/i.test(text) ? 'Couldn’t read last night' : 'Run the shortcut first');
+    }
     await saveSleep(s, db);
     setShortcutState('ok');
     setPaste('');
@@ -94,7 +99,7 @@ export function LogSleepScreen() {
 
       <div className="fit-stack">
         {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
-        <div className="sleep-card sleep-import">
+        <FitCard title="Import from Apple Health">
           {setUp ? (
             <div className="sleep-import-btns">
               <Btn onClick={() => (window.location.href = RUN_URL)}>Copy</Btn>
@@ -111,7 +116,7 @@ export function LogSleepScreen() {
               Set Up Shortcut
             </Btn>
           )}
-        </div>
+        </FitCard>
       </div>
       {manualPaste && (
         <Section>
@@ -135,7 +140,7 @@ export function LogSleepScreen() {
 
       {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
       <div className="fit-stack">
-        <div className="sleep-card">
+        <FitCard title="Last Night" className="sleep-manual">
           <div className="sleep-times">
             <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
             <SleepTime icon="alarm.waves.left.and.right.fill" label="WAKE UP" time={wake} day="Today" />
@@ -149,11 +154,11 @@ export function LogSleepScreen() {
             }}
           />
           <div className="sleep-total">{hrMin(span)}</div>
-          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'This meets your sleep goal.' : `${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
-        </div>
-        <Btn size="lg" onClick={() => void saveManual()}>
-          Save
-        </Btn>
+          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'You met your sleep goal.' : `${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
+          <Btn size="lg" className="sleep-save" onClick={() => void saveManual()}>
+            Save
+          </Btn>
+        </FitCard>
       </div>
     </Page>
   );

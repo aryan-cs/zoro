@@ -235,6 +235,10 @@ export interface Settings {
   activity?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very';
   /** Body weight you're working toward, lb. */
   goalWeight?: number;
+  /** What the goal is measured by (weight unless chosen otherwise). */
+  goalMetric?: 'weight' | 'waist' | 'arm' | 'forearm' | 'bodyfat';
+  /** Goals for the other measurements (in, or % for body fat). */
+  goalValues?: Partial<Record<'waist' | 'arm' | 'forearm' | 'bodyfat', number>>;
   /** Targets follow the profile's recommendation until you set one yourself (then false). */
   autoTargets?: boolean;
   dumbbellMax: number;

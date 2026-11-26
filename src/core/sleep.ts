@@ -81,11 +81,16 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
   const all = rows
     .map((r) => ({ start: parseDate(r.start), end: parseDate(r.end), stage: stageOf(r.value) }))
     .filter((r): r is Sample & { stage: SleepStage | 'inbed' } => !!r.start && !!r.end && r.end > r.start);
-  const samples: Sample[] = rows
+  let samples: Sample[] = rows
     .filter((r) => !(typeof r.value === 'string' && NOT_ASLEEP.test(r.value)))
     .map((r) => ({ start: parseDate(r.start), end: parseDate(r.end) }))
     .filter((r): r is Sample => !!r.start && !!r.end && r.end > r.start)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
+  // No watch: the iPhone's sleep schedule only records time in bed, so use that.
+  if (!samples.length) {
+    samples = all.filter((r) => r.stage === 'inbed').map(({ start, end }) => ({ start, end })).sort((a, b) => a.start.getTime() - b.start.getTime());
+    all.length = 0; // no stages to show
+  }
   if (!samples.length) return null;
 
   // Merge overlapping or touching intervals.

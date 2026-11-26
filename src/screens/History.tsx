@@ -6,11 +6,11 @@ import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
-import type { MetricType, Settings } from '../core/types';
-import { clockLabel, nightStats, sleepAfter, sleepDebt, sleepRoutine, sleepScore } from '../core/sleepStats';
-import { Hypnogram, STAGE_COLORS, STAGE_ROWS } from '../ui/Hypnogram';
+import type { Settings } from '../core/types';
+import { clockLabel, nightStats, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets } from '../core/sleepStats';
+import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
-import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
+import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
@@ -209,10 +209,11 @@ function Lifts() {
   );
 }
 
-const SIZES: { type: MetricType; label: string; start?: number }[] = [
-  { type: 'waist', label: 'Waist', start: 35.25 },
-  { type: 'arm', label: 'Flexed Arm', start: 16.25 },
-  { type: 'forearm', label: 'Forearm', start: 11.625 },
+const SIZES: { type: 'waist' | 'arm' | 'forearm' | 'bodyfat'; label: string; unit: string; start?: number }[] = [
+  { type: 'waist', label: 'Waist', unit: 'in', start: 35.25 },
+  { type: 'arm', label: 'Flexed Arm', unit: 'in', start: 16.25 },
+  { type: 'forearm', label: 'Forearm', unit: 'in', start: 11.625 },
+  { type: 'bodyfat', label: 'Body Fat', unit: '%' },
 ];
 
 const SIZE_KEY = 'zoro.history.size';
@@ -224,10 +225,10 @@ const SIZE_KEY = 'zoro.history.size';
  */
 function Measurements() {
   const toast = useToast();
-  const [type, setType] = useState<MetricType>(() => {
+  const [type, setType] = useState<(typeof SIZES)[number]['type']>(() => {
     try {
       const saved = localStorage.getItem(SIZE_KEY);
-      return SIZES.some((x) => x.type === saved) ? (saved as MetricType) : 'waist';
+      return SIZES.some((x) => x.type === saved) ? (saved as (typeof SIZES)[number]['type']) : 'waist';
     } catch {
       return 'waist';
     }
@@ -238,7 +239,19 @@ function Measurements() {
   const list = useLiveQuery(() => metricsOf(type, 730, db), [type]) ?? [];
   const latest = list.at(-1);
   const labels = useMemo(() => (list.length ? list.map((m) => short(m.date)) : emptyDays(30)), [list]);
-  const series = useMemo<Series[]>(() => (list.length ? [{ label: size.label, data: list.map((m) => m.value), color: FITNESS.body }] : []), [list, size.label]);
+  // Your goal for this measurement (Settings › Goal), as a dashed line.
+  const goal = useSettings().goalValues?.[size.type];
+  const series = useMemo<Series[]>(
+    () =>
+      list.length
+        ? [
+            { label: size.label, data: list.map((m) => m.value), color: FITNESS.body },
+            ...(goal !== undefined ? [{ label: 'Goal', data: list.map(() => goal), color: 'rgba(235,235,245,0.45)' }] : []),
+          ]
+        : [],
+    [list, size.label, goal],
+  );
+  const U = size.unit.toUpperCase();
   const signed = (n: number | null) => (n === null ? null : `${n > 0 ? '+' : ''}${fmt(n, 2)}`);
   // Change over 30 days: latest against the last measurement at least 30 days before it.
   const month = useMemo(() => {
@@ -263,13 +276,13 @@ function Measurements() {
         <StatGrid
           color={FITNESS.body}
           items={[
-            ['Latest', latest ? fmt(latest.value, 2) : null, latest ? 'IN' : undefined, () => setLogging(true)],
-            ['30 Days', signed(month), month === null ? undefined : 'IN'],
-            ['Since Start', signed(total), total === null ? undefined : 'IN'],
+            ['Latest', latest ? fmt(latest.value, 2) : null, latest ? U : undefined, () => setLogging(true)],
+            ['30 Days', signed(month), month === null ? undefined : U],
+            ['Since Start', signed(total), total === null ? undefined : U],
           ]}
         />
         <div className="fit-chart">
-          <LineChart labels={labels} series={series} unit=" in" height={140} />
+          <LineChart labels={labels} series={series} unit={size.unit === '%' ? '%' : ` ${size.unit}`} height={140} />
         </div>
       </FitCard>
       <Menu
@@ -291,9 +304,9 @@ function Measurements() {
       <NumberPrompt
         opened={logging}
         title={size.label}
-        unit="in"
+        unit={size.unit}
         initial={latest ? fmt(latest.value, 2) : size.start ? fmt(size.start, 2) : undefined}
-        max={80}
+        max={size.unit === '%' ? 60 : 80}
         onCancel={() => setLogging(false)}
         onSave={async (n) => {
           await saveMetric(type, n, today(), db);
@@ -593,11 +606,17 @@ function Sleep() {
                 <div className="fit-chart">
                   <Hypnogram spans={night.stages} onset={night.bedtime} />
                 </div>
-                <div className="fit-grid4">
-                  {STAGE_ROWS.map(([st, label]) => (
-                    <FitStat key={st} label={label} value={dur(stats.stages![st] + (st === 'core' ? stats.stages!.asleep : 0))} color={STAGE_COLORS[st]} small />
-                  ))}
-                </div>
+                <RingSummary
+                  rows={(['rem', 'core', 'deep'] as const).map((st) => ({
+                    label: st === 'rem' ? 'REM' : st === 'core' ? 'Core' : 'Deep',
+                    value: stats.stages![st] + (st === 'core' ? stats.stages!.asleep : 0),
+                    target: stageTargets(goal)[st],
+                    unit: 'MIN',
+                    color: STAGE_COLORS[st],
+                    gradient: RING_GRADIENT[st],
+                    glyph: st === 'rem' ? 'eye.fill' : st === 'core' ? 'moon.fill' : 'moon.zzz.fill',
+                  }))}
+                />
               </>
             ) : (
               <p className="sleep-no-stages">Stages come from Apple Health when you sleep with Apple Watch.</p>
@@ -619,6 +638,7 @@ function Sleep() {
           <Section title="Night">
             <Row title="Time in Bed" right={formatMinutes(stats.inBed)} />
             <Row title="Fell Asleep In" right={stats.latency === null ? <span className="text-[#8d8d93]">—</span> : dur(stats.latency)} />
+            <Row title="Time Awake" right={stats.stages ? dur(stats.stages.awake) : <span className="text-[#8d8d93]">—</span>} />
             <Row title="Awakenings" right={stats.awakenings === null ? <span className="text-[#8d8d93]">—</span> : String(stats.awakenings)} />
             <Row
               title="Woke Up"

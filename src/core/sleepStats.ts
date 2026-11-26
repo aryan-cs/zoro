@@ -157,6 +157,15 @@ export function sleepAfter(entries: SleepEntry[], had: (day: ISODate) => boolean
   return Math.round(mean(yes) - mean(no));
 }
 
+/**
+ * How long a night of your goal length would spend in each stage, from the usual adult shares
+ * of sleep: REM about 22%, light (Core) about 55%, deep about 17% (the rest is brief waking).
+ */
+export function stageTargets(goalMin: number): Record<'rem' | 'core' | 'deep', number> {
+  const r = (share: number) => Math.round((goalMin * share) / 5) * 5;
+  return { rem: r(0.22), core: r(0.55), deep: r(0.17) };
+}
+
 /** 23:40 → "11:40 PM" */
 export function clockLabel(m: number): string {
   const h = Math.floor(m / 60) % 24;

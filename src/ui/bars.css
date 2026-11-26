@@ -1648,6 +1648,17 @@ button.water-oz:active {
 .sleep-dial-unit {
   font-size: 10.5px;
 }
+/* The Last Night card: times, dial and total centered under the title, Save at the bottom. */
+.sleep-manual {
+  text-align: center;
+}
+.sleep-manual .fit-card-head {
+  text-align: left;
+}
+.sleep-save {
+  width: 100%;
+  margin-top: 20px;
+}
 .sleep-total {
   margin-top: 21px;
   font-size: 20px;

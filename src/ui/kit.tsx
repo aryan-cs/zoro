@@ -266,6 +266,10 @@ export const RING_GRADIENT = {
   steps: ['#7d5bf0', '#c3a8ff'],
   distance: ['#0091ff', '#00d9ff'],
   sleep: ['#5e5ce6', '#a09eff'],
+  /** Health's sleep stages. */
+  rem: ['#2aa8f2', '#8fe2ff'],
+  core: ['#1d64f2', '#5fa6ff'],
+  deep: ['#4a3fe3', '#968cff'],
 } as const;
 
 /** Fitness's stroked arrow, or an SF Symbol drawn filled on the start cap (the macro rings). */
@@ -685,34 +689,54 @@ export function MacroRings({ totals, settings }: { totals: Macros; settings: Set
   );
 }
 
-/** Calories and macros as concentric Fitness rings, each labeled beside them like Move, Exercise and Stand. */
-export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
-  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const rows: [string, number, number, string, string, readonly [string, string], RingGlyph][] = [
-    ['Calories', totals.kcal, settings.kcalTarget, FITNESS.move, 'KCAL', RING_GRADIENT.move, 'flame.fill'],
-    ['Protein', totals.protein, settings.proteinTarget, FITNESS.exercise, 'G', RING_GRADIENT.exercise, 'frying.pan.fill'],
-    ['Carbs', totals.carbs, carbs, FITNESS.carbs, 'G', RING_GRADIENT.carbs, 'carrot.fill'],
-    ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'circle.hexagongrid.fill'],
-  ];
-  // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings keep
-  // the same stroke-to-gap ratio: stroke 19%, gap 1.7%, hole 19%. (Thinner with wider gaps was
-  // tried and rejected.)
+/** One ring in a summary: its legend line and its arc. */
+export interface RingRow {
+  label: string;
+  value: number;
+  target: number;
+  unit: string;
+  color: string;
+  gradient: readonly [string, string];
+  glyph: RingGlyph;
+}
+
+/**
+ * Concentric Fitness rings, each labeled beside them like Move, Exercise and Stand. Apple's three
+ * rings measure stroke 23% of the outer radius, gaps 2%, hole 25%; four keep the same
+ * stroke-to-gap ratio at stroke 19%, gap 1.7%. (Thinner with wider gaps was tried and rejected.)
+ */
+export function RingSummary({ rows }: { rows: RingRow[] }) {
   const R = 70;
-  const W = R * 0.19;
-  const GAP = R * 0.017;
+  const W = R * (rows.length > 3 ? 0.19 : 0.23);
+  const GAP = R * (rows.length > 3 ? 0.017 : 0.02);
   return (
     <div className="ring-card is-multi">
       <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="ring-art" aria-hidden>
-        {rows.map(([label, v, t, , , grad, glyph], i) => (
-          <Ring key={label} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={v} target={t} colors={grad} glyph={glyph} />
+        {rows.map((r, i) => (
+          <Ring key={r.label} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={r.value} target={r.target} colors={r.gradient} glyph={r.glyph} />
         ))}
       </svg>
       <div className="ring-legend">
-        {rows.map(([label, v, t, color, unit]) => (
-          <RingValue key={label} label={label} value={v} target={t} unit={unit} color={color} />
+        {rows.map((r) => (
+          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} />
         ))}
       </div>
     </div>
+  );
+}
+
+/** Calories and macros as concentric Fitness rings (the Food tab). */
+export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
+  const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
+  return (
+    <RingSummary
+      rows={[
+        { label: 'Calories', value: totals.kcal, target: settings.kcalTarget, unit: 'KCAL', color: FITNESS.move, gradient: RING_GRADIENT.move, glyph: 'flame.fill' },
+        { label: 'Protein', value: totals.protein, target: settings.proteinTarget, unit: 'G', color: FITNESS.exercise, gradient: RING_GRADIENT.exercise, glyph: 'frying.pan.fill' },
+        { label: 'Carbs', value: totals.carbs, target: carbs, unit: 'G', color: FITNESS.carbs, gradient: RING_GRADIENT.carbs, glyph: 'carrot.fill' },
+        { label: 'Fat', value: totals.fat, target: settings.fatTarget, unit: 'G', color: FITNESS.steps, gradient: RING_GRADIENT.steps, glyph: 'circle.hexagongrid.fill' },
+      ]}
+    />
   );
 }
 
