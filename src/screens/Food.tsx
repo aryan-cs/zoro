@@ -371,7 +371,7 @@ export function FoodScreen() {
 
       <div className="fit-stack">
         <div className="fit-card is-plain">
-          <MacroSummary totals={totals} settings={settings} />
+          <MacroSummary totals={totals} settings={settings} hero />
         </div>
       </div>
 

@@ -884,20 +884,196 @@ export interface RingRow {
  * rings measure stroke 23% of the outer radius, gaps 2%, hole 25%; four keep the same
  * stroke-to-gap ratio at stroke 19%, gap 1.7%. (Thinner with wider gaps was tried and rejected.)
  */
-export function RingSummary({ rows }: { rows: RingRow[] }) {
+export function RingSummary({ rows, hero }: { rows: RingRow[]; hero?: boolean }) {
   const R = 70;
   const W = R * (rows.length > 3 ? 0.19 : 0.23);
   const GAP = R * (rows.length > 3 ? 0.017 : 0.02);
+  const art = (className: string) => (
+    <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className={className} aria-hidden>
+      {rows.map((r, i) => (
+        <Ring key={r.label} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={r.value} target={r.target} colors={r.gradient} glyph={r.glyph} />
+      ))}
+    </svg>
+  );
+  const legend = rows.map((r) => (
+    <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} info={r.info} display={r.display} onOpen={r.onOpen} />
+  ));
+  if (hero) return <RingHero art={art('ring-hero-art')} legend={legend} />;
   return (
     <div className="ring-card is-multi">
-      <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="ring-art" aria-hidden>
-        {rows.map((r, i) => (
-          <Ring key={r.label} c={[R, R]} r={R - W / 2 - i * (W + GAP)} w={W} value={r.value} target={r.target} colors={r.gradient} glyph={r.glyph} />
+      {art('ring-art')}
+      <div className="ring-legend">{legend}</div>
+    </div>
+  );
+}
+
+/**
+ * The rings at the top of a page (Today, Food), sized by how far the page is scrolled. At the top
+ * they fill the width, with the legend two by two under them; scrolling down shrinks them into the
+ * usual card (rings on the left, the legend in a column beside them), and scrolling back to the
+ * top grows them again. Let go partway and they settle into whichever is nearer, as iOS's large
+ * titles do.
+ *
+ * The page keeps the big layout's height and the rings stay pinned (sticky) while they shrink, so
+ * the content below rises exactly as fast as the rings get shorter: nothing overlaps, no gap
+ * opens. The two-by-two legend rises with the content and fades out early; the column beside the
+ * rings rides in along their right edge and fades in late, so text never crosses the rings. All
+ * of it moves by transform, so scrolling doesn't lay out the page again.
+ */
+function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
+  const box = useRef<HTMLDivElement>(null);
+  const relayout = useRef<() => void>(() => {});
+
+  useLayoutEffect(() => {
+    const spacer = box.current;
+    const inner = spacer?.firstElementChild as HTMLElement | null;
+    const page = spacer?.closest<HTMLElement>('.k-page');
+    if (!spacer || !inner || !page) return;
+    const SMALL = 140; // the card's rings (.ring-card.is-multi)
+    const BESIDE = 20; // rings to legend, beside them
+    const PAD = 10; // above the rings, as in the card
+    const UNDER = 18; // rings to the two-by-two legend
+    // Set by measure():
+    let width = 0;
+    let span = 1; // how far to scroll from big to small
+    let ringY1 = PAD; // the small rings' top
+    let legendH = 0; // the column's height
+    let grid: { x: number; y: number }[] = []; // the two-by-two legend
+    let column: number[] = []; // each line's offset in the column
+
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    const show = (el: HTMLElement, opacity: number, x: number, y: number) => {
+      el.style.opacity = String(opacity);
+      el.style.visibility = opacity > 0 ? 'visible' : 'hidden';
+      el.style.transform = `translate(${x}px, ${y}px)`;
+    };
+    const paint = () => {
+      if (!width) return;
+      const p = clamp(page.scrollTop / span);
+      const size = width + (SMALL - width) * p;
+      const ringY = PAD + (ringY1 - PAD) * p;
+      const ring = inner.querySelector<SVGElement>('.ring-hero-art');
+      if (ring) ring.style.transform = `translate(0px, ${ringY}px) scale(${size / width})`;
+      inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-big').forEach((el, i) => {
+        const g = grid[i];
+        if (g) show(el, clamp(1 - p / 0.22), g.x, g.y - p * span);
+      });
+      inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-small').forEach((el, i) => {
+        show(el, clamp((p - 0.6) / 0.4), size + BESIDE, ringY + size / 2 - legendH / 2 + (column[i] ?? 0));
+      });
+    };
+
+    const measure = () => {
+      width = spacer.clientWidth;
+      if (!width) return;
+      const items = [...inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-big')];
+      const ws = items.map((el) => el.offsetWidth);
+      const hs = items.map((el) => el.offsetHeight);
+      // Small: the card as it's always looked, the rings and the column centered on each other.
+      legendH = hs.reduce((a, b) => a + b, 0) + 3 * Math.max(0, items.length - 1);
+      const rowH = Math.max(SMALL, legendH);
+      ringY1 = PAD + (rowH - SMALL) / 2;
+      column = [];
+      let off = 0;
+      for (const h of hs) {
+        column.push(off);
+        off += h + 3;
+      }
+      const smallH = PAD + rowH;
+      // Big: the rings as wide as the page, the legend two by two under them, its two columns
+      // spread evenly across the width.
+      const left = Math.max(0, ...ws.filter((_, i) => i % 2 === 0));
+      const right = Math.max(0, ...ws.filter((_, i) => i % 2 === 1));
+      const free = width - left - right;
+      const xs = free > 24 ? [free / 4, left + (free * 3) / 4] : [0, left + 12];
+      grid = [];
+      let top = PAD + width + UNDER;
+      for (let r = 0; r * 2 < items.length; r++) {
+        const row = [r * 2, r * 2 + 1].filter((i) => i < items.length);
+        for (const i of row) grid[i] = { x: xs[i % 2], y: top };
+        top += Math.max(...row.map((i) => hs[i])) + 12;
+      }
+      const bigH = top - 12;
+      span = Math.max(1, bigH - smallH);
+      // The page keeps the big height; the rings stay pinned where they start while they shrink.
+      const start = spacer.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop;
+      spacer.style.height = `${bigH}px`;
+      inner.style.height = `${smallH}px`;
+      inner.style.top = `${start}px`;
+      const ring = inner.querySelector<SVGElement>('.ring-hero-art');
+      if (ring) {
+        ring.style.width = `${width}px`;
+        ring.style.height = `${width}px`;
+      }
+      paint();
+    };
+    relayout.current = measure;
+
+    let frame = 0;
+    let settle = 0;
+    let touching = false;
+    // Partway between the two when the scroll comes to rest: finish to the nearer one.
+    const settleSoon = () => {
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => {
+        if (touching) return;
+        const s = page.scrollTop;
+        const end = Math.min(span, page.scrollHeight - page.clientHeight);
+        if (s <= 1 || s >= end - 1) return;
+        page.scrollTo({ top: s < end / 2 ? 0 : end, behavior: 'smooth' });
+      }, 140);
+    };
+    const onScroll = () => {
+      if (!frame)
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          paint();
+        });
+      settleSoon();
+    };
+    const down = () => {
+      touching = true;
+      window.clearTimeout(settle);
+    };
+    const up = () => {
+      touching = false;
+      settleSoon();
+    };
+    const sizes = new ResizeObserver(() => measure());
+    sizes.observe(spacer);
+    inner.querySelectorAll('.ring-hero-item.is-big').forEach((el) => sizes.observe(el));
+    page.addEventListener('scroll', onScroll, { passive: true });
+    page.addEventListener('touchstart', down, { passive: true });
+    page.addEventListener('touchend', up, { passive: true });
+    page.addEventListener('touchcancel', up, { passive: true });
+    measure();
+    return () => {
+      sizes.disconnect();
+      cancelAnimationFrame(frame);
+      window.clearTimeout(settle);
+      page.removeEventListener('scroll', onScroll);
+      page.removeEventListener('touchstart', down);
+      page.removeEventListener('touchend', up);
+      page.removeEventListener('touchcancel', up);
+    };
+  }, [legend.length]);
+
+  // New numbers can change the legend's widths: lay out again after every render.
+  useLayoutEffect(() => relayout.current());
+
+  return (
+    <div ref={box} className="ring-hero">
+      <div className="ring-hero-inner">
+        {art}
+        {legend.map((item, i) => (
+          <div key={`big${i}`} className="ring-hero-item is-big">
+            {item}
+          </div>
         ))}
-      </svg>
-      <div className="ring-legend">
-        {rows.map((r) => (
-          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} info={r.info} display={r.display} onOpen={r.onOpen} />
+        {legend.map((item, i) => (
+          <div key={`small${i}`} className="ring-hero-item is-small">
+            {item}
+          </div>
         ))}
       </div>
     </div>
@@ -905,10 +1081,11 @@ export function RingSummary({ rows }: { rows: RingRow[] }) {
 }
 
 /** Calories and macros as concentric Fitness rings (the Food tab). */
-export function MacroSummary({ totals, settings }: { totals: Macros; settings: Settings }) {
+export function MacroSummary({ totals, settings, hero }: { totals: Macros; settings: Settings; hero?: boolean }) {
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
   return (
     <RingSummary
+      hero={hero}
       rows={[
         { label: 'Calories', value: totals.kcal, target: settings.kcalTarget, unit: 'KCAL', color: FITNESS.move, gradient: RING_GRADIENT.move, glyph: 'flame.fill' },
         { label: 'Protein', value: totals.protein, target: settings.proteinTarget, unit: 'G', color: FITNESS.exercise, gradient: RING_GRADIENT.exercise, glyph: 'frying.pan.fill' },

@@ -835,6 +835,26 @@ button.meal-row:not(:disabled):active {
   line-height: 18px;
   color: #98989f;
 }
+/* The rings at the top of Today and Food (RingHero in kit.tsx): full width at the top of the
+ * page, shrinking into the card as it scrolls. The rings and legend lines are placed by transform;
+ * the box keeps the big layout's height and the rings stay pinned while they shrink. */
+.ring-hero {
+  position: relative;
+}
+.ring-hero-inner {
+  position: sticky;
+  z-index: 1;
+}
+.ring-hero-art,
+.ring-hero-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.ring-hero-item {
+  white-space: nowrap;
+}
 /* Rings inside a card: the card already pads. */
 .fit-card .ring-card {
   padding: 10px 0 0;

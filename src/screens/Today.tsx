@@ -157,6 +157,7 @@ export function TodayScreen() {
             them; tap a line to open it, touch and hold to see what it counts. */}
         <section className="fit-card is-plain">
           <RingSummary
+            hero
             rows={[
               {
                 label: 'Sleep',
