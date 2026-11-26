@@ -15,7 +15,7 @@ import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { DIM, InStack, NavProvider, PARALLAX, pageSlide, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { DIM, InStack, NavProvider, PARALLAX, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -240,12 +240,10 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
  * display:none resets scroll positions, so they're remembered and put back on return.
  */
 /**
- * A tab's screen. The tabs sit side by side in tab-bar order and slide like pages when you switch:
- * Water to Today slides Water off to the left, Nutrition passes, and Today lands, on UIKit's push
- * timing. At rest only the current tab is shown.
+ * A tab's screen. The tabs sit side by side in tab-bar order; useTabPager moves them (it sets
+ * their transform and visibility directly, every frame while they move).
  */
-function TabPane({ offset, moving, children, paneRef }: { offset: number; moving: { ms: number; ease: string } | null; children: ReactNode; paneRef: (el: HTMLDivElement | null) => void }) {
-  const active = offset === 0;
+function TabPane({ active, children, paneRef }: { active: boolean; children: ReactNode; paneRef: (el: HTMLDivElement | null) => void }) {
   const el = useRef<HTMLDivElement | null>(null);
   const scrolls = useRef(new WeakMap<Element, number>());
   useEffect(() => {
@@ -271,12 +269,6 @@ function TabPane({ offset, moving, children, paneRef }: { offset: number; moving
         paneRef(node);
       }}
       className="absolute inset-0"
-      style={{
-        // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
-        transform: active && !moving ? undefined : `translateX(${offset * 100}%)`,
-        transition: moving ? `transform ${moving.ms}ms ${moving.ease}` : 'none',
-        visibility: active || moving ? 'visible' : 'hidden',
-      }}
       aria-hidden={!active}
     >
       {children}
@@ -288,40 +280,97 @@ function TabPane({ offset, moving, children, paneRef }: { offset: number; moving
 const OWN_SWIPE = '.fit-chart, canvas, input, textarea, select, .ios-segmented, .sleep-dial, .zoro-tabbar, .k-dialog, .k-popup, .k-sheet, .k-actions';
 
 /**
- * Swipe sideways anywhere on a tab's screen to go to the next or previous tab, as in iOS paging:
- * the tabs follow your finger, and letting go either carries on to the next tab (past a third of
- * the way, or with a quick flick) or springs back. Not while a screen is pushed on the tab (its
- * own swipe goes back), and not past the first or last tab (it stretches, then springs back).
+ * The tabs as pages, moved like a UIKit paging scroll view. One position (in pages) drives every
+ * tab; a critically damped spring carries it to the tab you picked, a little slower the farther
+ * it goes. Touch the screen while it's moving and it stops under your finger; swipe sideways and
+ * it follows your finger; let go and it carries on at your finger's speed to the next tab (past
+ * halfway, or with a flick), or settles back. It stretches past the first and last tab. Not while a
+ * screen is pushed on the tab (its own swipe goes back).
  */
-function useTabSwipe(root: RefObject<HTMLDivElement | null>, panes: RefObject<(HTMLDivElement | null)[]>, current: number, pushed: boolean) {
+function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(HTMLDivElement | null)[]>, current: number, pushed: boolean) {
   const { setTab } = useNav();
-  const live = useRef({ current, pushed });
-  live.current = { current, pushed };
+  const st = useRef({ p: current, v: 0, target: current, response: 0.42, raf: 0, last: 0, dragging: false });
+  const live = useRef({ pushed, current });
+  live.current = { pushed, current };
+
+  const paint = () => {
+    const s = st.current;
+    const W = root.current?.clientWidth || 1;
+    const atRest = !s.raf && !s.dragging;
+    panes.current?.forEach((el, i) => {
+      if (!el) return;
+      const off = i - s.p;
+      if (atRest && Math.abs(off) < 1e-4) {
+        // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
+        el.style.transform = '';
+        el.style.visibility = 'visible';
+        return;
+      }
+      el.style.transform = `translate3d(${off * W}px, 0, 0)`;
+      el.style.visibility = Math.abs(off) < 0.999 ? 'visible' : 'hidden';
+    });
+  };
+  const step = (t: number) => {
+    const s = st.current;
+    const dt = Math.min(1 / 30, s.last ? (t - s.last) / 1000 : 1 / 60);
+    s.last = t;
+    const k = ((2 * Math.PI) / s.response) ** 2;
+    const c = (4 * Math.PI) / s.response; // damping ratio 1: no bounce, as paging settles
+    s.v += (k * (s.target - s.p) - c * s.v) * dt;
+    s.p += s.v * dt;
+    if (Math.abs(s.target - s.p) < 0.0004 && Math.abs(s.v) < 0.02) {
+      s.p = s.target;
+      s.v = 0;
+      s.raf = 0;
+      s.last = 0;
+      paint();
+      return;
+    }
+    s.raf = requestAnimationFrame(step);
+    paint();
+  };
+  const animateTo = (target: number, velocity?: number) => {
+    const s = st.current;
+    s.target = target;
+    if (velocity !== undefined) s.v = velocity;
+    // About half a second to the next tab; a little longer for each one passed.
+    s.response = 0.42 + 0.11 * Math.max(0, Math.abs(target - s.p) - 1);
+    if (!s.raf) {
+      s.last = 0;
+      s.raf = requestAnimationFrame(step);
+    }
+  };
+  const stop = () => {
+    const s = st.current;
+    cancelAnimationFrame(s.raf);
+    s.raf = 0;
+    s.last = 0;
+  };
+
+  useLayoutEffect(paint, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A tab picked any way (the tab bar, a swipe, a card that opens another tab): go there.
+  useLayoutEffect(() => {
+    const s = st.current;
+    if (s.target !== current || Math.abs(s.p - current) > 1e-4) animateTo(current);
+  }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const node = root.current;
     if (!node) return;
-    let start: { x: number; y: number; t: number } | null = null;
+    let start: { x: number; y: number; t: number; p: number } | null = null;
     let mode: 'undecided' | 'swipe' | 'other' = 'other';
-    let last = { x: 0, t: 0, v: 0 };
-    const W = () => node.clientWidth;
-    const place = (dx: number, animate: boolean) => {
-      const { current: c } = live.current;
-      panes.current?.forEach((el, i) => {
-        if (!el) return;
-        const off = i - c;
-        if (Math.abs(off) > 1 && !animate) return;
-        el.style.transition = animate ? `transform ${pageSlide(1).ms}ms ${pageSlide(1).ease}` : 'none';
-        el.style.visibility = 'visible';
-        el.style.transform = `translateX(calc(${off * 100}% + ${dx}px))`;
-      });
-    };
+    let last = { x: 0, t: 0 };
+    let v = 0; // pages per second, smoothed
+    const N = TABS.length;
+    const rubber = (p: number) => (p < 0 ? p * 0.3 : p > N - 1 ? N - 1 + (p - (N - 1)) * 0.3 : p);
     const onStart = (e: TouchEvent) => {
       mode = 'other';
       if (e.touches.length !== 1 || live.current.pushed) return;
       if ((e.target as Element).closest(OWN_SWIPE)) return;
       const t = e.touches[0];
-      start = { x: t.clientX, y: t.clientY, t: e.timeStamp };
-      last = { x: t.clientX, t: e.timeStamp, v: 0 };
+      start = { x: t.clientX, y: t.clientY, t: e.timeStamp, p: st.current.p };
+      last = { x: t.clientX, t: e.timeStamp };
+      v = 0;
       mode = 'undecided';
     };
     const onMove = (e: TouchEvent) => {
@@ -330,45 +379,42 @@ function useTabSwipe(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       const dx = t.clientX - start.x;
       const dy = t.clientY - start.y;
       if (mode === 'undecided') {
-        if (Math.hypot(dx, dy) < 10) return;
-        // Sideways and started promptly: a swipe. Otherwise it's a scroll, or a hold-and-drag.
-        mode = Math.abs(dx) > Math.abs(dy) * 1.2 && e.timeStamp - start.t < 350 ? 'swipe' : 'other';
+        if (Math.hypot(dx, dy) < 8) return;
+        // Mostly sideways and started promptly: a swipe. Otherwise a scroll, or a hold-and-drag.
+        mode = Math.abs(dx) > Math.abs(dy) * 1.15 && e.timeStamp - start.t < 400 ? 'swipe' : 'other';
         if (mode === 'other') return;
+        // Catch the tabs where they are (even mid-slide) and take them from there.
+        stop();
+        st.current.dragging = true;
+        start = { ...start, x: t.clientX, p: st.current.p };
       }
       e.preventDefault();
-      const dt = Math.max(1, e.timeStamp - last.t);
-      last = { x: t.clientX, t: e.timeStamp, v: (t.clientX - last.x) / dt };
-      const { current: c } = live.current;
-      const atEdge = (dx > 0 && c === 0) || (dx < 0 && c === TABS.length - 1);
-      place(atEdge ? dx * 0.3 : dx, false);
+      const W = node.clientWidth || 1;
+      const dt = Math.max(1, e.timeStamp - last.t) / 1000;
+      const inst = -((t.clientX - last.x) / W) / dt;
+      v = v * 0.4 + inst * 0.6;
+      last = { x: t.clientX, t: e.timeStamp };
+      st.current.p = rubber(start.p - (t.clientX - start.x) / W);
+      paint();
     };
-    const onEnd = () => {
+    const onEnd = (e: TouchEvent) => {
       if (!start || mode !== 'swipe') {
         start = null;
         return;
       }
-      const dx = last.x - start.x;
+      const from = Math.round(start.p);
       start = null;
       mode = 'other';
-      const { current: c } = live.current;
-      const dir = last.v < -0.45 || (dx < -W() / 3 && last.v <= 0.2) ? 1 : last.v > 0.45 || (dx > W() / 3 && last.v >= -0.2) ? -1 : 0;
-      const next = c + dir;
-      if (dir !== 0 && next >= 0 && next < TABS.length) {
-        // The tab switch takes over from here: its slide starts from where your finger left the tabs.
-        setTab(TABS[next].id);
-        return;
-      }
-      // Spring back to the tab you were on, then leave each tab as it sits at rest.
-      place(0, true);
-      window.setTimeout(() => {
-        panes.current?.forEach((el, i) => {
-          if (!el) return;
-          const off = i - live.current.current;
-          el.style.transition = 'none';
-          el.style.transform = off === 0 ? '' : `translateX(${off * 100}%)`;
-          el.style.visibility = off === 0 ? 'visible' : 'hidden';
-        });
-      }, pageSlide(1).ms + 20);
+      st.current.dragging = false;
+      // A finger that stopped before lifting isn't flicking.
+      const vel = e.timeStamp - last.t > 80 ? 0 : v;
+      const p = st.current.p;
+      // Where it would coast to, then the nearest tab, at most one away from where you started.
+      let target = Math.round(p + vel * 0.18);
+      if (Math.abs(vel) > 0.9) target = vel > 0 ? Math.ceil(p - 0.02) : Math.floor(p + 0.02);
+      target = Math.max(0, Math.min(N - 1, Math.max(from - 1, Math.min(from + 1, target))));
+      animateTo(target, vel);
+      if (target !== live.current.current) setTab(TABS[target].id);
     };
     node.addEventListener('touchstart', onStart, { passive: true });
     node.addEventListener('touchmove', onMove, { passive: false });
@@ -380,27 +426,16 @@ function useTabSwipe(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       node.removeEventListener('touchend', onEnd);
       node.removeEventListener('touchcancel', onEnd);
     };
-  }, [root, panes, setTab]);
+  }, [root, panes, setTab]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function Shell() {
   const { tab, stacks } = useNavState();
   useAutoTargets(); // keep the daily targets on the profile's recommendation
-  // While tabs slide, every tab is shown (the ones between pass by); then only the current one.
-  const [moving, setMoving] = useState<{ ms: number; ease: string } | null>(null);
-  const shown = useRef(tab);
-  useLayoutEffect(() => {
-    if (shown.current === tab) return;
-    const slide = pageSlide(TABS.findIndex((t) => t.id === tab) - TABS.findIndex((t) => t.id === shown.current));
-    shown.current = tab;
-    setMoving(slide);
-    const t = window.setTimeout(() => setMoving(null), slide.ms + 40);
-    return () => window.clearTimeout(t);
-  }, [tab]);
   const current = TABS.findIndex((t) => t.id === tab);
   const panes = useRef<(HTMLDivElement | null)[]>([]);
   const root = useRef<HTMLDivElement>(null);
-  useTabSwipe(root, panes, current, stacks[tab].some((e) => !e.leaving));
+  useTabPager(root, panes, current, stacks[tab].some((e) => !e.leaving));
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
@@ -408,8 +443,7 @@ function Shell() {
       {TABS.map((t, i) => (
         <TabPane
           key={t.id}
-          offset={i - current}
-          moving={moving}
+          active={i === current}
           paneRef={(el) => {
             panes.current[i] = el;
           }}
