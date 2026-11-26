@@ -6,7 +6,7 @@ import { geminiDeps, logFromPhoto, toInboxFoods, type PhotoFood, type PhotoLog, 
 import { logFoods, today } from '../core/store';
 import type { ISODate, Meal } from '../core/types';
 import { aiKey } from '../ui/aiKey';
-import { Btn, db, Field, FITNESS, FitText, fmt, Row, Section, SheetPage, useToast } from '../ui/kit';
+import { Btn, db, Field, FITNESS, FitText, fmt, MacroSummary, Row, Section, SheetPage, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { shrinkPhoto } from '../ui/photo';
 import { Sym } from '../ui/Sym';
@@ -17,10 +17,10 @@ type State =
   | { phase: 'review'; log: PhotoLog }
   | { phase: 'error'; title: string; message: string; kind: AiError['kind'] | 'empty' };
 
-/** The four numbers, as the amount sheet shows them: label over a colored rounded value. */
-function Macros({ kcal, protein, carbs, fat, big }: { kcal: number; protein: number; carbs: number; fat: number; big?: boolean }) {
+/** A food's four numbers, as the amount sheet shows them: label over a colored rounded value. */
+function Macros({ kcal, protein, carbs, fat }: { kcal: number; protein: number; carbs: number; fat: number }) {
   return (
-    <div className={big ? 'amt-macros pl-total' : 'pl-macros'}>
+    <div className="pl-macros">
       {(
         [
           ['Calories', kcal, 'KCAL', FITNESS.move],
@@ -124,6 +124,7 @@ function explain(err: unknown): State {
 export function PhotoLogSheet({ file, date, meal, onClose, onDone }: { file: File | null; date: ISODate; meal?: Meal; onClose: () => void; onDone: (count: number) => void }) {
   const nav = useNav();
   const toast = useToast();
+  const settings = useSettings();
   const [state, setState] = useState<State>({ phase: 'working', step: 'read' });
   const [run, setRun] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
@@ -218,8 +219,11 @@ export function PhotoLogSheet({ file, date, meal, onClose, onDone }: { file: Fil
 
       {log && (
         <>
-          <div className="mx-4 mt-5">
-            <Macros {...total} big />
+          {/* What these foods add up to, as the Food tab's rings against the day's targets. */}
+          <div className="fit-stack mt-5">
+            <div className="fit-card">
+              <MacroSummary totals={total} settings={settings} />
+            </div>
           </div>
           <Section
             title="Foods"

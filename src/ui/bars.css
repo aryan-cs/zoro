@@ -2785,11 +2785,6 @@ button.water-oz:active {
   height: 20px !important;
   color: #8d8d93;
 }
-/* The total, as the amount sheet's macros, on a card of its own. */
-.amt-macros.pl-total {
-  border-radius: 26px;
-  background: var(--ios-cell);
-}
 /* One food: name and what it is, − n +, its numbers, its source. Everything wraps. */
 .pl-food {
   position: relative;
