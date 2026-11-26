@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { warmVideos } from '../core/guide';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { buildPlan, deleteSession, finishSession, logSet, unlogSet } from '../core/store';
@@ -360,6 +361,10 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
     // Targets come from history before this session, so logging sets here doesn't move them.
     void buildPlan(session.templateId, session.date, db, sessionId).then(setPlan);
   }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek]);
+  // Its exercises' animations, fetched now so swiping to one shows it straight away.
+  useEffect(() => {
+    if (plan) warmVideos(plan.exercises.map((e) => e.exerciseId));
+  }, [plan]);
 
   const finished = !!session?.finishedAt;
   // The step you're on (a running rest, else the next set): kept at the top of the screen, just

@@ -14,6 +14,68 @@ export interface Guide {
   tips: string[];
 }
 
+/**
+ * Animations of each exercise, streamed from RepCount's site (repcountapp.com) when you open it:
+ * nothing of theirs is copied into this app. Where RepCount has no animation of the exercise, the
+ * nearest one it has stands in; without one at all (dead hang, woodchopper, side plank), or when
+ * a video won't load (offline), the photos above show instead.
+ */
+export const VIDEO_BASE = 'https://www.repcountapp.com/videos/exercises/';
+export const VIDEO: Record<string, string> = {
+  bench: 'bench-press',
+  pausedBench: 'bench-press',
+  closeGripBench: 'close-grip-bench-press',
+  inclineBarbell: 'incline-bench-press',
+  dips: 'dips',
+  cableFly: 'cable-crossover',
+  dbShoulderPress: 'dumbbell-shoulder-press',
+  pullup: 'pull-up',
+  cableRow: 'seated-cable-row',
+  barbellRow: 'barbell-row',
+  kneelingPulldown: 'single-arm-lat-pulldown',
+  facePull: 'band-face-pull',
+  rearDeltFly: 'rear-delt-fly',
+  cableLateral: 'cable-lateral-raise',
+  lateralRaise: 'dumbbell-lateral-raise',
+  ohTricepsExt: 'overhead-cable-triceps-extension',
+  leaningOhExt: 'single-arm-tricep-extension',
+  pushdown: 'triceps-pushdown',
+  skullCrusher: 'dumbbell-skull-crusher',
+  inclineCurl: 'incline-dumbbell-curl',
+  preacherCurl: 'preacher-curl',
+  bayesianCurl: 'cable-curl',
+  hammerCurl: 'hammer-curl',
+  ezCurl: 'ez-bar-curl',
+  reverseCurl: 'reverse-curl',
+  wristCurl: 'dumbbell-wrist-curl',
+  reverseWristCurl: 'reverse-wrist-curl',
+  squat: 'squat',
+  rdl: 'romanian-deadlift',
+  walkingLunge: 'walking-lunges',
+  ballLegCurl: 'swiss-ball-leg-curl',
+  calfRaise: 'standing-dumbbell-calf-raise',
+  bulgarian: 'smith-machine-bulgarian-split-squat',
+  hipThrust: 'hip-thrust',
+  cableLegExt: 'leg-extension',
+  hangingLegRaise: 'hanging-leg-raise',
+  cableCrunch: 'cable-crunch',
+  rollout: 'ab-wheel-rollout',
+  plank: 'front-plank',
+  inclineWalk: 'treadmill',
+};
+export const videoUrl = (exerciseId: string) => (VIDEO[exerciseId] ? `${VIDEO_BASE}${VIDEO[exerciseId]}.mp4` : undefined);
+
+/** Fetches a workout's animations ahead of time (once each), so they're cached before you swipe to one. */
+const warmed = new Set<string>();
+export function warmVideos(exerciseIds: string[]) {
+  for (const id of exerciseIds) {
+    const url = videoUrl(id);
+    if (!url || warmed.has(url)) continue;
+    warmed.add(url);
+    void fetch(url, { mode: 'no-cors' }).catch(() => warmed.delete(url));
+  }
+}
+
 const LEAVE_TWO = 'Stop a rep or two short of failure.';
 const FAIL_OK = 'Fine to take the last set to failure.';
 

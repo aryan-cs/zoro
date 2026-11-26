@@ -2625,3 +2625,30 @@ button.water-oz:active {
   stroke-width: 3;
   stroke-linecap: round;
 }
+/* The exercise's animation: white-backed, so it sits in its own rounded card like a photo. */
+.ex-video {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #fff;
+}
+.ex-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* Shown only if the animation couldn't start by itself: tap to play. */
+.ex-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  pointer-events: none;
+}

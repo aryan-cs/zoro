@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GUIDE } from './guide';
+import { GUIDE, VIDEO } from './guide';
 import { EXERCISES } from './program';
 
 // The photos in public/exercises/, found the way Vite finds files (no Node types needed).
@@ -14,5 +14,8 @@ describe('exercise guide', () => {
       expect(g.tips.length, id).toBeLessThanOrEqual(3);
       for (const f of g.still ? [0] : [0, 1]) expect(PHOTOS.has(`/public/exercises/${g.photo}-${f}.webp`), `${id} ${f}`).toBe(true);
     }
+  });
+  it('only has animations for real exercises', () => {
+    for (const id of Object.keys(VIDEO)) expect(EXERCISES[id], id).toBeDefined();
   });
 });
