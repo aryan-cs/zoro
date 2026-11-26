@@ -427,6 +427,9 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
   const end = Math.min(p, 1) * 360;
   const [ex, ey] = onRing(cx, cy, r, end);
   const [ox, oy] = onRing(cx, cy, r, over);
+  // Which way the second lap's tip is heading (clockwise), for its shadow.
+  const tx = Math.cos((over * Math.PI) / 180);
+  const ty = Math.sin((over * Math.PI) / 180);
   const [sx, sy] = onRing(cx, cy, r, 0);
   // The glyph rides the ring's leading end (at 25% it sits at 3 o'clock); at the top while empty
   // or exactly full, and on the second lap's tip past the goal.
@@ -487,12 +490,20 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
       )}
       {over > 0 && (
         <>
-          <circle cx={ox} cy={oy} r={w / 2} fill={shade(total)} style={{ filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` }} />
-          {/* The second lap is drawn over the first, start included: the progressing end is always
-              on top of where the ring began. */}
-          {/* It starts a little before 12 o'clock so its square start overlaps the first lap's end
-              (same shade there) instead of meeting it edge to edge. */}
+          {/* The second lap is drawn over the first, start included. It starts a little before 12
+              o'clock so its square start overlaps the first lap's end (same shade there) instead of
+              meeting it edge to edge. */}
           {lap(-2, over, 'b', 360)}
+          {/* The tip goes on top, so the lap's square start can never cut it (past 200% the tip sits
+              right on it). Its shadow falls ahead along the ring, onto the lap it overlaps, offset
+              enough that none shows behind it. */}
+          <circle
+            cx={ox}
+            cy={oy}
+            r={w / 2}
+            fill={shade(total)}
+            style={{ filter: `drop-shadow(${tx * w * 0.3}px ${ty * w * 0.3}px ${w * 0.18}px rgba(0,0,0,0.75))` }}
+          />
         </>
       )}
       {glyphEl}
