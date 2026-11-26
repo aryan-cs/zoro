@@ -278,7 +278,9 @@ select {
  * animation always starts from its first frame, so there's no flash at full size first.
  */
 .k-dialog {
-  inset: 0 !important;
+  /* Centered in what the keyboard leaves visible (--vv-top / --kb, set from the visual
+   * viewport in App.tsx), so an alert with a text field moves up above the keyboard like iOS's. */
+  inset: var(--vv-top, 0px) 0 var(--kb, 0px) 0 !important;
   margin: auto !important;
   height: fit-content !important;
   /* Zero Konsta's -50% shift through its variables: the minifier drops a plain translate override. */
@@ -287,7 +289,9 @@ select {
   transform: none !important;
   transition:
     opacity 0.18s ease-in,
-    visibility 0s linear 0.18s !important;
+    visibility 0s linear 0.18s,
+    top 0.3s cubic-bezier(0.2, 0.85, 0.25, 1),
+    bottom 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) !important;
 }
 .k-dialog.invisible {
   scale: 1 !important;
@@ -303,7 +307,10 @@ select {
   }
 }
 .k-dialog:not(.invisible) {
-  transition: visibility 0s !important;
+  transition:
+    visibility 0s,
+    top 0.3s cubic-bezier(0.2, 0.85, 0.25, 1),
+    bottom 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) !important;
   animation: alert-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 @keyframes alert-in {

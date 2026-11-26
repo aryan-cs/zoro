@@ -487,9 +487,35 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   }, [root, panes, setTab]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/**
+ * Where the keyboard is: how much of the bottom it covers (--kb) and how far iOS has scrolled the
+ * page up to make room (--vv-top), from the visual viewport. Alerts center in what's left.
+ */
+function useKeyboardInset() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      const top = Math.max(0, vv.offsetTop);
+      const kb = Math.max(0, window.innerHeight - vv.height - top);
+      root.style.setProperty('--vv-top', `${Math.round(top)}px`);
+      root.style.setProperty('--kb', `${Math.round(kb)}px`);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+}
+
 function Shell() {
   const { tab, stacks } = useNavState();
   useAutoTargets(); // keep the daily targets on the profile's recommendation
+  useKeyboardInset();
   const current = TABS.findIndex((t) => t.id === tab);
   const panes = useRef<(HTMLDivElement | null)[]>([]);
   const root = useRef<HTMLDivElement>(null);
