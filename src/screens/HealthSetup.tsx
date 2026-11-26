@@ -6,8 +6,8 @@ import { useSync } from '../ui/sync';
 
 /**
  * Apple Health, on its own: a Shortcuts automation runs Zoro Health (scripts/make-health-shortcut.py)
- * whenever an app you open every morning opens, and it sends last night's sleep and the last two
- * days' steps through the backup repo for Zoro to bring in (src/ui/healthSync.ts). iOS doesn't let
+ * when an app you open every morning opens. Once a day it sends the last two days' sleep and steps
+ * through the backup repo for Zoro to bring in (src/ui/healthSync.ts); later runs that day stop at once. iOS doesn't let
  * an app add an automation, so this walks you through making it once.
  */
 
@@ -58,12 +58,16 @@ export function HealthSetupScreen() {
       <Section keep title="1. Add Zoro Health" footer="These are the steps the automation runs. Adding them asks once for your Cloud Backup key.">
         <Row accent title="Add to Shortcuts" onClick={addHealthAutomation} />
       </Section>
-      <Section keep title="2. Make the Automation" footer="It runs when that app opens because Apple Health can’t be read while your iPhone is locked.">
+      <Section
+        keep
+        title="2. Make the Automation"
+        footer="It runs once a day: the first time you open that app after 5 AM, once last night’s sleep is in Apple Health. Opening it again that day does nothing. It waits for you to open an app because Apple Health can’t be read while your iPhone is locked."
+      >
         <Cell className="py-2.5 text-[15px]">
           In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and choose Is Opened. Then choose Run Immediately, turn off Notify When Run, and pick Zoro Health.
         </Cell>
       </Section>
-      <Section keep title="3. Allow Apple Health" footer="Your iPhone asks once to let it read your sleep and steps. After that, nothing to tap.">
+      <Section keep title="3. Allow Apple Health" footer="Your iPhone asks once to let it read your sleep and steps, and to keep a note of the day it last ran. After that, nothing to tap.">
         <Row accent title="Run Now" onClick={() => (window.location.href = RUN_URL)} />
       </Section>
     </Page>

@@ -199,3 +199,21 @@ describe('steps from the Health shortcut', () => {
     expect(old.steps).toEqual([]);
   });
 });
+
+describe('two days of sleep from the automation', () => {
+  it('reads both nights, and a nap doesn’t replace the night', () => {
+    const rows = [
+      ['2026-11-24T23:00:00', '2026-11-25T06:30:00'],
+      ['2026-11-25T23:30:00', '2026-11-26T07:00:00'],
+      ['2026-11-26T14:00:00', '2026-11-26T14:40:00'], // afternoon nap
+    ];
+    const text = ['ZORO-HEALTH1', ...rows.map((r) => r[0]), '---', ...rows.map((r) => r[1]), '---', ...rows.map(() => 'Asleep Core'), '---', '---', '---'].join('\n');
+    const { nights, sleep } = parseHealthImport(text);
+    expect(nights.map((n) => [n.date, n.minutes])).toEqual([
+      ['2026-11-25', 450],
+      ['2026-11-26', 450],
+    ]);
+    expect(sleep?.date).toBe('2026-11-26');
+  });
+});
+

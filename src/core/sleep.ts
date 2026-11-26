@@ -74,10 +74,11 @@ function parseDate(s: unknown): Date | null {
 }
 
 /**
- * Turn raw Health sleep samples into one night: keep the "asleep" stages, merge overlaps
- * (watch + phone can both write), and take the last cluster of sleep (gaps under 3 hours).
+ * Turn raw Health sleep samples into nights: keep the "asleep" stages, merge overlaps (watch +
+ * phone can both write), and split into clusters of sleep (gaps under 3 hours). Each wake-up day
+ * keeps its longest (a nap doesn't replace the night). Oldest first.
  */
-export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?: unknown }[]): SleepEntry | null {
+export function nightsFromSamples(rows: { start?: unknown; end?: unknown; value?: unknown }[]): SleepEntry[] {
   const all = rows
     .map((r) => ({ start: parseDate(r.start), end: parseDate(r.end), stage: stageOf(r.value) }))
     .filter((r): r is Sample & { stage: SleepStage | 'inbed' } => !!r.start && !!r.end && r.end > r.start);
@@ -91,7 +92,7 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
     samples = all.filter((r) => r.stage === 'inbed').map(({ start, end }) => ({ start, end })).sort((a, b) => a.start.getTime() - b.start.getTime());
     all.length = 0; // no stages to show
   }
-  if (!samples.length) return null;
+  if (!samples.length) return [];
 
   // Merge overlapping or touching intervals.
   const merged: Sample[] = [];
@@ -102,19 +103,32 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
     } else merged.push({ ...s });
   }
 
-  // Keep the final night: walk back while gaps are under 3 hours.
+  // Clusters: a gap of 3 hours or more starts the next one.
   const GAP = 3 * 60 * 60_000;
-  let i = merged.length - 1;
-  while (i > 0 && merged[i].start.getTime() - merged[i - 1].end.getTime() < GAP) i--;
-  const night = merged.slice(i);
-  const minutes = Math.round(night.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()), 0) / 60_000);
-  const bed = night[0].start;
-  const wake = night[night.length - 1].end;
-  if (minutes <= 0 || minutes > 20 * 60) return null;
-  const entry: SleepEntry = { date: toISODate(wake), bedtime: bed.toISOString(), wakeTime: wake.toISOString(), minutes, source: 'shortcut' };
-  const stages = stagesFor(all, bed, wake);
-  if (stages) entry.stages = stages;
-  return entry;
+  const clusters: Sample[][] = [];
+  for (const s of merged) {
+    const cur = clusters[clusters.length - 1];
+    if (cur && s.start.getTime() - cur[cur.length - 1].end.getTime() < GAP) cur.push(s);
+    else clusters.push([s]);
+  }
+  const byDay = new Map<string, SleepEntry>();
+  for (const night of clusters) {
+    const minutes = Math.round(night.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()), 0) / 60_000);
+    if (minutes <= 0 || minutes > 20 * 60) continue;
+    const bed = night[0].start;
+    const wake = night[night.length - 1].end;
+    const entry: SleepEntry = { date: toISODate(wake), bedtime: bed.toISOString(), wakeTime: wake.toISOString(), minutes, source: 'shortcut' };
+    const stages = stagesFor(all, bed, wake);
+    if (stages) entry.stages = stages;
+    const had = byDay.get(entry.date);
+    if (!had || entry.minutes > had.minutes) byDay.set(entry.date, entry);
+  }
+  return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** The last night in the samples (see nightsFromSamples). */
+export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?: unknown }[]): SleepEntry | null {
+  return nightsFromSamples(rows).at(-1) ?? null;
 }
 
 /** A day's steps from Apple Health. */
@@ -144,19 +158,23 @@ export function stepsFromSamples(starts: string[], counts: string[], sources: st
 }
 
 /**
- * What the Apple Health automation (Zoro Health) sends: last night's sleep and the last two days' steps, as
+ * What the Apple Health automation (Zoro Health) sends: the last two days' sleep and steps, as
  *   ZORO-HEALTH1
  *   <sleep starts> --- <sleep ends> --- <sleep values> --- <step starts> --- <step counts> --- <step sources>
  * (each list one item per line). The older Zoro Sleep shortcut's text still reads as sleep only.
  */
-export function parseHealthImport(text: string): { sleep: SleepEntry | null; steps: DaySteps[] } {
+export function parseHealthImport(text: string): { sleep: SleepEntry | null; nights: SleepEntry[]; steps: DaySteps[] } {
   const health = text.trim().match(/^ZORO-HEALTH1\s*\n([\s\S]*)$/i);
-  if (!health) return { sleep: parseSleepImport(text), steps: [] };
+  if (!health) {
+    const sleep = parseSleepImport(text);
+    return { sleep, nights: sleep ? [sleep] : [], steps: [] };
+  }
   const lines = (block = '') => block.split('\n').map((l) => l.trim()).filter(Boolean);
   const [sStarts, sEnds, sValues, stStarts, stCounts, stSources] = health[1].split(/\n?\s*---\s*\n?/).map(lines);
   const st = sStarts ?? [];
-  const sleep = st.length ? nightFromSamples(st.map((start, i) => ({ start, end: (sEnds ?? [])[i], value: (sValues ?? [])[i] }))) : null;
-  return { sleep, steps: stepsFromSamples(stStarts ?? [], stCounts ?? [], stSources ?? []) };
+  // The shortcut sends two days of sleep, so a night a missed day didn't send still comes in.
+  const nights = st.length ? nightsFromSamples(st.map((start, i) => ({ start, end: (sEnds ?? [])[i], value: (sValues ?? [])[i] }))) : [];
+  return { sleep: nights.at(-1) ?? null, nights, steps: stepsFromSamples(stStarts ?? [], stCounts ?? [], stSources ?? []) };
 }
 
 export function parseSleepImport(text: string): SleepEntry | null {

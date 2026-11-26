@@ -226,15 +226,15 @@ export async function saveSleep(entry: SleepEntry, db: ZoroDB = getDB()): Promis
 }
 
 /**
- * Save what the Zoro Health shortcut sends: last night's sleep and each day's steps. A night you
- * logged yourself stays as you set it. Returns what it found.
+ * Save what the Apple Health automation sends: the nights in it (two days' worth) and each day's
+ * steps. A night you logged yourself stays as you set it. Returns what it found.
  */
-export async function saveHealthImport(text: string, db: ZoroDB = getDB()): Promise<{ sleep: SleepEntry | null; steps: DaySteps[] }> {
+export async function saveHealthImport(text: string, db: ZoroDB = getDB()): Promise<{ sleep: SleepEntry | null; nights: SleepEntry[]; steps: DaySteps[] }> {
   const found = parseHealthImport(text);
   for (const d of found.steps) await saveMetric('steps', d.steps, d.date, db);
-  if (found.sleep) {
-    const existing = await db.sleep.where('date').equals(found.sleep.date).first();
-    if (existing?.source !== 'manual') await saveSleep(found.sleep, db);
+  for (const night of found.nights) {
+    const existing = await db.sleep.where('date').equals(night.date).first();
+    if (existing?.source !== 'manual') await saveSleep(night, db);
   }
   return found;
 }

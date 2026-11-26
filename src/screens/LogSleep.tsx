@@ -6,7 +6,7 @@ import { saveSleep, today } from '../core/store';
 import { hrMin } from '../core/say';
 import { Btn, db, FitCard, Header, useSettings, useToast } from '../ui/kit';
 import { useHealthSyncedAt } from '../ui/healthSync';
-import { RUN_URL, whenWas } from './HealthSetup';
+import { whenWas } from './HealthSetup';
 import { useSync } from '../ui/sync';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
@@ -107,10 +107,9 @@ export function LogSleepScreen() {
                   ? `Your sleep and steps come in on their own. Last brought in ${whenWas(syncedAt)}.`
                   : 'Set up the Apple Health automation once and your sleep and steps come in on their own.'}
               </p>
-              <div className="sleep-import-btns">
-                <Btn onClick={() => nav.push({ name: 'healthSetup' })}>{syncedAt ? 'Automation' : 'Set Up'}</Btn>
-                <Btn onClick={() => (window.location.href = RUN_URL)}>Run Now</Btn>
-              </div>
+              <Btn size="lg" onClick={() => nav.push({ name: 'healthSetup' })}>
+                {syncedAt ? 'Automation' : 'Set Up'}
+              </Btn>
             </>
           )}
         </FitCard>

@@ -5,15 +5,16 @@ Run on a Mac: python3 scripts/make-health-shortcut.py
 Writes public/ZoroHealth.shortcut (signed so anyone can add it). Nothing personal is in it: adding
 it asks for the backup key and repo (Import Questions), which stay on that iPhone.
 
-The shortcut finds Sleep samples from the last day and Steps samples from the last two days,
-builds one block of text:
+Once a day (the first run after 5 AM that finds last night in Apple Health; a note in the
+Shortcuts folder, Zoro Health.txt, remembers the day), the shortcut finds Sleep and Steps samples
+from the last two days, builds one block of text:
     ZORO-HEALTH1
     <sleep start dates> --- <sleep end dates> --- <sleep values (Asleep Core, Awake, ...)>
     --- <step start dates> --- <step counts> --- <step sources (iPhone, Apple Watch)>
 (each list one item per line, each "---" on its own line), and saves it to the backup repo as
 health/<yyyyMMdd-HHmmss>.txt through GitHub's API. A Shortcuts automation runs it (when an app you
-open every morning opens: Apple Health can't be read while the iPhone is locked), and Zoro brings
-the files in when it opens (src/ui/healthSync.ts, parseHealthImport in src/core/sleep.ts).
+open every morning opens: Apple Health can't be read while the iPhone is locked; later opens that
+day stop at the first check), and Zoro brings the files in when it opens (src/ui/healthSync.ts, parseHealthImport in src/core/sleep.ts).
 """
 import plistlib
 import subprocess
@@ -29,6 +30,14 @@ KEY = str(uuid.uuid4()).upper()
 REPO = str(uuid.uuid4()).upper()
 B64 = str(uuid.uuid4()).upper()
 PUT = str(uuid.uuid4()).upper()
+ADJ = str(uuid.uuid4()).upper()
+DAY = str(uuid.uuid4()).upper()
+FILE = str(uuid.uuid4()).upper()
+LAST = str(uuid.uuid4()).upper()
+ENDS = str(uuid.uuid4()).upper()
+TODAY = str(uuid.uuid4()).upper()
+SKIP = str(uuid.uuid4()).upper()
+MARK = str(uuid.uuid4()).upper()
 
 
 def samples(prop: str, iso: bool, uid: str = FIND) -> dict:
@@ -112,13 +121,57 @@ def text_action(uid: str, value: str) -> dict:
     return {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': uid, 'WFTextActionText': value}}
 
 
-now = {'Type': 'CurrentDate', 'Aggrandizements': [{'Type': 'WFDateFormatVariableAggrandizement', 'WFDateFormatStyle': 'Custom', 'WFDateFormat': 'yyyyMMdd-HHmmss'}]}
+def fmt(attachment: dict, pattern: str) -> dict:
+    """A date variable written out with a custom pattern."""
+    return {**attachment, 'Aggrandizements': attachment.get('Aggrandizements', []) + [{'Type': 'WFDateFormatVariableAggrandizement', 'WFDateFormatStyle': 'Custom', 'WFDateFormat': pattern}]}
+
+
+def variable(attachment: dict) -> dict:
+    """An If's input."""
+    return {'Type': 'Variable', 'Variable': {'Value': attachment, 'WFSerializationType': 'WFTextTokenAttachment'}}
+
+
+def if_start(group: str, value: dict, condition: int, against: dict) -> dict:
+    return {
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.conditional',
+        'WFWorkflowActionParameters': {'GroupingIdentifier': group, 'WFControlFlowMode': 0, 'WFCondition': condition, 'WFInput': variable(value), 'WFConditionalActionString': against},
+    }
+
+
+def if_end(group: str) -> dict:
+    return {'WFWorkflowActionIdentifier': 'is.workflow.actions.conditional', 'WFWorkflowActionParameters': {'GroupingIdentifier': group, 'WFControlFlowMode': 2}}
+
+
+IS, CONTAINS = 4, 99
+MARK_FILE = 'Zoro Health.txt'  # in the Shortcuts folder: the last day it brought in last night
+now = {'Type': 'CurrentDate'}
 
 actions = [
     # 0, 1: filled in when the shortcut is added (Import Questions below).
     text_action(KEY, ''),
     text_action(REPO, 'aryan-cs/zoro-data'),
-    find(FIND, 'Sleep', 1),
+    # Once a day. A "day" starts at 5 AM, so checking Messages at 1 AM doesn't use it up.
+    {
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.adjustdate',
+        'WFWorkflowActionParameters': {
+            'UUID': ADJ,
+            'WFAdjustOperation': 'Subtract',
+            'WFDuration': {'Value': {'Unit': 'hr', 'Magnitude': '5'}, 'WFSerializationType': 'WFQuantityFieldValue'},
+            'WFDate': tokens(now),
+        },
+    },
+    {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': DAY, 'WFTextActionText': tokens(fmt(output(ADJ, 'Adjusted Date'), 'yyyy-MM-dd'))}},
+    {
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.documentpicker.open',
+        'WFWorkflowActionParameters': {'UUID': FILE, 'WFGetFilePath': MARK_FILE, 'WFFileErrorIfNotFound': False, 'WFShowFilePicker': False},
+    },
+    {'WFWorkflowActionIdentifier': 'is.workflow.actions.detect.text', 'WFWorkflowActionParameters': {'UUID': LAST, 'WFInput': {'Value': output(FILE, 'File'), 'WFSerializationType': 'WFTextTokenAttachment'}}},
+    # Already brought in last night today: stop before reading anything.
+    if_start(SKIP, output(LAST, 'Text'), IS, tokens(output(DAY, 'Text'))),
+    {'WFWorkflowActionIdentifier': 'is.workflow.actions.exit', 'WFWorkflowActionParameters': {}},
+    if_end(SKIP),
+    # Two days of each, so a day that didn't send still comes in the next.
+    find(FIND, 'Sleep', 2),
     find(STEPS, 'Steps', 2),
     {
         'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext',
@@ -144,7 +197,7 @@ actions = [
         'WFWorkflowActionIdentifier': 'is.workflow.actions.downloadurl',
         'WFWorkflowActionParameters': {
             'UUID': PUT,
-            'WFURL': tokens('https://api.github.com/repos/', output(REPO, 'Text'), '/contents/health/', now, '.txt'),
+            'WFURL': tokens('https://api.github.com/repos/', output(REPO, 'Text'), '/contents/health/', fmt(now, 'yyyyMMdd-HHmmss'), '.txt'),
             'WFHTTPMethod': 'PUT',
             'ShowHeaders': True,
             'WFHTTPHeaders': dictionary({
@@ -159,6 +212,21 @@ actions = [
             }),
         },
     },
+    # Done for the day only once last night is in Apple Health (some sleep ends today); until then
+    # the next time the app opens tries again.
+    {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': ENDS, 'WFTextActionText': tokens(fmt({'Type': 'ActionOutput', 'OutputUUID': FIND, 'OutputName': 'Health Samples', 'Aggrandizements': [{'Type': 'WFPropertyVariableAggrandizement', 'PropertyName': 'End Date'}]}, 'yyyy-MM-dd'))}},
+    {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': TODAY, 'WFTextActionText': tokens(fmt(now, 'yyyy-MM-dd'))}},
+    if_start(MARK, output(ENDS, 'Text'), CONTAINS, tokens(output(TODAY, 'Text'))),
+    {
+        'WFWorkflowActionIdentifier': 'is.workflow.actions.documentpicker.save',
+        'WFWorkflowActionParameters': {
+            'WFInput': {'Value': output(DAY, 'Text'), 'WFSerializationType': 'WFTextTokenAttachment'},
+            'WFAskWhereToSave': False,
+            'WFFileDestinationPath': MARK_FILE,
+            'WFSaveFileOverwrite': True,
+        },
+    },
+    if_end(MARK),
 ]
 
 shortcut = {
