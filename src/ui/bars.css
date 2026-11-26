@@ -761,12 +761,14 @@ button.meal-row:not(:disabled):active {
 }
 /* Every card responds the same way (History's too), except while you're scrubbing its chart or
  * pressing a control inside it. */
-.fit-card:active:not(:has(.fit-chart:active, .fit-stat-edit:active, .lift-picker:active, button:active, [data-info]:active)),
+/* Only a card that opens something grows when pressed (as in iOS). One you work inside, like Log
+ * Sleep's dial, stays still. */
+.fit-card.is-link:active:not(:has(.fit-chart:active, .fit-stat-edit:active, .lift-picker:active, button:active, [data-info]:active)),
 .wk-card:active:not(:has(button:active)) {
   transform: scale(1.035);
   transition: transform 0.9s cubic-bezier(0.15, 0.55, 0.3, 1);
 }
-.fit-grid > .fit-card:active:not(:has(button:active)),
+.fit-grid > .fit-card.is-link:active:not(:has(button:active)),
 .fit-grid > .wk-card:active:not(:has(button:active)) {
   transform: scale(1.075);
 }
