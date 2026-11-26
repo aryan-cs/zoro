@@ -1045,8 +1045,29 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     };
     relayout.current = measure;
 
+    // The rings never rest halfway. WebKit snaps only as a drag ends, so a scroll that stops some
+    // other way (a tap that halts a flick, the page's length changing mid-flight) can come to rest
+    // partway; once the page is still, with no finger on it, carry it on to the nearer end.
+    let fingers = 0;
+    let still = 0;
+    const settle = () => {
+      if (fingers || !plan) return;
+      const end = Math.min(plan.span, page.scrollHeight - page.clientHeight);
+      const s = page.scrollTop;
+      if (s > 0.5 && s < end - 0.5) page.scrollTo({ top: s < end / 2 ? 0 : end, behavior: 'smooth' });
+    };
+    const watchStill = () => {
+      window.clearTimeout(still);
+      if (!fingers) still = window.setTimeout(settle, 120);
+    };
+    const onTouch = (e: TouchEvent) => {
+      fingers = e.touches.length;
+      watchStill();
+    };
+
     let frame = 0;
     const onScroll = () => {
+      watchStill();
       if (animated || frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
@@ -1055,6 +1076,9 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     };
     const snap = page.style.scrollSnapType;
     page.style.scrollSnapType = 'y proximity';
+    page.addEventListener('touchstart', onTouch, { passive: true });
+    page.addEventListener('touchend', onTouch, { passive: true });
+    page.addEventListener('touchcancel', onTouch, { passive: true });
     const sizes = new ResizeObserver(() => measure());
     sizes.observe(spacer);
     items.forEach((el) => sizes.observe(el));
@@ -1068,6 +1092,10 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
       anims.forEach((a) => a.cancel());
       page.style.scrollSnapType = snap;
       page.removeEventListener('scroll', onScroll);
+      page.removeEventListener('touchstart', onTouch);
+      page.removeEventListener('touchend', onTouch);
+      page.removeEventListener('touchcancel', onTouch);
+      window.clearTimeout(still);
     };
   }, [legend.length]);
 
