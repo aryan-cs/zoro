@@ -204,6 +204,9 @@ select {
   transition: opacity var(--dim-ms, var(--push-ms)) var(--push-ease);
   pointer-events: none;
 }
+.tab-pane {
+  overflow: clip;
+}
 .stack-layer.is-covered {
   --dim: 0.1;
   transform: translateX(-30%);

@@ -273,7 +273,10 @@ function TabPane({ active, children, paneRef }: { active: boolean; children: Rea
         el.current = node;
         paneRef(node);
       }}
-      className="absolute inset-0"
+      // Clipped to itself: with a workout open, the Lift screen under it sits 30% to the left, and
+      // without this it would show over the right of Today, the tab beside it. (clip, not hidden,
+      // so the pane never becomes something that can be scrolled.)
+      className="tab-pane absolute inset-0"
       aria-hidden={!active}
     >
       {children}
