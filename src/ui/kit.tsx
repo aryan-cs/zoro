@@ -348,8 +348,12 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
             <span className="odo-ghost">0</span>
             <span className="odo-window">
               <span className="odo-strip" style={{ transform: `translateY(calc(-1lh * ${pos}))` }}>
+                {/* Each digit fades with its distance from the middle: it fades out as it slides
+                    away and in as it arrives; a digit that isn't moving stays fully crisp. */}
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d, k) => (
-                  <span key={k}>{d === 0 && blankZero ? '\u00a0' : d}</span>
+                  <span key={k} style={{ opacity: Math.max(0, 1 - Math.abs(k - pos) * 1.25) }}>
+                    {d === 0 && blankZero ? '\u00a0' : d}
+                  </span>
                 ))}
               </span>
             </span>

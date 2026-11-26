@@ -1164,6 +1164,13 @@ button.meal-row:not(:disabled):active {
   font-variant-numeric: tabular-nums;
   color: #00b7ff;
 }
+button.water-oz {
+  display: block;
+  -webkit-tap-highlight-color: transparent;
+}
+button.water-oz:active {
+  opacity: 0.5;
+}
 .water-oz {
   margin-top: 20px;
   font-size: 17px;
@@ -1931,12 +1938,9 @@ button.meal-row:not(:disabled):active {
   visibility: hidden;
 }
 .odo-window {
+  /* No clipping or mask: digits fade by their own distance from the middle (RollingNumber). */
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  /* Digits fade in and out at the window's edges instead of being cut by them. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 30%, #000 70%, transparent 96%);
-  mask-image: linear-gradient(to bottom, transparent 4%, #000 30%, #000 70%, transparent 96%);
 }
 .odo-strip {
   position: absolute;

@@ -84,6 +84,7 @@ export function WaterScreen() {
   const date = today();
   const entries = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const [editing, setEditing] = useState<number | null>(null);
+  const [goal, setGoal] = useState(false);
   const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
   const presets = settings.waterPresets?.length === 4 ? settings.waterPresets : DEFAULT_PRESETS;
@@ -112,9 +113,10 @@ export function WaterScreen() {
               <RollingNumber value={pct} suffix="%" />
             </div>
           </div>
-          <div className="water-oz">
-            <RollingNumber value={total} /> of {fmt(settings.waterTargetOz)} oz
-          </div>
+          {/* Tap to change the day's goal. */}
+          <button type="button" className="water-oz" onClick={() => setGoal(true)} aria-label={`${fmt(total)} of ${fmt(settings.waterTargetOz)} ounces. Change goal`}>
+            <RollingNumber value={total} /> of <RollingNumber value={settings.waterTargetOz} /> oz
+          </button>
         </div>
         <div className="water-presets">
           {presets.map((oz, i) => (
@@ -124,6 +126,19 @@ export function WaterScreen() {
       </div>
 
 
+      <NumberPrompt
+        opened={goal}
+        title="Daily Water Goal"
+        unit="oz"
+        initial={String(settings.waterTargetOz)}
+        min={8}
+        max={400}
+        onCancel={() => setGoal(false)}
+        onSave={(n) => {
+          void saveSettings({ waterTargetOz: Math.round(n) });
+          setGoal(false);
+        }}
+      />
       <NumberPrompt
         opened={editing !== null}
         title="Edit Amount"
