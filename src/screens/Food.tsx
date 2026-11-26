@@ -315,7 +315,7 @@ export function FoodScreen() {
         await logFood({ food, quantity: food.serving ? 1 : 100, unit: food.serving ? 'serving' : 'g', meal: 'unsorted', date }, db);
         toast(`Added ${food.name}`);
       } catch {
-        toast('Lookup failed. Check your connection.');
+        toast('Couldn’t look that up. Check your connection.');
       }
     },
     [date, nav, settings.usdaApiKey, toast],

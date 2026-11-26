@@ -397,16 +397,16 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
   const total = 360 + over;
   const shade = (a: number) =>
     closed
-      ? a < 270
-        ? mixColor(colors[0], colors[1], a / 270)
-        : mixColor(colors[1], colors[0], (a - 270) / 90)
+      ? (a % 360 + 360) % 360 < 270
+        ? mixColor(colors[0], colors[1], ((a % 360 + 360) % 360) / 270)
+        : mixColor(colors[1], colors[0], (((a % 360 + 360) % 360) - 270) / 90)
       : over > 0
         ? mixColor(colors[0], colors[1], Math.min(1, a / total))
         : mixColor(colors[0], colors[1], (a % 360) / 360);
   // `base` is how far round the ring this lap starts (360 for the second lap).
   const lap = (from: number, to: number, key: string, base = 0) => {
     // Short arcs with butt ends, each in its own shade, overlapping a hair so no seams show.
-    const n = Math.max(2, Math.ceil((to - from) / 5));
+    const n = Math.max(2, Math.ceil((to - from) / 3));
     const step = (to - from) / n;
     return Array.from({ length: n }, (_, i) => {
       const a0 = from + i * step;
@@ -471,10 +471,16 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
       {p > 0 && (
         <>
           {lap(0, end, 'a')}
-          {!closed && (
+          {/* A full loop's two square ends meet at 12 o'clock, and their anti-aliased edges leave
+              a hairline there: bridge the join with a short arc in the shared color. */}
+          {closed && lap(-3, 3, 'j', 360)}
+          {/* Round caps only while the ring is under its goal. Past it the first lap is a closed
+              loop: a start cap would show as a flat-edged disc of the start color at 12 o'clock,
+              cut straight by the second lap's square start. */}
+          {!closed && over === 0 && (
             <>
               <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
-              <circle cx={ex} cy={ey} r={w / 2} fill={over > 0 ? shade(360) : mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+              <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
             </>
           )}
         </>
@@ -484,7 +490,9 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
           <circle cx={ox} cy={oy} r={w / 2} fill={shade(total)} style={{ filter: `drop-shadow(0 0 ${w / 4}px rgba(0,0,0,0.8))` }} />
           {/* The second lap is drawn over the first, start included: the progressing end is always
               on top of where the ring began. */}
-          {lap(0, over, 'b', 360)}
+          {/* It starts a little before 12 o'clock so its square start overlaps the first lap's end
+              (same shade there) instead of meeting it edge to edge. */}
+          {lap(-2, over, 'b', 360)}
         </>
       )}
       {glyphEl}

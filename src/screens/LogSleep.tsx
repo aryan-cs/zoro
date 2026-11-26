@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { formatMinutes } from '../core/calc';
 import { parseSleepImport, sleepFromTimes } from '../core/sleep';
 import { saveSleep, today } from '../core/store';
+import { hrMin } from '../core/say';
 import { Btn, db, FitCard, Header, Row, Section, useSettings, useToast } from '../ui/kit';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
 /** "8 hr 15 min", as Health writes durations. */
-/** 450 → "7 hr 30 min", 30 → "30 min" (like Health). */
-const hrMin = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`);
+
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
@@ -87,7 +87,7 @@ export function LogSleepScreen() {
   };
   const saveManual = async () => {
     const s = sleepFromTimes(today(), bed, wake);
-    if (!s) return toast('Check the times.');
+    if (!s) return toast('Those times don’t work');
     await saveSleep(s, db);
     toast(`Saved ${formatMinutes(s.minutes)}`);
     nav.pop();
@@ -99,7 +99,7 @@ export function LogSleepScreen() {
 
       <div className="fit-stack">
         {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
-        <FitCard title="Import from Apple Health">
+        <FitCard title="Import from Apple Health" className="is-log">
           {setUp ? (
             <div className="sleep-import-btns">
               <Btn onClick={() => (window.location.href = RUN_URL)}>Copy</Btn>
@@ -140,7 +140,7 @@ export function LogSleepScreen() {
 
       {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
       <div className="fit-stack">
-        <FitCard title="Last Night" className="sleep-manual">
+        <FitCard title="Last Night" className="is-log sleep-manual">
           <div className="sleep-times">
             <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
             <SleepTime icon="alarm.waves.left.and.right.fill" label="WAKE UP" time={wake} day="Today" />
@@ -154,7 +154,7 @@ export function LogSleepScreen() {
             }}
           />
           <div className="sleep-total">{hrMin(span)}</div>
-          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'You met your sleep goal.' : `${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
+          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'You met your sleep goal.' : `That’s ${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
           <Btn size="lg" className="sleep-save" onClick={() => void saveManual()}>
             Save
           </Btn>

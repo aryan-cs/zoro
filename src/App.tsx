@@ -300,6 +300,13 @@ document.addEventListener('visibilitychange', () => {
  * (nothing is lost; your data lives on the phone). If one turns up while you're using it,
  * ask with a native alert instead of reloading under you.
  */
+const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.hostname.endsWith('.local');
+if (LOCAL && 'serviceWorker' in navigator) {
+  // A worker registered by an earlier visit would keep serving its cached copy.
+  void navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()));
+  void caches?.keys().then((ks) => ks.forEach((k) => void caches.delete(k)));
+}
+
 function UpdatePrompt() {
   const {
     needRefresh: [needRefresh],
@@ -338,7 +345,8 @@ export function App() {
       <NavProvider>
         <ToastProvider>
           <Shell />
-          <UpdatePrompt />
+          {/* Local previews skip the offline cache so every reload shows the latest build. */}
+          {!LOCAL && <UpdatePrompt />}
         </ToastProvider>
       </NavProvider>
     </KonstaApp>

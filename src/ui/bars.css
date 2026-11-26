@@ -1648,6 +1648,14 @@ button.water-oz:active {
 .sleep-dial-unit {
   font-size: 10.5px;
 }
+/* Log Sleep's cards: content (buttons, the bedtime and wake-up times) starts 14pt under the
+ * title, and the cards keep the same 16pt padding on every side. */
+.fit-card.is-log {
+  padding-top: 16px;
+}
+.fit-card.is-log .fit-card-head {
+  margin-bottom: 14px;
+}
 /* The Last Night card: times, dial and total centered under the title, Save at the bottom. */
 .sleep-manual {
   text-align: center;

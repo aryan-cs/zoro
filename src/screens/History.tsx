@@ -7,7 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { Settings } from '../core/types';
-import { clockLabel, nightStats, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets } from '../core/sleepStats';
+import { clockLabel, insightNote, nightStats, scoreNote, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets, trendNote } from '../core/sleepStats';
 import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
@@ -567,10 +567,10 @@ function Sleep() {
   const trained = new Set(sessions.map((x) => x.date));
   const watered = new Set(water.filter((w) => w.oz >= settings.waterTargetOz).map((w) => w.date));
   const over = new Set(intake.filter((d) => d.kcal > settings.kcalTarget).map((d) => d.date));
-  const insights: [string, number | null][] = [
-    ['After Workouts', sleepAfter(entries, (d) => trained.has(d))],
-    ['After Meeting Water Goal', sleepAfter(entries, (d) => watered.has(d))],
-    ['After Eating Over Target', sleepAfter(entries, (d) => over.has(d))],
+  const insights = [
+    { label: 'After Workouts', phrase: 'after days you train', minutes: sleepAfter(entries, (d) => trained.has(d)) },
+    { label: 'After Meeting Water Goal', phrase: 'after days you hit your water goal', minutes: sleepAfter(entries, (d) => watered.has(d)) },
+    { label: 'After Eating Over Target', phrase: 'after days you eat over your target', minutes: sleepAfter(entries, (d) => over.has(d)) },
   ];
   const signed = (m: number | null) => (m === null ? <span className="text-[#8d8d93]">—</span> : `${m >= 0 ? '+' : '−'}${dur(Math.abs(m))}`);
 
@@ -619,7 +619,7 @@ function Sleep() {
                 />
               </>
             ) : (
-              <p className="sleep-no-stages">Stages come from Apple Health when you sleep with Apple Watch.</p>
+              <p className="sleep-no-stages">Wear your Apple Watch to bed to see your sleep stages here.</p>
             )}
           </FitCard>
         )}
@@ -629,7 +629,7 @@ function Sleep() {
         <>
           <Section
             title="Score"
-            footer="Score: half duration against your goal, 30% quality, 20% keeping to your usual times."
+            footer={scoreNote(night, entries, goal)}
           >
             <Row title="Duration" right={`${score.duration}`} />
             <Row title="Quality" right={score.quality === null ? <span className="text-[#8d8d93]">—</span> : `${score.quality}`} />
@@ -661,7 +661,7 @@ function Sleep() {
 
       <Section
         title="Trends"
-        footer="Sleep debt is how far short of your goal the last 14 nights fell, added up."
+        footer={trendNote(entries, goal, today())}
       >
         <Row title="Score, Last 7 Nights" right={weekScore === null ? <span className="text-[#8d8d93]">—</span> : String(weekScore)} />
         <Row title="Sleep Debt" right={dur(debt)} />
@@ -669,9 +669,9 @@ function Sleep() {
         <Row title="Usual Wake-Up" right={routine ? clockLabel(routine.wake) : <span className="text-[#8d8d93]">—</span>} />
       </Section>
 
-      <Section title="Insights" footer="Extra sleep after days with each, against days without.">
-        {insights.map(([label, m]) => (
-          <Row key={label} title={label} right={signed(m)} />
+      <Section title="Insights" footer={insightNote(insights)}>
+        {insights.map((i) => (
+          <Row key={i.label} title={i.label} right={signed(i.minutes)} />
         ))}
       </Section>
 
@@ -690,7 +690,7 @@ function Sleep() {
           toast(`Goal set to ${formatMinutes(min)}`);
         }}
       />
-      <Section title="Nights" footer={entries.length ? 'Tap a night to see it above.' : undefined}>
+      <Section title="Nights" footer={entries.length ? 'Tap a night to see it in detail above.' : undefined}>
         {[...entries]
           .reverse()
           .slice(0, 14)

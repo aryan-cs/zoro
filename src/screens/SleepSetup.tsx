@@ -12,7 +12,7 @@ const STEPS: [string, string][] = [
   ['Combine', 'After End Repeat, add “Combine Text”: Repeat Results, New Lines.'],
   ['Wrap Text', 'Add Text: ZORO-SLEEP [ followed by Combined Text, then ].'],
   ['Copy', 'Add “Copy to Clipboard” for that text.'],
-  ['Run Each Morning', 'In Zoro, open Sleep and tap “1. Copy Sleep”. Return to Zoro and tap “2. Paste Sleep”.'],
+  ['Run Each Morning', 'In Zoro, open Log Sleep and tap Copy. When you’re back in Zoro, tap Paste.'],
 ];
 
 export function SleepSetupScreen() {

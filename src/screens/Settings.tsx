@@ -5,6 +5,7 @@ import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { addSampleWeek, exportAll, importAll, metricsOf, removeSampleData, saveMetric, today } from '../core/store';
 import { GOAL_METRICS, goalMetric, goalOf, progressTo, setGoal, type GoalMetric } from '../core/goals';
+import { amount, num, rough, sentences, span } from '../core/say';
 import { ACTIVITY, defaultRate, weeksToGoal, type Activity } from '../core/targets';
 import { useLatestWeight, useRecommendation } from '../ui/autoTargets';
 import { Sym } from '../ui/Sym';
@@ -185,7 +186,7 @@ export function SettingsScreen() {
       } catch (err) {
         // Cancel means cancel; only fall back to a download if sharing itself failed.
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        toast('Could not open the share sheet.');
+        toast('Couldn’t open the share sheet');
       }
       return;
     }
@@ -202,7 +203,7 @@ export function SettingsScreen() {
     try {
       setPendingImport(JSON.parse(await file.text()));
     } catch {
-      toast("That file isn't a Zoro backup.");
+      toast('That file isn’t a Zoro backup');
     }
     if (fileInput.current) fileInput.current.value = '';
   };
@@ -215,42 +216,49 @@ export function SettingsScreen() {
   const { profile, rec } = useRecommendation();
 
   // Footnotes, like the ones under Apple's Settings groups.
-  const profileNote = settings.activity
-    ? `${ACTIVITY[settings.activity].detail}. Your targets are worked out from these.`
-    : 'Your targets are worked out from these.';
+  // Footnotes, like the ones under Apple's Settings groups, written from your numbers.
+  const profileNote = sentences(settings.activity && ACTIVITY[settings.activity].detail, 'Your daily targets are based on this.');
+
   // The goal: weight by default, or a measurement (waist, arm, forearm, body fat).
   const metric = goalMetric(settings);
   const gm = GOAL_METRICS[metric];
   const goal = goalOf(settings, metric);
   const measured = useLiveQuery(() => (metric === 'weight' ? Promise.resolve([]) : metricsOf(metric, 365, db)), [metric]) ?? [];
-  const goalText = (v: number) => `${+v.toFixed(gm.digits)}${gm.unit === '%' ? '%' : ` ${gm.unit}`}`;
-  const rate = `${fmt(Math.abs(settings.targetRate), 2)} lb a week`;
-  const verb = settings.phase === 'cut' ? 'Lose' : 'Gain';
+  const what = gm.label.toLowerCase();
+  const rate = rough(settings.targetRate, 'lb');
+  const aim =
+    settings.phase === 'maintain' ? 'You’re keeping your weight steady.' : `You’re aiming to ${settings.phase === 'cut' ? 'lose' : 'gain'} about ${rate} a week.`;
   let goalNote: string;
   if (metric === 'weight') {
     const weeks = weight && goal ? weeksToGoal(weight, goal, settings.targetRate) : null;
     goalNote =
-      settings.phase === 'maintain'
-        ? 'Holding your weight steady.'
-        : weeks !== null && goal
-          ? `About ${weeks} week${weeks === 1 ? '' : 's'} to ${goalText(goal)} at ${rate}.`
-          : goal && weight
-            ? `${verb} ${rate}. Your goal of ${goalText(goal)} is ${goal < weight ? 'below' : 'above'} your weight now.`
-            : `${verb} ${rate}.`;
+      settings.phase === 'maintain' || !goal || !weight
+        ? aim
+        : weeks !== null
+          ? `At about ${rate} a week, you’ll reach ${amount(goal, 'lb')} in ${span(weeks)}.`
+          : Math.abs(goal - weight) < 0.5
+            ? `You’re at your goal of ${amount(goal, 'lb')}.`
+            : `${aim} Your goal of ${amount(goal, 'lb')} is ${goal < weight ? 'below' : 'above'} your current weight, so you won’t get there this way.`;
   } else {
     const p = goal !== undefined ? progressTo(measured, goal) : null;
-    const lead = settings.phase === 'maintain' ? 'Holding your weight steady.' : `${verb} ${rate}.`;
-    goalNote = !measured.length
-      ? `${lead} Log your ${gm.label.toLowerCase()} in History › Body to follow it.`
-      : !p
-        ? `${lead} ${gm.label} is ${goalText(measured.at(-1)!.value)} now.`
-        : `${lead} ${gm.label} is ${goalText(p.current)} now, ${goalText(Math.abs(p.toGo))} to go${p.weeks ? `: about ${p.weeks} week${p.weeks === 1 ? '' : 's'} at your recent pace` : ''}.`;
+    const at = (v: number) => amount(v, gm.unit, gm.digits);
+    goalNote = sentences(
+      aim,
+      !measured.length
+        ? `Log your ${what} in History › Body to track it here.`
+        : !p
+          ? `Your ${what} is ${at(measured.at(-1)!.value)}.`
+          : Math.abs(p.toGo) < 10 ** -gm.digits
+            ? `Your ${what} is at your goal of ${at(goal!)}.`
+            : `Your ${what} is ${at(p.current)}, ${at(Math.abs(p.toGo))} from your goal${p.weeks ? `, which you’ll reach in ${span(p.weeks)} at your recent pace` : ''}.`,
+    );
   }
+  const plan = settings.phase === 'maintain' ? 'stay at your weight' : `${settings.phase === 'cut' ? 'lose' : 'gain'} about ${rate} a week`;
   const targetsNote = !profile
-    ? 'Fill in your profile and weight above and these are set for you.'
+    ? 'Fill in your profile above and these will be set for you.'
     : settings.autoTargets === false
-      ? `Set by you. Recommended: ${fmt(rec!.kcal)} kcal, ${fmt(rec!.protein)} g protein.`
-      : `Recommended: you burn about ${fmt(rec!.tdee)} kcal a day. Change any to set your own.`;
+      ? `You set these yourself. For your profile, we’d suggest ${num(rec!.kcal, 0)} kcal with ${amount(rec!.protein, 'g')} of protein.`
+      : `You burn about ${num(Math.round(rec!.tdee / 10) * 10, 0)} kcal a day, so these are set to help you ${plan}. Change any of them to set your own.`;
 
   return (
     <Page className="tab-safe">
@@ -320,7 +328,7 @@ export function SettingsScreen() {
             </button>
           }
         />
-        <Row title={`Goal ${gm.label}`} right={goal !== undefined ? goalText(goal) : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
+        <Row title={`Goal ${gm.label}`} right={goal !== undefined ? amount(goal, gm.unit, gm.digits) : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
       </Section>
 
       {/* Daily targets: recommended from the profile until you set your own. */}
@@ -336,7 +344,7 @@ export function SettingsScreen() {
       </Section>
 
       {/* The lifting program. */}
-      <Section title="Training" footer="Your lifting program starts on a Monday; bench weights come from your training max.">
+      <Section title="Training" footer="Your program starts on a Monday, and your bench weights are worked out from your training max.">
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
         <Row title="Days per Week" right={<Seg className="is-compact w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
         <NumSetting label="Bench Training Max (lb)" k="benchMax" settings={settings} />
@@ -345,7 +353,7 @@ export function SettingsScreen() {
       </Section>
 
       {/* Connections: food search and Apple Health. */}
-      <Section title="Connections" footer="A free USDA key adds generic foods to search. The shortcut copies last night's sleep from Apple Health.">
+      <Section title="Connections" footer="Add a free USDA key to search generic foods too. The shortcut brings in last night’s sleep from Apple Health.">
         <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
         <Row title="Apple Health Shortcut" chevron onClick={addSleepShortcut} />
         <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
@@ -353,7 +361,7 @@ export function SettingsScreen() {
 
       <CloudBackup />
 
-      <Section title="Testing" footer="Fills every screen with a sample week. Never backed up; turning it off removes it.">
+      <Section title="Testing" footer="Fills every screen with a sample week so there’s something to look at. It’s never backed up, and turning it off removes it.">
         <Row
           title="Sample Data"
           right={

@@ -25,11 +25,11 @@ export type Activity = 'sedentary' | 'light' | 'moderate' | 'active' | 'very';
 
 /** Activity levels, with how each is described in Settings. */
 export const ACTIVITY: Record<Activity, { label: string; detail: string; factor: number }> = {
-  sedentary: { label: 'Sedentary', detail: 'Desk job, under 5,000 steps a day, no training', factor: 1.2 },
-  light: { label: 'Light', detail: 'Desk job, training 1–3 days a week or 5,000–7,500 steps', factor: 1.375 },
-  moderate: { label: 'Moderate', detail: 'Desk job, lifting 3–5 days a week, 7,500–10,000 steps', factor: 1.55 },
-  active: { label: 'Active', detail: 'Lifting most days plus an on-your-feet job or 10,000+ steps', factor: 1.725 },
-  very: { label: 'Very Active', detail: 'A physical job plus daily training, or training twice a day', factor: 1.9 },
+  sedentary: { label: 'Sedentary', detail: 'You sit most of the day, walk under 5,000 steps and don’t train.', factor: 1.2 },
+  light: { label: 'Light', detail: 'You sit most of the day and train 1–3 days a week or walk 5,000–7,500 steps.', factor: 1.375 },
+  moderate: { label: 'Moderate', detail: 'You lift 3–5 days a week and walk 7,500–10,000 steps a day.', factor: 1.55 },
+  active: { label: 'Active', detail: 'You lift most days and are on your feet a lot, or walk over 10,000 steps.', factor: 1.725 },
+  very: { label: 'Very Active', detail: 'You have a physical job and train every day, or train twice a day.', factor: 1.9 },
 };
 
 export interface Profile {

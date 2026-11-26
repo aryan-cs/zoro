@@ -324,7 +324,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         if (food) setPicked(food);
         else setCustom({ barcode: code });
       } catch {
-        toast('Lookup failed. Check your connection.');
+        toast('Couldn’t look that up. Check your connection.');
       } finally {
         setLoading(false);
       }

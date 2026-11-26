@@ -1,4 +1,5 @@
 import { addDays } from './calc';
+import { hrMin } from './say';
 import type { ISODate, SleepEntry, SleepStage, StageSpan } from './types';
 
 /**
@@ -77,6 +78,17 @@ function times(e: SleepEntry): { bed: number; wake: number } | null {
   return bed === null || wake === null ? null : { bed: night(bed), wake: night(wake) };
 }
 
+/** How much later (+) or earlier (−) than usual you went to bed and woke, against the week before (needs 3 nights). */
+function offUsual(e: SleepEntry, before: SleepEntry[]): { bed: number; wake: number } | null {
+  const t = times(e);
+  const prior = before
+    .filter((p) => p.date < e.date && p.date >= addDays(e.date, -7))
+    .map(times)
+    .filter((x): x is { bed: number; wake: number } => !!x);
+  if (!t || prior.length < 3) return null;
+  return { bed: t.bed - median(prior.map((p) => p.bed)), wake: t.wake - median(prior.map((p) => p.wake)) };
+}
+
 /**
  * Score a night: Duration (half) is time asleep against your goal; Quality (30%) blends
  * efficiency (95%+ is full marks, 70% none), deep + REM share (35%+ is full marks), how fast
@@ -95,16 +107,8 @@ export function sleepScore(e: SleepEntry, before: SleepEntry[], goalMin: number)
   if (e.quality) parts.push(e.quality / 5);
   const quality = parts.length ? mean(parts) : null;
 
-  let routine: number | null = null;
-  const t = times(e);
-  const prior = before
-    .filter((p) => p.date < e.date && p.date >= addDays(e.date, -7))
-    .map(times)
-    .filter((x): x is { bed: number; wake: number } => !!x);
-  if (t && prior.length >= 3) {
-    const off = (Math.abs(t.bed - median(prior.map((p) => p.bed))) + Math.abs(t.wake - median(prior.map((p) => p.wake)))) / 2;
-    routine = clamp01(1 - off / 90);
-  }
+  const off = offUsual(e, before);
+  const routine = off ? clamp01(1 - (Math.abs(off.bed) + Math.abs(off.wake)) / 2 / 90) : null;
 
   const pillars: [number | null, number][] = [
     [duration, 0.5],
@@ -201,4 +205,53 @@ export function sampleStages(total: number, seed: number): StageSpan[] {
     if (r(c * 7 + 6) > 0.5) add('awake', 2 + r(c * 7 + 7) * 5);
   }
   return spans;
+}
+
+/** One sentence on what shaped a night's score most, from its weakest pillar. */
+export function scoreNote(e: SleepEntry, before: SleepEntry[], goalMin: number): string {
+  const s = sleepScore(e, before, goalMin);
+  const st = nightStats(e);
+  const pillars = ([
+    ['duration', s.duration],
+    ['quality', s.quality],
+    ['routine', s.routine],
+  ] as const).filter((p): p is ['duration' | 'quality' | 'routine', number] => p[1] !== null);
+  const [weakest, low] = pillars.reduce((a, b) => (b[1] < a[1] ? b : a));
+  if (low >= 90) return 'A great night: you slept long enough, slept well, and kept to your usual times.';
+  if (weakest === 'duration') return `You slept ${hrMin(goalMin - st.asleep)} less than your ${hrMin(goalMin)} goal, which lowered your score the most.`;
+  if (weakest === 'routine') {
+    const off = offUsual(e, before)!;
+    const [which, by] = Math.abs(off.bed) >= Math.abs(off.wake) ? ['went to bed', off.bed] : ['woke up', off.wake];
+    return `You ${which} ${hrMin(by)} ${by > 0 ? 'later' : 'earlier'} than usual, which lowered your score the most.`;
+  }
+  if (st.latency !== null && st.latency >= 30) return `It took you ${hrMin(st.latency)} to fall asleep, which lowered your score the most.`;
+  if (st.efficiency !== null && st.efficiency < 0.85) return `You were awake for ${hrMin(st.inBed - st.asleep)} of your time in bed, which lowered your score the most.`;
+  if (st.stages && st.asleep && (st.stages.deep + st.stages.rem) / st.asleep < 0.3) return 'You got less deep and REM sleep than is typical, which lowered your score the most.';
+  if (e.quality && e.quality <= 2) return 'You woke up tired, which lowered your score the most.';
+  return 'Your sleep was a little restless, which lowered your score the most.';
+}
+
+/** The last two weeks in a sentence or two: sleep debt, and how steady your bedtime is. */
+export function trendNote(entries: SleepEntry[], goalMin: number, end: ISODate): string | undefined {
+  const nights = within(entries, end, 14);
+  if (!nights.length) return undefined;
+  const debt = sleepDebt(entries, goalMin, end);
+  const routine = sleepRoutine(entries, end);
+  const debtText = debt
+    ? `Over the last two weeks you’ve slept ${hrMin(debt)} less than your goal, about ${hrMin(debt / nights.length)} a night.`
+    : `You’ve met your ${hrMin(goalMin)} goal every night you logged in the last two weeks.`;
+  const steady = !routine
+    ? ''
+    : routine.spread <= 30
+      ? `Your bedtime is steady, usually within ${hrMin(routine.spread)} of ${clockLabel(routine.bed)}.`
+      : `Your bedtime moves around by about ${hrMin(routine.spread)}; a steadier one usually means better sleep.`;
+  return [debtText, steady].filter(Boolean).join(' ');
+}
+
+/** The habit that goes with the biggest difference in sleep, in a sentence. */
+export function insightNote(insights: { phrase: string; minutes: number | null }[]): string {
+  const known = insights.filter((i): i is { phrase: string; minutes: number } => i.minutes !== null && Math.abs(i.minutes) >= 5);
+  if (!known.length) return 'These fill in once there are a few nights both with and without each.';
+  const top = known.reduce((a, b) => (Math.abs(b.minutes) > Math.abs(a.minutes) ? b : a));
+  return `You sleep about ${hrMin(top.minutes)} ${top.minutes > 0 ? 'longer' : 'less'} ${top.phrase}.`;
 }
