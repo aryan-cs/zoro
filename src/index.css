@@ -68,7 +68,8 @@ select {
 }
 /* Room for the tab bar so the last row isn't hidden behind it. */
 .tab-safe {
-  padding-bottom: calc(var(--tabbar-bottom) + 74px);
+  /* Room for the tab bar (54pt) and the fade above it (36pt), plus a little air. */
+  padding-bottom: calc(var(--tabbar-bottom) + 98px);
 }
 
 
