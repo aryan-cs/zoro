@@ -1,4 +1,4 @@
-"""Build and sign the "Zoro Health" shortcut: last night's sleep and the last two days' steps
+"""Build and sign the "Connect Zoro to Health" shortcut: last night's sleep and the last two days' steps
 from Apple Health, sent to Zoro on their own.
 
 Run on a Mac: python3 scripts/make-health-shortcut.py

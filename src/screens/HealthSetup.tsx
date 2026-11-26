@@ -5,14 +5,14 @@ import { useNav } from '../ui/nav';
 import { useSync } from '../ui/sync';
 
 /**
- * Apple Health, on its own: a Shortcuts automation runs Zoro Health (scripts/make-health-shortcut.py)
+ * Apple Health, on its own: a Shortcuts automation runs Connect Zoro to Health (scripts/make-health-shortcut.py)
  * when an app you open every morning opens. Once a day it sends the last two days' sleep and steps
  * through the backup repo for Zoro to bring in (src/ui/healthSync.ts); later runs that day stop at once. iOS doesn't let
  * an app add an automation, so this walks you through making it once.
  */
 
-/** Runs Zoro Health now (the first run is when iOS asks to read Apple Health). */
-export const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Health';
+/** Runs Connect Zoro to Health now (the first run is when iOS asks to read Apple Health). */
+export const RUN_URL = 'shortcuts://run-shortcut?name=Connect%20Zoro%20to%20Health';
 
 /**
  * Where Zoro Health installs from: the signed copy this app serves. Adding it asks for the backup
@@ -72,7 +72,7 @@ export function HealthSetupScreen() {
         footer="It runs once a day: the first time you open that app after 5 AM, once last night’s sleep is in Apple Health. Opening it again that day does nothing. It waits for you to open an app because Apple Health can’t be read while your iPhone is locked."
       >
         <Cell className="py-2.5 text-[15px]">
-          In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and choose Is Opened. Then choose Run Immediately, turn off Notify When Run, and pick Zoro Health.
+          In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and choose Is Opened. Then choose Run Immediately, turn off Notify When Run, and pick Connect Zoro to Health.
         </Cell>
       </Section>
       <Section keep title="3. Allow Apple Health" footer="Your iPhone asks once to let it read your sleep and steps, and to keep a note of the day it last ran. After that, nothing to tap.">
