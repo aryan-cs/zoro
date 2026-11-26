@@ -2108,3 +2108,32 @@ button.water-oz:active {
 .range-pill svg {
   color: #8d8d93;
 }
+
+/* Chart scrubbing: a hairline rule and a ringed dot per line, moved by a spring in LineChart.tsx.
+ * Hidden until a finger is on the chart; they fade rather than blink. */
+.chart-rule,
+.chart-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  will-change: transform;
+}
+.chart-rule {
+  width: 1px;
+  margin-left: -0.5px;
+  background: rgba(235, 235, 245, 0.35);
+}
+.chart-dot {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px #1c1c1e;
+}
+.chart-wrap.is-scrubbing .chart-rule,
+.chart-wrap.is-scrubbing .chart-dot {
+  opacity: 1;
+}

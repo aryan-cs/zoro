@@ -665,8 +665,8 @@ export function WorkoutCard(props: {
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
-export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean; info?: string }) {
-  const hold = useHoldInfo(props.label, props.info);
+export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean; info?: string; infoTitle?: string }) {
+  const hold = useHoldInfo(props.infoTitle ?? props.label, props.info);
   // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
   // In a Today square or wide card the value is as large as fits: start at the CSS size and step down only

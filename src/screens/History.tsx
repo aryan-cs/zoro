@@ -670,8 +670,8 @@ function Sleep() {
               color={FITNESS.sleep}
             info={info}
               items={[
-                ['Score', String(score.score)],
                 ['Asleep', formatMinutes(stats.asleep)],
+                ['Time in Bed', formatMinutes(stats.inBed)],
                 ['Efficiency', stats.efficiency === null ? null : `${Math.round(stats.efficiency * 100)}%`],
               ]}
             />
@@ -701,8 +701,10 @@ function Sleep() {
 
         {night && stats && score && (
           <>
-            {/* What made the score: its three parts, and the one that cost the most. */}
+            {/* The night's score, once: the number, its three parts, and the one that cost the most. */}
             <FitCard title="Score">
+              <FitStat value={String(score.score)} unit="/ 100" color={FITNESS.sleep} info={info.Score} infoTitle="Score" />
+              <div className="mt-3" />
               <StatGrid
                 color={FITNESS.sleep}
             info={info}
@@ -721,9 +723,7 @@ function Sleep() {
                 color={FITNESS.sleep}
             info={info}
                 items={[
-                  ['Time in Bed', formatMinutes(stats.inBed)],
                   ['Fell Asleep', stats.latency === null ? null : dur(stats.latency)],
-                  ['Awakenings', stats.awakenings === null ? null : String(stats.awakenings)],
                 ]}
               />
               <div className="fit-card-row">

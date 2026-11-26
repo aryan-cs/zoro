@@ -52,6 +52,89 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
   const canvas = useRef<HTMLCanvasElement>(null);
   const chart = useRef<Chart | null>(null);
   const [sel, setSel] = useState<Selection | null>(null);
+  const shownIndex = useRef(-1);
+  // The lines that get a dot (not goal lines).
+  const dataSeries = series.filter((s) => !REFERENCE.test(s.label) && !s.dots);
+
+  // The selection (rule, dots, callout) glides between days on a spring, as in Health: it settles
+  // in about a third of a second with a slight overshoot, instead of jumping from point to point.
+  const wrap = useRef<HTMLDivElement>(null);
+  const rule = useRef<HTMLDivElement>(null);
+  const dots = useRef<(HTMLDivElement | null)[]>([]);
+  const box = useRef<HTMLDivElement>(null);
+  const spring = useRef({ live: false, raf: 0, last: 0, x: 0, vx: 0, tx: 0, ys: [] as number[], vys: [] as number[], tys: [] as (number | null)[] });
+  const paint = () => {
+    const a = spring.current;
+    if (rule.current) rule.current.style.transform = `translateX(${a.x}px)`;
+    a.tys.forEach((ty, i) => {
+      const d = dots.current[i];
+      if (!d) return;
+      d.style.visibility = ty === null ? 'hidden' : 'visible';
+      d.style.transform = `translate(${a.x}px, ${a.ys[i]}px)`;
+    });
+    const b = box.current;
+    if (b) {
+      const w = b.offsetWidth;
+      const max = (canvas.current?.clientWidth ?? 0) - w;
+      b.style.left = `${Math.min(Math.max(a.x - w / 2, 0), Math.max(0, max))}px`;
+    }
+  };
+  const step = (t: number) => {
+    const a = spring.current;
+    const dt = Math.min(1 / 30, a.last ? (t - a.last) / 1000 : 1 / 60);
+    a.last = t;
+    // Response 0.3 s, damping 0.72: quick, with a small bounce past the point.
+    const k = (2 * Math.PI / 0.3) ** 2;
+    const c = (4 * Math.PI * 0.72) / 0.3;
+    a.vx += (k * (a.tx - a.x) - c * a.vx) * dt;
+    a.x += a.vx * dt;
+    let moving = Math.abs(a.tx - a.x) > 0.05 || Math.abs(a.vx) > 0.05;
+    a.tys.forEach((ty, i) => {
+      if (ty === null) return;
+      a.vys[i] += (k * (ty - a.ys[i]) - c * a.vys[i]) * dt;
+      a.ys[i] += a.vys[i] * dt;
+      if (Math.abs(ty - a.ys[i]) > 0.05 || Math.abs(a.vys[i]) > 0.05) moving = true;
+    });
+    paint();
+    a.raf = moving ? requestAnimationFrame(step) : 0;
+    if (!moving) a.last = 0;
+  };
+  const glideTo = (x: number, ys: (number | null)[], top: number, bottom: number) => {
+    const a = spring.current;
+    if (rule.current) {
+      rule.current.style.top = `${top}px`;
+      rule.current.style.height = `${bottom - top}px`;
+    }
+    a.tx = x;
+    a.tys = ys;
+    if (!a.live) {
+      // First touch: appear right on the day, no glide in from elsewhere.
+      a.live = true;
+      a.x = x;
+      a.vx = 0;
+      a.ys = ys.map((y) => y ?? 0);
+      a.vys = ys.map(() => 0);
+      wrap.current?.classList.add('is-scrubbing');
+      requestAnimationFrame(paint);
+      return;
+    }
+    ys.forEach((y, i) => {
+      // A line that had no value on the last day starts from this one instead of gliding in.
+      if (y !== null && (a.ys[i] === undefined || Number.isNaN(a.ys[i]))) {
+        a.ys[i] = y;
+        a.vys[i] = 0;
+      }
+    });
+    if (!a.raf) a.raf = requestAnimationFrame(step);
+  };
+  const release = () => {
+    const a = spring.current;
+    a.live = false;
+    cancelAnimationFrame(a.raf);
+    a.raf = 0;
+    a.last = 0;
+    wrap.current?.classList.remove('is-scrubbing');
+  };
 
   useEffect(() => {
     if (!canvas.current) return;
@@ -74,11 +157,8 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           // Goal and target lines are dashed, so they read as references rather than data.
           borderDash: REFERENCE.test(s.label) ? [6, 5] : undefined,
           pointRadius: s.dots ? 2.5 : 0,
-          // The picked point: filled in its color with a ring in the card's color.
-          pointHoverRadius: REFERENCE.test(s.label) ? 0 : 5,
-          pointHoverBorderWidth: 2,
-          pointHoverBorderColor: '#1c1c1e',
-          pointHoverBackgroundColor: s.color,
+          // The picked point is drawn over the chart (see the glide below), not by Chart.js.
+          pointHoverRadius: 0,
           tension: 0.3,
           spanGaps: true,
           showLine: !s.dots,
@@ -99,6 +179,19 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
               const data = pts.filter((d) => !REFERENCE.test(d.dataset.label ?? ''));
               if (!data.length) return setSel(null);
               const [first, ...rest] = data;
+              // Where the selection should glide to: the day's x, and each line's y there.
+              const area = tooltip.chart.chartArea;
+              glideTo(
+                first.element.x,
+                dataSeries.map((ds) => {
+                  const p = pts.find((d) => d.dataset.label === ds.label);
+                  return p ? p.element.y : null;
+                }),
+                area.top,
+                area.bottom,
+              );
+              if (first.dataIndex === shownIndex.current) return;
+              shownIndex.current = first.dataIndex;
               setSel({
                 x: first.element.x,
                 date: longLabel(String(first.label)),
@@ -114,27 +207,6 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           y: { grid: { color: grid }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, display: !empty } },
         },
       },
-      plugins: [
-        {
-          // The vertical rule at the picked day, from the top of the plot to its bottom.
-          id: 'rule',
-          afterDatasetsDraw(c) {
-            const active = c.tooltip?.getActiveElements();
-            if (!active?.length) return;
-            const x = active[0].element.x;
-            const { top, bottom } = c.chartArea;
-            const ctx = c.ctx;
-            ctx.save();
-            ctx.strokeStyle = 'rgba(235,235,245,0.35)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, bottom);
-            ctx.stroke();
-            ctx.restore();
-          },
-        },
-      ],
     });
     // Lifting the finger clears the reading, as in Health.
     const node = canvas.current;
@@ -145,6 +217,8 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
       c.tooltip?.setActiveElements([], { x: 0, y: 0 });
       c.update('none');
       setSel(null);
+      shownIndex.current = -1;
+      release();
     };
     node.addEventListener('touchend', clear);
     node.addEventListener('touchcancel', clear);
@@ -158,17 +232,28 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
     };
   }, [labels, series, unit]);
 
-  // Keep the callout inside the chart: centered on the rule, pushed in at the edges.
-  const box = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => setWidth(box.current?.offsetWidth ?? 0), [sel]);
-  const left = sel ? Math.min(Math.max(sel.x - width / 2, 0), (canvas.current?.clientWidth ?? 0) - width) : 0;
+  // A new day's callout can be a different width: re-center it right away.
+  useLayoutEffect(() => {
+    if (sel) paint();
+  }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="chart-wrap" style={{ height }}>
+    <div ref={wrap} className="chart-wrap" style={{ height }}>
       <canvas ref={canvas} />
+      <div ref={rule} className="chart-rule" aria-hidden />
+      {dataSeries.map((s, i) => (
+        <div
+          key={s.label}
+          ref={(el) => {
+            dots.current[i] = el;
+          }}
+          className="chart-dot"
+          style={{ background: s.color }}
+          aria-hidden
+        />
+      ))}
       {sel && (
-        <div ref={box} className="chart-callout" style={{ left }}>
+        <div ref={box} className="chart-callout">
           <div className="chart-callout-label">{sel.date}</div>
           <div className="chart-callout-value">{sel.main.value}</div>
           {sel.others.map((o) => (
