@@ -11,7 +11,11 @@ export function DesktopNotice() {
   return (
     <main className="dn">
       <img className="dn-icon" src={`${import.meta.env.BASE_URL}apple-touch-icon.png`} alt="Zoro" />
-      <p className="dn-text">This app is intended for mobile devices. Please add this app to your home screen via the share menu.</p>
+      <p className="dn-text">
+        This app is intended for mobile devices.
+        <br />
+        Please add this app to your home screen via the share menu.
+      </p>
     </main>
   );
 }
