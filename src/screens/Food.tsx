@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Dialog, DialogButton, Page } from 'konsta/react';
+import { Dialog, DialogButton, Page } from 'konsta/react';
 import { createPortal } from 'react-dom';
 import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
@@ -7,10 +7,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { addDays, sumEntries } from '../core/calc';
 import { lookupBarcode, normalizeBarcode } from '../core/food';
 import { entriesFor, logFood, today } from '../core/store';
-import type { FoodEntry, Meal } from '../core/types';
+import type { FoodEntry, FoodItem, Meal } from '../core/types';
 import { db, fmt, Header, IconBtn, MacroSummary, Menu, useSettings, useToast } from '../ui/kit';
 import { aiKey } from '../ui/aiKey';
-import { QuickAddSheet } from './AddFood';
+import { AmountSheet, QuickAddSheet } from './AddFood';
 import { PhotoLogSheet } from './PhotoLog';
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
@@ -333,20 +333,38 @@ export function FoodScreen() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [needKey, setNeedKey] = useState(false);
 
+  // Tapping a logged food opens it in the amount sheet (as adding one does) to change how much
+  // or which meal, or to delete it. A food with no saved copy (Quick Add) is rebuilt from the entry.
+  const [editFood, setEditFood] = useState<FoodItem | null>(null);
+  const [editMeal, setEditMeal] = useState<Meal>('unsorted');
+  const open = async (e: FoodEntry) => {
+    const saved = e.foodId !== undefined ? await db.foods.get(e.foodId) : undefined;
+    const per = (k: number) => ({ kcal: e.macros.kcal * k, protein: e.macros.protein * k, carbs: e.macros.carbs * k, fat: e.macros.fat * k, fiber: (e.macros.fiber ?? 0) * k });
+    const food: FoodItem = saved ?? {
+      name: e.name,
+      source: 'custom',
+      updatedAt: e.loggedAt,
+      liquid: e.liquid,
+      ...(e.unit === 'g' ? { per100g: per(100 / (e.quantity || 1)) } : { serving: { label: '1 serving', macros: per(1 / (e.quantity || 1)) } }),
+    };
+    setEditMeal(e.meal);
+    setSelected(e);
+    setEditFood(food);
+  };
+  const closeEdit = () => {
+    setEditFood(null);
+    setSelected(null);
+  };
   const remove = async () => {
     if (selected?.id !== undefined) await db.entries.delete(selected.id);
-    setSelected(null);
+    closeEdit();
   };
   const duplicateToToday = async () => {
     if (!selected) return;
     const { id: _id, ...rest } = selected;
     await db.entries.add({ ...rest, date: today(), loggedAt: Date.now() });
-    setSelected(null);
+    closeEdit();
     toast('Added to today');
-  };
-  const moveSelected = async (meal: Meal) => {
-    if (selected?.id !== undefined) await db.entries.update(selected.id, { meal });
-    setSelected(null);
   };
 
   return (
@@ -389,7 +407,7 @@ export function FoodScreen() {
               data-entry-id={hidden ? undefined : e.id}
               data-flip={hidden ? undefined : `e${e.id}`}
               className={`meal-row is-item meal-entry ${hidden ? 'is-dragged' : ''}`}
-              onClick={() => setSelected(e)}
+              onClick={() => void open(e)}
             >
               <span className="meal-row-name">{e.name}</span>
               <span className="meal-row-value tabular">{fmt(e.macros.kcal)} kcal</span>
@@ -492,25 +510,20 @@ export function FoodScreen() {
         document.querySelector('.k-app') ?? document.body,
       )}
 
-      <Actions opened={!!selected} onBackdropClick={() => setSelected(null)}>
-        <ActionsGroup>
-          <ActionsLabel>{selected ? `${selected.name} · ${amountText(selected)} · ${fmt(selected.macros.protein)} g protein` : ''}</ActionsLabel>
-          {MEALS.filter((m) => m.id !== selected?.meal).map((m) => (
-            <ActionsButton key={m.id} onClick={() => void moveSelected(m.id)}>
-              Move to {m.label}
-            </ActionsButton>
-          ))}
-          {selected && selected.date !== today() && <ActionsButton onClick={() => void duplicateToToday()}>Log Again Today</ActionsButton>}
-          <ActionsButton className="!text-[#ff453a]" onClick={() => void remove()}>
-            Delete
-          </ActionsButton>
-        </ActionsGroup>
-        <ActionsGroup>
-          <ActionsButton bold onClick={() => setSelected(null)}>
-            Cancel
-          </ActionsButton>
-        </ActionsGroup>
-      </Actions>
+      <AmountSheet
+        food={editFood}
+        entry={selected}
+        meal={editMeal}
+        onMeal={setEditMeal}
+        date={date}
+        onClose={closeEdit}
+        onLogged={() => {
+          closeEdit();
+          toast('Saved');
+        }}
+        onDelete={() => void remove()}
+        onLogToday={selected && selected.date !== today() ? () => void duplicateToToday() : undefined}
+      />
     </Page>
   );
 }

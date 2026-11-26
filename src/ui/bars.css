@@ -1141,6 +1141,26 @@ button.meal-row:not(:disabled):active {
 .amt .ios-btn.is-lg {
   margin-top: 0;
 }
+/* Editing a logged food: plain text actions under Save, like an action sheet's. */
+.amt-actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: -6px;
+}
+.amt-action {
+  height: 44px;
+  border: 0;
+  background: none;
+  font-size: 17px;
+  color: var(--ios-label);
+  -webkit-tap-highlight-color: transparent;
+}
+.amt-action:active {
+  opacity: 0.4;
+}
+.amt-action.is-danger {
+  color: #ff453a;
+}
 
 /* ---------- One-line food rows (search results, recents) ---------- */
 .food-li {

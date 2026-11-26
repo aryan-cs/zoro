@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BUILTIN_FOODS } from '../core/builtinFoods';
 import { lookupBarcode, normalizeBarcode, searchOff, searchUsda, USDA_DEMO_KEY } from '../core/food';
 import { logFood, macrosFor, quickAdd, recentFoods, searchLocalFoods, upsertFood } from '../core/store';
-import type { FoodItem, ISODate, Macros, Meal } from '../core/types';
+import type { FoodEntry, FoodItem, ISODate, Macros, Meal } from '../core/types';
 import { Btn, db, Field, FITNESS, FitText, fmt, GlassSheet, Header, IconGroup, Menu, Row, Section, Seg, SheetPage, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
@@ -60,15 +60,44 @@ function FoodRow({ food, onPick }: { food: FoodItem; onPick: (f: FoodItem) => vo
 }
 
 /** Pick an amount and log it. */
-function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: FoodItem | null; meal: Meal; onMeal: (m: Meal) => void; date: ISODate; onClose: () => void; onLogged: () => void }) {
+/**
+ * How much of a food, with its calories and macros, and which meal. Adds it, or, given a logged
+ * `entry`, edits that entry (Save, plus Delete and, for an earlier day, Log Again Today).
+ */
+export function AmountSheet({
+  food,
+  meal,
+  onMeal,
+  date,
+  onClose,
+  onLogged,
+  entry,
+  onDelete,
+  onLogToday,
+}: {
+  food: FoodItem | null;
+  meal: Meal;
+  onMeal: (m: Meal) => void;
+  date: ISODate;
+  onClose: () => void;
+  onLogged: () => void;
+  entry?: FoodEntry | null;
+  onDelete?: () => void;
+  onLogToday?: () => void;
+}) {
   const [unit, setUnit] = useState<'serving' | 'g'>('serving');
   const [qty, setQty] = useState('1');
   useEffect(() => {
     if (!food) return;
+    if (entry) {
+      setUnit(entry.unit);
+      setQty(String(entry.quantity));
+      return;
+    }
     const u = food.serving ? 'serving' : 'g';
     setUnit(u);
     setQty(u === 'g' ? '100' : '1');
-  }, [food]);
+  }, [food, entry]);
   // While the sheet slides away, keep showing the food it had (it's cleared when closing starts).
   const last = useRef<FoodItem | null>(null);
   if (food) last.current = food;
@@ -81,7 +110,8 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
 
   const add = async () => {
     if (!food || num(qty) <= 0) return;
-    await logFood({ food, quantity: num(qty), unit, meal, date }, db);
+    if (entry?.id !== undefined) await db.entries.update(entry.id, { quantity: num(qty), unit, macros: macrosFor(food, num(qty), unit), meal });
+    else await logFood({ food, quantity: num(qty), unit, meal, date }, db);
     onLogged();
   };
 
@@ -176,8 +206,22 @@ function AmountSheet({ food, meal, onMeal, date, onClose, onLogged }: { food: Fo
           </label>
 
           <Btn kind="tint" size="lg" className="mt-4" disabled={!(num(qty) > 0)} onClick={() => void add()}>
-            Add
+            {entry ? 'Save' : 'Add'}
           </Btn>
+          {entry && (
+            <div className="amt-actions">
+              {onLogToday && (
+                <button type="button" className="amt-action" onClick={onLogToday}>
+                  Log Again Today
+                </button>
+              )}
+              {onDelete && (
+                <button type="button" className="amt-action is-danger" onClick={onDelete}>
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </GlassSheet>
