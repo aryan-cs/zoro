@@ -322,13 +322,26 @@ body > .meal-drag-ghost {
     box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   }
 }
-/* The row left behind while dragging. */
-.meal-drag-source {
-  opacity: 0.3;
+/* Letting go: the lifted row settles into its gap. */
+body > .meal-drag-ghost.is-dropping {
+  transition:
+    top 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    scale 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+  scale: 1;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
-/* The meal you'd drop into. */
-.meal-drop-target .meal-card {
-  box-shadow: inset 0 0 0 2px var(--ios-blue);
+/* The row being dragged stays in the page (to keep receiving the touch) but takes no space. */
+.meal-row.is-dragged {
+  display: none;
+}
+/* The gap the other rows open where the dragged food would land (no separator above it). */
+.meal-row.is-gap {
+  min-height: 0;
+}
+.meal-row.is-gap + .meal-row::before,
+.meal-row + .meal-row.is-gap::before {
+  display: none;
 }
 
 /* ---------- Meal cards: Settings-style grouped rows (text and separators 16pt in) ---------- */

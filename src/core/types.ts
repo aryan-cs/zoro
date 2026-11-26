@@ -141,6 +141,8 @@ export interface FoodEntry {
   /** Macros for this entry, frozen at log time. */
   macros: Macros;
   loggedAt: number;
+  /** Position within its meal once you've dragged it (lists sort by this, else by loggedAt). */
+  order?: number;
   liquid?: boolean;
   /** Made by "Add Sample Week" for testing; "Remove Sample Data" deletes these. */
   sample?: boolean;
