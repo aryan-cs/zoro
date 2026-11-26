@@ -1,13 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from 'konsta/react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, roundTo, weightTrend } from '../core/calc';
 import { templateForWeekday, workoutDayPercent } from '../core/program';
 import { dayTotals, metricsOf, saveMetric, today, waterFor } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { hrMin } from '../core/say';
-import { Bar, db, FITNESS, FitCard, fmt, IconBtn, LogBtn, NumberPrompt, RING_GRADIENT, RingSummary, useHoldInfo, useSettings, useToast } from '../ui/kit';
+import { Bar, db, FITNESS, FitCard, fmt, Header, IconBtn, LogBtn, NumberPrompt, RING_GRADIENT, RingSummary, useHoldInfo, useSettings, useToast } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { useNav } from '../ui/nav';
 
@@ -114,43 +114,17 @@ export function TodayScreen() {
 
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
 
-  // The status-bar fade only shows once content has scrolled under it.
-  const edgeRef = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const page = edgeRef.current?.closest('.k-page');
-    if (!page) return;
-    const onScroll = () => setScrolled(page.scrollTop > 2);
-    page.addEventListener('scroll', onScroll, { passive: true });
-    return () => page.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // The date stays on one line, like a large title: it steps down from 34pt if it would wrap.
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  useLayoutEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    el.style.fontSize = '';
-    let size = 34;
-    while (el.scrollWidth > el.clientWidth && size > 24) el.style.fontSize = `${(size -= 1)}px`;
-  }, [date]);
-
   return (
     <Page className="tab-safe">
-      {/* No navigation bar: the date is the title, with Settings beside it (as Fitness puts its
-          profile button beside "Summary"), and both scroll away. Only the status bar keeps a
-          thin fade so content doesn't run under the clock. */}
-      <div ref={edgeRef} className={`status-edge ${scrolled ? 'is-scrolled' : ''}`} aria-hidden />
-      <header className="hello">
-        <div className="min-w-0 flex-1">
-          <h1 ref={titleRef} className="hello-title">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </h1>
-        </div>
-        <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
-          <Sym name="gearshape" size={16.5} />
-        </IconBtn>
-      </header>
+      {/* A navigation bar like Lift's and Food's: the date as its centered title, Settings on the right. */}
+      <Header
+        title={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+        right={
+          <IconBtn label="Settings" onClick={() => nav.push({ name: 'settings' })}>
+            <Sym name="gearshape" size={16.5} />
+          </IconBtn>
+        }
+      />
 
       <div className="fit-stack">
         {/* Sleep, water, steps and today's workout as Fitness's combined rings, each labeled beside

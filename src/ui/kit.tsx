@@ -15,6 +15,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { carbTarget } from '../core/calc';
+import { planHero, type HeroPlan } from '../core/heroMotion';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { InStack } from './nav';
 import { Sym } from './Sym';
@@ -908,17 +909,14 @@ export function RingSummary({ rows, hero }: { rows: RingRow[]; hero?: boolean })
 }
 
 /**
- * The rings at the top of a page (Today, Food), sized by how far the page is scrolled. At the top
- * they fill the width, with the legend two by two under them; scrolling down shrinks them into the
- * usual card (rings on the left, the legend in a column beside them), and scrolling back to the
- * top grows them again. Let go partway and they settle into whichever is nearer, as iOS's large
- * titles do.
+ * The rings at the top of a page (Today, Food), sized by how far the page is scrolled: full width
+ * with the legend two by two under them at the top, the usual card once scrolled, and every step
+ * between (core/heroMotion.ts has the motion and why nothing overlaps). Let go partway and they
+ * settle into whichever is nearer, as iOS's large titles do.
  *
  * The page keeps the big layout's height and the rings stay pinned (sticky) while they shrink, so
- * the content below rises exactly as fast as the rings get shorter: nothing overlaps, no gap
- * opens. The two-by-two legend rises with the content and fades out early; the column beside the
- * rings rides in along their right edge and fades in late, so text never crosses the rings. All
- * of it moves by transform, so scrolling doesn't lay out the page again.
+ * the content below rises as the hero gets shorter. Everything moves by transform, so scrolling
+ * doesn't lay out the page again.
  */
 function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
   const box = useRef<HTMLDivElement>(null);
@@ -929,76 +927,28 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     const inner = spacer?.firstElementChild as HTMLElement | null;
     const page = spacer?.closest<HTMLElement>('.k-page');
     if (!spacer || !inner || !page) return;
-    const SMALL = 140; // the card's rings (.ring-card.is-multi)
-    const BESIDE = 20; // rings to legend, beside them
-    const PAD = 10; // above the rings, as in the card
-    const UNDER = 18; // rings to the two-by-two legend
-    // Set by measure():
-    let width = 0;
-    let span = 1; // how far to scroll from big to small
-    let ringY1 = PAD; // the small rings' top
-    let legendH = 0; // the column's height
-    let grid: { x: number; y: number }[] = []; // the two-by-two legend
-    let column: number[] = []; // each line's offset in the column
+    let plan: HeroPlan | null = null;
 
-    const clamp = (v: number) => Math.min(1, Math.max(0, v));
-    const show = (el: HTMLElement, opacity: number, x: number, y: number) => {
-      el.style.opacity = String(opacity);
-      el.style.visibility = opacity > 0 ? 'visible' : 'hidden';
-      el.style.transform = `translate(${x}px, ${y}px)`;
-    };
     const paint = () => {
-      if (!width) return;
-      const p = clamp(page.scrollTop / span);
-      const size = width + (SMALL - width) * p;
-      const ringY = PAD + (ringY1 - PAD) * p;
+      if (!plan) return;
+      const f = plan.frame(page.scrollTop / plan.span);
       const ring = inner.querySelector<SVGElement>('.ring-hero-art');
-      if (ring) ring.style.transform = `translate(0px, ${ringY}px) scale(${size / width})`;
-      inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-big').forEach((el, i) => {
-        const g = grid[i];
-        if (g) show(el, clamp(1 - p / 0.22), g.x, g.y - p * span);
-      });
-      inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-small').forEach((el, i) => {
-        show(el, clamp((p - 0.6) / 0.4), size + BESIDE, ringY + size / 2 - legendH / 2 + (column[i] ?? 0));
+      if (ring) ring.style.transform = `translate(${f.ring.x}px, ${f.ring.y}px) scale(${f.ring.size / spacer.clientWidth})`;
+      inner.querySelectorAll<HTMLElement>('.ring-hero-item').forEach((el, i) => {
+        const at = f.items[i];
+        if (at) el.style.transform = `translate(${at.x}px, ${at.y}px)`;
       });
     };
 
     const measure = () => {
-      width = spacer.clientWidth;
+      const width = spacer.clientWidth;
       if (!width) return;
-      const items = [...inner.querySelectorAll<HTMLElement>('.ring-hero-item.is-big')];
-      const ws = items.map((el) => el.offsetWidth);
-      const hs = items.map((el) => el.offsetHeight);
-      // Small: the card as it's always looked, the rings and the column centered on each other.
-      legendH = hs.reduce((a, b) => a + b, 0) + 3 * Math.max(0, items.length - 1);
-      const rowH = Math.max(SMALL, legendH);
-      ringY1 = PAD + (rowH - SMALL) / 2;
-      column = [];
-      let off = 0;
-      for (const h of hs) {
-        column.push(off);
-        off += h + 3;
-      }
-      const smallH = PAD + rowH;
-      // Big: the rings as wide as the page, the legend two by two under them, its two columns
-      // spread evenly across the width.
-      const left = Math.max(0, ...ws.filter((_, i) => i % 2 === 0));
-      const right = Math.max(0, ...ws.filter((_, i) => i % 2 === 1));
-      const free = width - left - right;
-      const xs = free > 24 ? [free / 4, left + (free * 3) / 4] : [0, left + 12];
-      grid = [];
-      let top = PAD + width + UNDER;
-      for (let r = 0; r * 2 < items.length; r++) {
-        const row = [r * 2, r * 2 + 1].filter((i) => i < items.length);
-        for (const i of row) grid[i] = { x: xs[i % 2], y: top };
-        top += Math.max(...row.map((i) => hs[i])) + 12;
-      }
-      const bigH = top - 12;
-      span = Math.max(1, bigH - smallH);
+      const items = [...inner.querySelectorAll<HTMLElement>('.ring-hero-item')];
+      plan = planHero({ width, ws: items.map((el) => el.offsetWidth), hs: items.map((el) => el.offsetHeight) });
       // The page keeps the big height; the rings stay pinned where they start while they shrink.
       const start = spacer.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop;
-      spacer.style.height = `${bigH}px`;
-      inner.style.height = `${smallH}px`;
+      spacer.style.height = `${plan.bigH}px`;
+      inner.style.height = `${plan.smallH}px`;
       inner.style.top = `${start}px`;
       const ring = inner.querySelector<SVGElement>('.ring-hero-art');
       if (ring) {
@@ -1016,9 +966,9 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     const settleSoon = () => {
       window.clearTimeout(settle);
       settle = window.setTimeout(() => {
-        if (touching) return;
+        if (touching || !plan) return;
         const s = page.scrollTop;
-        const end = Math.min(span, page.scrollHeight - page.clientHeight);
+        const end = Math.min(plan.span, page.scrollHeight - page.clientHeight);
         if (s <= 1 || s >= end - 1) return;
         page.scrollTo({ top: s < end / 2 ? 0 : end, behavior: 'smooth' });
       }, 140);
@@ -1041,7 +991,7 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     };
     const sizes = new ResizeObserver(() => measure());
     sizes.observe(spacer);
-    inner.querySelectorAll('.ring-hero-item.is-big').forEach((el) => sizes.observe(el));
+    inner.querySelectorAll('.ring-hero-item').forEach((el) => sizes.observe(el));
     page.addEventListener('scroll', onScroll, { passive: true });
     page.addEventListener('touchstart', down, { passive: true });
     page.addEventListener('touchend', up, { passive: true });
@@ -1066,12 +1016,7 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
       <div className="ring-hero-inner">
         {art}
         {legend.map((item, i) => (
-          <div key={`big${i}`} className="ring-hero-item is-big">
-            {item}
-          </div>
-        ))}
-        {legend.map((item, i) => (
-          <div key={`small${i}`} className="ring-hero-item is-small">
+          <div key={i} className="ring-hero-item">
             {item}
           </div>
         ))}
