@@ -45,8 +45,8 @@ function withUnit(v: number, unit: string) {
 
 /**
  * A line chart in Health's style. Touch (or hover) and drag to read it: a thin vertical rule
- * marks the day, the point is ringed, and a small rounded callout at the top gives the date and
- * value; lifting your finger clears it.
+ * marks the day, the point is ringed, and a small rounded callout at the top gives the date, the
+ * value and any other series; lifting your finger clears it.
  */
 export function LineChart({ labels, series, height = 180, unit = '' }: { labels: string[]; series: Series[]; height?: number; unit?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -166,7 +166,7 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
       <canvas ref={canvas} />
       {sel && (
         <div ref={box} className="chart-callout" style={{ left }}>
-          <div className="chart-callout-label">{sel.main.label}</div>
+          <div className="chart-callout-label">{sel.date}</div>
           <div className="chart-callout-value">{sel.main.value}</div>
           {sel.others.map((o) => (
             <div key={o.label} className="chart-callout-other">
@@ -174,7 +174,6 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
               {o.label} {o.value}
             </div>
           ))}
-          <div className="chart-callout-date">{sel.date}</div>
         </div>
       )}
     </div>

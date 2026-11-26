@@ -554,8 +554,8 @@ export function MacroRings({ totals, settings }: { totals: Macros; settings: Set
     [totals.fat, settings.fatTarget, RING_GRADIENT.steps, 'circle.hexagongrid.fill'],
   ];
   const R = 70;
-  const W = R * 0.19;
-  const GAP = R * 0.017;
+  const W = R * 0.165;
+  const GAP = R * 0.04;
   return (
     <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="macro-rings-sq" aria-hidden>
       {rows.map(([v, t, grad, glyph], i) => (
@@ -574,11 +574,11 @@ export function MacroSummary({ totals, settings }: { totals: Macros; settings: S
     ['Carbs', totals.carbs, carbs, FITNESS.carbs, 'G', RING_GRADIENT.carbs, 'carrot.fill'],
     ['Fat', totals.fat, settings.fatTarget, FITNESS.steps, 'G', RING_GRADIENT.steps, 'circle.hexagongrid.fill'],
   ];
-  // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings keep
-  // the same stroke-to-gap ratio: stroke 19%, gap 1.7%, hole 19%.
+  // Apple's three rings measure stroke 23% of the outer radius, gaps 2%, hole 25%. Four rings are
+  // a little thinner with more card showing between them (Aryan's call): stroke 16.5%, gap 4%.
   const R = 70;
-  const W = R * 0.19;
-  const GAP = R * 0.017;
+  const W = R * 0.165;
+  const GAP = R * 0.04;
   return (
     <div className="ring-card is-multi">
       <svg viewBox={`0 0 ${R * 2} ${R * 2}`} className="ring-art" aria-hidden>

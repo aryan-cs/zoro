@@ -1780,7 +1780,7 @@ button.meal-row:not(:disabled):active {
 }
 
 /* Chart reading, as in Health: a small rounded callout at the top of the chart, over the
- * vertical rule, with the series name in gray caps, the value, and the date. */
+ * vertical rule, with the date in gray caps, then the value. */
 .chart-wrap {
   position: relative;
 }
@@ -1824,8 +1824,4 @@ button.meal-row:not(:disabled):active {
   height: 7px;
   border-radius: 999px;
 }
-.chart-callout-date {
-  font-size: 13px;
-  line-height: 17px;
-  color: rgba(235, 235, 245, 0.6);
-}
+
