@@ -109,8 +109,9 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: text, maxTicksLimit: 5, maxRotation: 0 } },
-          y: { grid: { color: grid }, ticks: { color: text, maxTicksLimit: 5, display: !empty } },
+          // No axis lines: just the horizontal gridlines, as in Health.
+          x: { grid: { display: false }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, maxRotation: 0 } },
+          y: { grid: { color: grid }, border: { display: false }, ticks: { color: text, maxTicksLimit: 5, display: !empty } },
         },
       },
       plugins: [

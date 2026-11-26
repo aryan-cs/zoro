@@ -264,6 +264,21 @@
     0 2px 6px rgba(0, 0, 0, 0.25);
   transform: translateX(calc(var(--index) * 100%));
 }
+/* Inside a list row (Settings): Apple's compact size, 32pt with 13pt labels. */
+.ios-segmented.is-compact {
+  height: 32px;
+  padding: 2px;
+}
+.ios-segmented.is-compact .ios-segmented-thumb {
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--count));
+}
+.ios-segmented.is-compact .ios-segmented-item {
+  padding: 0 6px;
+  font-size: 13px;
+}
 .ios-segmented.is-ready .ios-segmented-thumb {
   transition: transform 0.3s cubic-bezier(0.25, 1, 0.35, 1);
 }
@@ -1901,58 +1916,39 @@ button.meal-row:not(:disabled):active {
   transform: translateY(6px);
 }
 
-/* Rolling digits (iOS numericText): a changed digit slides out and the new one slides in, with a
- * touch of blur, upward for increases and downward for decreases. */
-.roll {
-  display: inline-flex;
+/* Odometer digits: each place is an inline-block the height of one line, holding an invisible
+ * digit (which sets its width and baseline) and a clipped window with that place's strip. */
+.odo {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.roll-slot {
+.odo-col {
   position: relative;
   display: inline-block;
+  line-height: inherit;
 }
-.roll-out {
+.odo-ghost {
+  visibility: hidden;
+}
+.odo-window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Digits fade in and out at the window's edges instead of being cut by them. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 30%, #000 70%, transparent 96%);
+  mask-image: linear-gradient(to bottom, transparent 4%, #000 30%, #000 70%, transparent 96%);
+}
+.odo-strip {
   position: absolute;
   left: 0;
+  right: 0;
   top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.roll-in.is-up {
-  animation: roll-in-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.roll-in.is-down {
-  animation: roll-in-down 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.roll-out.is-up {
-  animation: roll-out-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.roll-out.is-down {
-  animation: roll-out-down 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-@keyframes roll-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(0.55em);
-    filter: blur(2px);
-  }
-}
-@keyframes roll-in-down {
-  from {
-    opacity: 0;
-    transform: translateY(-0.55em);
-    filter: blur(2px);
-  }
-}
-@keyframes roll-out-up {
-  to {
-    opacity: 0;
-    transform: translateY(-0.55em);
-    filter: blur(2px);
-  }
-}
-@keyframes roll-out-down {
-  to {
-    opacity: 0;
-    transform: translateY(0.55em);
-    filter: blur(2px);
-  }
+.odo-strip > span {
+  display: block;
+  height: 1lh;
+  line-height: inherit;
 }

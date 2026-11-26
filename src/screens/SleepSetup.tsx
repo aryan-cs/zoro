@@ -21,7 +21,7 @@ export function SleepSetupScreen() {
     <Page className="tab-safe">
       <Header title="Sleep Shortcut" onBack={nav.pop} />
       {STEPS.map(([title, body], i) => (
-        <Section key={title} title={`${i + 1}. ${title}`}>
+        <Section key={title} keep title={`${i + 1}. ${title}`}>
           <Cell className="whitespace-pre-line py-2.5 text-[15px]">{body}</Cell>
         </Section>
       ))}

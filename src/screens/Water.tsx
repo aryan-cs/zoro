@@ -32,7 +32,11 @@ function PresetButton({ oz, onAdd, onRemove, onEdit }: { oz: number; onAdd: () =
       className={`ios-btn is-md is-glass water-preset ${state ? `is-${state}` : ''}`}
       onPointerDown={(e) => {
         // Keep getting the touch when a flick leaves the button.
-        e.currentTarget.setPointerCapture?.(e.pointerId);
+        try {
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+        } catch {
+          /* no live pointer (synthetic event): nothing to capture */
+        }
         held.current = false;
         startY.current = e.clientY;
         setState('pressing');
@@ -105,7 +109,7 @@ export function WaterScreen() {
           <div className="water-ring">
             <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
             <div className="water-pct">
-              <RollingNumber value={pct} format={(n) => `${n}%`} />
+              <RollingNumber value={pct} suffix="%" />
             </div>
           </div>
           <div className="water-oz">

@@ -90,7 +90,7 @@ function CloudBackup() {
       {status.state === 'error' && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{status.message}</p>}
 
       <SheetPage opened={open} onClose={() => setOpen(false)} title="GitHub Backup">
-        <Section title="1. Create Token">
+        <Section keep title="1. Create Token">
           <Row accent title="Create Token" chevron onClick={() => window.open(tokenUrl, '_blank')} />
         </Section>
         <ol className="mx-8 mt-2 list-inside list-decimal space-y-1 text-sm text-white/60">
@@ -98,7 +98,7 @@ function CloudBackup() {
           <li>Contents: Read and write.</li>
           <li>Generate token, then copy it.</li>
         </ol>
-        <Section title="2. Connect">
+        <Section keep title="2. Connect">
           <Field label="Key" secret placeholder="github_pat_…" value={token} onChange={setToken} wide />
           <Field label="Repo" value={repo} onChange={setRepo} wide />
         </Section>
@@ -185,7 +185,7 @@ export function SettingsScreen() {
 
       <Section title="Plan">
         <Field label="Program Start" type="date" value={settings.programStart} onChange={(v) => v && void saveSettings({ programStart: nextMonday(v) })} />
-        <Row title="Days per Week" right={<Seg className="w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
+        <Row title="Days per Week" right={<Seg className="is-compact w-28" value={settings.daysPerWeek} onChange={(d) => void saveSettings({ daysPerWeek: d })} options={[[4, '4'], [5, '5']]} />} />
         <NumSetting label="Bench Training Max (lb)" k="benchMax" settings={settings} />
         <Field label="Bench Cycle Start" type="date" value={settings.benchBlockStart} onChange={(v) => v && void saveSettings({ benchBlockStart: v })} />
         <NumSetting label="Dumbbell Max (lb)" k="dumbbellMax" settings={settings} />
@@ -194,7 +194,7 @@ export function SettingsScreen() {
       <Section title="Food Targets">
         <Row title="Phase" right={
           <Seg<Phase>
-            className="w-52 max-w-full"
+            className="is-compact w-60 max-w-full"
             value={settings.phase}
             onChange={(p) => void saveSettings({ phase: p, targetRate: p === 'cut' ? -0.875 : p === 'bulk' ? 0.375 : 0 })}
             options={[

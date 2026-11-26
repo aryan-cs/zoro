@@ -82,10 +82,19 @@ export function NavText(props: { onClick?: () => void; children: ReactNode; stro
 // ---------- Grouped lists ----------
 
 /** A titled inset grouped list (Konsta List). Children are Rows, Cells or Fields. */
-export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean }) {
-  const titled = !!(props.title || props.right);
+/**
+ * A grouped list (or plain block). Like Apple's Settings, groups carry no titles and are set apart
+ * by space alone; `title` names the group for VoiceOver. Numbered setup steps (`keep`) still show
+ * theirs, since the heading is the instruction.
+ */
+export function Section(props: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; plain?: boolean; keep?: boolean }) {
+  const titled = !!props.keep && !!(props.title || props.right);
   return (
-    <div className={`${titled ? '' : 'zoro-section-untitled'} ${props.className ?? ''}`}>
+    <div
+      className={`${titled ? '' : 'zoro-section-untitled'} ${props.className ?? ''}`}
+      role="group"
+      aria-label={!titled && typeof props.title === 'string' ? props.title : undefined}
+    >
       {titled && (
         <BlockTitle className="zoro-section-title flex items-center justify-between gap-2">
           <span className="min-w-0">{props.title}</span>
@@ -304,41 +313,50 @@ export function useTweened(target: number, ms = 600): number {
 }
 
 /**
- * A number that changes like iOS's counters (numericText): each digit that changes slides out
- * and the new one slides in, upward when the value goes up and downward when it goes down.
+ * A whole number that changes like an odometer. One value counts from the old number to the new
+ * one; the ones place spins continuously and each higher place turns only while the place below
+ * it rolls over from 9 to 0, so every in-between reading is a real number on the way (64 → 80
+ * passes 65, 66 … 79). Counting up rolls upward, counting down rolls downward. An invisible digit
+ * in each place sets its width and baseline, so it lines up with the text around it.
  */
-export function RollingNumber({ value, format = (n) => fmt(n) }: { value: number; format?: (n: number) => string }) {
-  const text = format(value);
-  const prev = useRef({ text, value });
-  const [roll, setRoll] = useState<{ from: string; dir: 'up' | 'down'; n: number } | null>(null);
-  useLayoutEffect(() => {
-    if (prev.current.text === text) return;
-    const from = prev.current.text;
-    const dir = value >= prev.current.value ? 'up' : 'down';
-    prev.current = { text, value };
-    setRoll((r) => ({ from, dir, n: (r?.n ?? 0) + 1 }));
-  }, [text, value]);
-  // Once the roll has played, drop the outgoing digits.
-  useEffect(() => {
-    if (!roll) return;
-    const t = window.setTimeout(() => setRoll(null), 450);
-    return () => window.clearTimeout(t);
-  }, [roll]);
-  const from = roll?.from ?? text;
-  const len = Math.max(text.length, from.length);
-  const now = text.padStart(len, ' ');
-  const was = from.padStart(len, ' ');
+export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const target = Math.round(value);
+  const v = useTweened(target, 800);
+  const a = Math.abs(v);
+  const places = String(Math.max(Math.round(a), Math.abs(target))).length;
+  const resting = Math.abs(v - target) < 0.001;
   return (
-    <span className="roll" aria-label={text}>
-      {[...now].map((ch, i) => {
-        const changed = !!roll && was[i] !== ch;
+    <span className="odo" aria-label={`${target}${suffix}`}>
+      {target < 0 && '−'}
+      {Array.from({ length: places }, (_, i) => {
+        const p = places - 1 - i; // most significant first
+        const unit = 10 ** p;
+        // Position on the 0–9 wheel: the ones follow the value; a higher place adds the share of
+        // the last unit below it that is rolling over (…9.x → …0).
+        const below = a % unit;
+        const turning = p === 0 ? a % 1 : Math.max(0, below - (unit - 1));
+        const pos = (Math.floor(a / unit) % 10) + turning;
+        // A leading place (nothing above it) shows blank instead of 0.
+        const leading = p > 0 && a < unit * 10 && Math.floor(a / (unit * 10)) === 0;
+        const blankZero = leading && Math.floor(a / unit) === 0;
+        if (resting) {
+          const d = Math.floor(Math.abs(target) / unit) % 10;
+          return p > 0 && Math.abs(target) < unit ? null : <span key={p}>{d}</span>;
+        }
         return (
-          <span key={`${i}-${changed ? roll!.n : 0}`} className="roll-slot" aria-hidden>
-            {changed && was[i] !== ' ' && <span className={`roll-out is-${roll!.dir}`}>{was[i]}</span>}
-            {ch !== ' ' && <span className={changed ? `roll-in is-${roll!.dir}` : undefined}>{ch}</span>}
+          <span key={p} className="odo-col" aria-hidden>
+            <span className="odo-ghost">0</span>
+            <span className="odo-window">
+              <span className="odo-strip" style={{ transform: `translateY(calc(-1lh * ${pos}))` }}>
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d, k) => (
+                  <span key={k}>{d === 0 && blankZero ? '\u00a0' : d}</span>
+                ))}
+              </span>
+            </span>
           </span>
         );
       })}
+      {suffix}
     </span>
   );
 }
