@@ -14,7 +14,7 @@ import { useAutoTargets } from './ui/autoTargets';
 import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
-import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { DIM, InStack, NavProvider, PARALLAX, pageSlide, RELEASE_EASE, RELEASE_MS, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
@@ -244,9 +244,9 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
  * Water to Today slides Water off to the left, Nutrition passes, and Today lands, on UIKit's push
  * timing. At rest only the current tab is shown.
  */
-function TabPane({ offset, moving, children }: { offset: number; moving: { ms: number; ease: string } | null; children: ReactNode }) {
+function TabPane({ offset, moving, children, paneRef }: { offset: number; moving: { ms: number; ease: string } | null; children: ReactNode; paneRef: (el: HTMLDivElement | null) => void }) {
   const active = offset === 0;
-  const el = useRef<HTMLDivElement>(null);
+  const el = useRef<HTMLDivElement | null>(null);
   const scrolls = useRef(new WeakMap<Element, number>());
   useEffect(() => {
     const node = el.current;
@@ -266,7 +266,10 @@ function TabPane({ offset, moving, children }: { offset: number; moving: { ms: n
   }, [active]);
   return (
     <div
-      ref={el}
+      ref={(node) => {
+        el.current = node;
+        paneRef(node);
+      }}
       className="absolute inset-0"
       style={{
         // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
@@ -279,6 +282,105 @@ function TabPane({ offset, moving, children }: { offset: number; moving: { ms: n
       {children}
     </div>
   );
+}
+
+/** Touches that start on these keep the sideways swipe for themselves (scrubbing a chart, dragging a dial). */
+const OWN_SWIPE = '.fit-chart, canvas, input, textarea, select, .ios-segmented, .sleep-dial, .zoro-tabbar, .k-dialog, .k-popup, .k-sheet, .k-actions';
+
+/**
+ * Swipe sideways anywhere on a tab's screen to go to the next or previous tab, as in iOS paging:
+ * the tabs follow your finger, and letting go either carries on to the next tab (past a third of
+ * the way, or with a quick flick) or springs back. Not while a screen is pushed on the tab (its
+ * own swipe goes back), and not past the first or last tab (it stretches, then springs back).
+ */
+function useTabSwipe(root: RefObject<HTMLDivElement | null>, panes: RefObject<(HTMLDivElement | null)[]>, current: number, pushed: boolean) {
+  const { setTab } = useNav();
+  const live = useRef({ current, pushed });
+  live.current = { current, pushed };
+  useEffect(() => {
+    const node = root.current;
+    if (!node) return;
+    let start: { x: number; y: number; t: number } | null = null;
+    let mode: 'undecided' | 'swipe' | 'other' = 'other';
+    let last = { x: 0, t: 0, v: 0 };
+    const W = () => node.clientWidth;
+    const place = (dx: number, animate: boolean) => {
+      const { current: c } = live.current;
+      panes.current?.forEach((el, i) => {
+        if (!el) return;
+        const off = i - c;
+        if (Math.abs(off) > 1 && !animate) return;
+        el.style.transition = animate ? `transform ${pageSlide(1).ms}ms ${pageSlide(1).ease}` : 'none';
+        el.style.visibility = 'visible';
+        el.style.transform = `translateX(calc(${off * 100}% + ${dx}px))`;
+      });
+    };
+    const onStart = (e: TouchEvent) => {
+      mode = 'other';
+      if (e.touches.length !== 1 || live.current.pushed) return;
+      if ((e.target as Element).closest(OWN_SWIPE)) return;
+      const t = e.touches[0];
+      start = { x: t.clientX, y: t.clientY, t: e.timeStamp };
+      last = { x: t.clientX, t: e.timeStamp, v: 0 };
+      mode = 'undecided';
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start || mode === 'other') return;
+      const t = e.touches[0];
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (mode === 'undecided') {
+        if (Math.hypot(dx, dy) < 10) return;
+        // Sideways and started promptly: a swipe. Otherwise it's a scroll, or a hold-and-drag.
+        mode = Math.abs(dx) > Math.abs(dy) * 1.2 && e.timeStamp - start.t < 350 ? 'swipe' : 'other';
+        if (mode === 'other') return;
+      }
+      e.preventDefault();
+      const dt = Math.max(1, e.timeStamp - last.t);
+      last = { x: t.clientX, t: e.timeStamp, v: (t.clientX - last.x) / dt };
+      const { current: c } = live.current;
+      const atEdge = (dx > 0 && c === 0) || (dx < 0 && c === TABS.length - 1);
+      place(atEdge ? dx * 0.3 : dx, false);
+    };
+    const onEnd = () => {
+      if (!start || mode !== 'swipe') {
+        start = null;
+        return;
+      }
+      const dx = last.x - start.x;
+      start = null;
+      mode = 'other';
+      const { current: c } = live.current;
+      const dir = last.v < -0.45 || (dx < -W() / 3 && last.v <= 0.2) ? 1 : last.v > 0.45 || (dx > W() / 3 && last.v >= -0.2) ? -1 : 0;
+      const next = c + dir;
+      if (dir !== 0 && next >= 0 && next < TABS.length) {
+        // The tab switch takes over from here: its slide starts from where your finger left the tabs.
+        setTab(TABS[next].id);
+        return;
+      }
+      // Spring back to the tab you were on, then leave each tab as it sits at rest.
+      place(0, true);
+      window.setTimeout(() => {
+        panes.current?.forEach((el, i) => {
+          if (!el) return;
+          const off = i - live.current.current;
+          el.style.transition = 'none';
+          el.style.transform = off === 0 ? '' : `translateX(${off * 100}%)`;
+          el.style.visibility = off === 0 ? 'visible' : 'hidden';
+        });
+      }, pageSlide(1).ms + 20);
+    };
+    node.addEventListener('touchstart', onStart, { passive: true });
+    node.addEventListener('touchmove', onMove, { passive: false });
+    node.addEventListener('touchend', onEnd);
+    node.addEventListener('touchcancel', onEnd);
+    return () => {
+      node.removeEventListener('touchstart', onStart);
+      node.removeEventListener('touchmove', onMove);
+      node.removeEventListener('touchend', onEnd);
+      node.removeEventListener('touchcancel', onEnd);
+    };
+  }, [root, panes, setTab]);
 }
 
 function Shell() {
@@ -296,11 +398,22 @@ function Shell() {
     return () => window.clearTimeout(t);
   }, [tab]);
   const current = TABS.findIndex((t) => t.id === tab);
+  const panes = useRef<(HTMLDivElement | null)[]>([]);
+  const root = useRef<HTMLDivElement>(null);
+  useTabSwipe(root, panes, current, stacks[tab].some((e) => !e.leaving));
   return (
     <>
       {/* Every tab stays mounted, so switching tabs or going back keeps your place. */}
+      <div ref={root} className="absolute inset-0">
       {TABS.map((t, i) => (
-        <TabPane key={t.id} offset={i - current} moving={moving}>
+        <TabPane
+          key={t.id}
+          offset={i - current}
+          moving={moving}
+          paneRef={(el) => {
+            panes.current[i] = el;
+          }}
+        >
           {/* Each screen knows whether a pushed screen is on top of it (then it sits back). */}
           <div className={`stack-layer absolute inset-0 ${stacks[t.id].some((e) => !e.leaving) ? 'is-covered' : ''}`}>
             <TabRoot tab={t.id} />
@@ -310,6 +423,7 @@ function Shell() {
           ))}
         </TabPane>
       ))}
+      </div>
       {/* iOS 26's scroll edge effect: content softly fades out behind the floating tab bar. */}
       <div className="ios-bottom-edge" aria-hidden />
       <Tabs />
