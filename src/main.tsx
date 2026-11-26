@@ -5,14 +5,12 @@ import { requestPersistence } from './core/db';
 import { purgeSampleData } from './core/store';
 import './index.css';
 import { DesktopNotice, isMobileDevice } from './ui/DesktopNotice';
-import { fillScreen } from './ui/fillScreen';
 import { viewportProbe } from './ui/viewportProbe';
 import { startHealthSync } from './ui/healthSync';
 import { startSync } from './ui/sync';
 
 // Zoro always uses the dark theme.
 document.documentElement.classList.add('dark');
-fillScreen();
 viewportProbe();
 
 void requestPersistence();

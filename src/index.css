@@ -54,12 +54,15 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
-/* The Home Screen app's viewport came up short of the screen (see fillScreen.ts): fill the screen,
- * and let sheets and alerts (fixed position) measure from the app instead of that short viewport. */
-html.fill-screen body {
-  bottom: auto;
-  height: var(--screen-h);
-  contain: layout;
+/* Opened from the Home Screen, iOS 26 and later can hand the app a viewport that stops short of
+ * the screen by the status bar's height (WebKit bug 301108, with a see-through status bar), and it
+ * only draws that much, so the tab bar sat above a black band. iOS gives the app the whole screen
+ * once the page is at least that tall: the viewport plus the status bar, capped at the screen
+ * (100lvh), so a viewport that's already full is unchanged and nothing scrolls. */
+@media (display-mode: standalone) {
+  html {
+    min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+  }
 }
 .k-page {
   background: #000 !important;

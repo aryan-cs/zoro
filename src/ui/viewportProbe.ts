@@ -24,7 +24,7 @@ export function viewportProbe(): void {
       `body ${Math.round(document.body.getBoundingClientRect().height)} kapp ${Math.round(k?.height ?? -1)}`,
       `vh ${probe('100vh')} lvh ${probe('100lvh')} svh ${probe('100svh')} dvh ${probe('100dvh')}`,
       `safeTop ${probe('env(safe-area-inset-top)')} safeBot ${probe('env(safe-area-inset-bottom)')}`,
-      `standalone ${nav.standalone} dm ${matchMedia('(display-mode: standalone)').matches} fill ${document.documentElement.classList.contains('fill-screen')}`,
+      `standalone ${nav.standalone} dm ${matchMedia('(display-mode: standalone)').matches} html ${Math.round(document.documentElement.getBoundingClientRect().height)} scrollY ${scrollY}`,
     ].join('\n');
   };
   const start = () => {
