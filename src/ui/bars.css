@@ -2137,3 +2137,71 @@ button.water-oz:active {
 .chart-wrap.is-scrubbing .chart-dot {
   opacity: 1;
 }
+
+/* ---------- Boxes you can pin or hide (touch and hold, as on the Home Screen) ---------- */
+.hold-box {
+  -webkit-touch-callout: none;
+}
+/* The page behind a box's menu: blurred and dimmed, as iOS does behind a context menu. */
+.ctx-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.32);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: ctx-fade 0.22s ease-out both;
+}
+.ctx-scrim.is-closing {
+  animation: ctx-fade 0.22s ease-in reverse both;
+}
+@keyframes ctx-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* The box itself, lifted a little over the blur. */
+.ctx-lift {
+  position: fixed;
+  pointer-events: none;
+  animation: ctx-lift 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.ctx-lift > * {
+  height: 100%;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+.ctx-lift.is-closing {
+  animation: ctx-drop 0.22s ease-in both;
+}
+@keyframes ctx-lift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+@keyframes ctx-drop {
+  from {
+    transform: scale(1.03);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.ctx-menu {
+  min-width: 220px;
+}
+/* "Show Hidden Boxes": just text, in the system blue, centered under the page's boxes. */
+.show-hidden {
+  align-self: center;
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--ios-blue);
+  -webkit-tap-highlight-color: transparent;
+}
+.show-hidden:active {
+  opacity: 0.4;
+}

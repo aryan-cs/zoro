@@ -239,6 +239,8 @@ export interface Settings {
   goalMetric?: 'weight' | 'waist' | 'arm' | 'forearm' | 'bodyfat';
   /** Goals for the other measurements (in, or % for body fat). */
   goalValues?: Partial<Record<'waist' | 'arm' | 'forearm' | 'bodyfat', number>>;
+  /** Boxes pinned to the top or hidden, per page (History's sections). */
+  boxes?: Record<string, { pinned: string[]; hidden: string[] }>;
   /** Targets follow the profile's recommendation until you set one yourself (then false). */
   autoTargets?: boolean;
   dumbbellMax: number;

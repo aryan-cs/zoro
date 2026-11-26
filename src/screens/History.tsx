@@ -13,6 +13,7 @@ import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
+import { Box, Boxes } from '../ui/boxes';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -153,6 +154,8 @@ function Lifts() {
   return (
     <>
       <div className="fit-stack">
+        <Boxes page="history-lifts">
+        <Box id="lift">
         <FitCard
           title={
             <button
@@ -188,6 +191,8 @@ function Lifts() {
             <LineChart labels={labels} series={series} unit=" lb" height={150} />
           </div>
         </FitCard>
+        </Box>
+        </Boxes>
       </div>
       <NumberPrompt
         opened={editingGoal}
@@ -378,6 +383,8 @@ function Body() {
   return (
     <>
       <div className="fit-stack">
+        <Boxes page="history-body">
+        <Box id="weight">
         <FitCard title="Weight">
           <StatGrid
             color={FITNESS.body}
@@ -393,7 +400,11 @@ function Body() {
           </div>
         </FitCard>
 
-        <Measurements />
+        </Box>
+        <Box id="measurements">
+          <Measurements />
+        </Box>
+        </Boxes>
       </div>
 
 
@@ -499,6 +510,8 @@ function Food() {
   return (
     <>
       <div className="fit-stack">
+        <Boxes page="history-food">
+        <Box id="nutrient">
         <FitCard
           title={
             <button type="button" className="lift-picker" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())} aria-label={`Showing ${n.label}. Choose another`}>
@@ -522,6 +535,8 @@ function Food() {
             <LineChart labels={labels} series={series} unit={` ${n.unit}`} height={140} />
           </div>
         </FitCard>
+        </Box>
+        </Boxes>
       </div>
       <Menu
         anchor={menu}
@@ -649,6 +664,8 @@ function Sleep() {
   return (
     <>
       <div className="fit-stack">
+        <Boxes page="history-sleep">
+        <Box id="sleep">
         <FitCard title="Sleep">
           <StatGrid
             color={FITNESS.sleep}
@@ -664,7 +681,9 @@ function Sleep() {
           </div>
         </FitCard>
 
+        </Box>
         {night && stats && score && (
+          <Box id="night">
           <FitCard title={night.date === today() ? 'Last Night' : longDate(night.date)}>
             <StatGrid
               color={FITNESS.sleep}
@@ -697,10 +716,11 @@ function Sleep() {
               <p className="sleep-no-stages">Wear your Apple Watch to bed to see your sleep stages here.</p>
             )}
           </FitCard>
+          </Box>
         )}
 
         {night && stats && score && (
-          <>
+          <Box id="score">
             {/* The night's score, once: the number, its three parts, and the one that cost the most. */}
             <FitCard title="Score">
               <FitStat value={String(score.score)} unit="/ 100" color={FITNESS.sleep} info={info.Score} infoTitle="Score" />
@@ -717,6 +737,10 @@ function Sleep() {
               <p className="fit-card-note">{scoreNote(night, entries, goal)}</p>
             </FitCard>
 
+          </Box>
+        )}
+        {night && stats && score && (
+          <Box id="in-bed">
             {/* The night itself: getting to sleep, waking in it, and how you felt after. */}
             <FitCard title="In Bed">
               <StatGrid
@@ -740,10 +764,11 @@ function Sleep() {
                 />
               </div>
             </FitCard>
-          </>
+          </Box>
         )}
 
         {/* The last two weeks: how well, how much you're short, and how steady your times are. */}
+        <Box id="two-weeks">
         <FitCard title="Last Two Weeks">
           <StatGrid
             color={FITNESS.sleep}
@@ -761,11 +786,15 @@ function Sleep() {
           {trendNote(entries, goal, today()) && <p className="fit-card-note">{trendNote(entries, goal, today())}</p>}
         </FitCard>
 
+        </Box>
         {/* How your days go with your nights: extra sleep after each habit, against days without. */}
+        <Box id="sleep-after">
         <FitCard title="Sleep After">
           <StatGrid color={FITNESS.sleep} info={info} items={insights.map((i) => [i.short, signedText(i.minutes)] as [string, string | null])} />
           <p className="fit-card-note">{insightNote(insights)}</p>
         </FitCard>
+        </Box>
+        </Boxes>
       </div>
 
       <NumberPrompt
