@@ -11,7 +11,7 @@ import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { useAutoTargets } from './ui/autoTargets';
-import { ToastProvider } from './ui/kit';
+import { InfoProvider, ToastProvider } from './ui/kit';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -344,9 +344,11 @@ export function App() {
     <KonstaApp theme="ios" safeAreas>
       <NavProvider>
         <ToastProvider>
+          <InfoProvider>
           <Shell />
           {/* Local previews skip the offline cache so every reload shows the latest build. */}
           {!LOCAL && <UpdatePrompt />}
+          </InfoProvider>
         </ToastProvider>
       </NavProvider>
     </KonstaApp>

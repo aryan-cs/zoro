@@ -7,6 +7,7 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { Settings } from '../core/types';
+import { hrMin } from '../core/say';
 import { clockLabel, insightNote, nightStats, scoreNote, sleepAfter, sleepDebt, sleepRoutine, sleepScore, stageTargets, trendNote } from '../core/sleepStats';
 import { Hypnogram, STAGE_COLORS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
@@ -27,21 +28,45 @@ function emptyDays(n: number) {
 }
 
 /** Up to three stats in a row; one with an edit handler (a target or goal) is tappable. */
-function StatGrid({ items, color }: { items: [string, string | null, string?, (() => void)?][]; color: string }) {
+function StatGrid({ items, color, info }: { items: [string, string | null, string?, (() => void)?][]; color: string; info?: Record<string, string> }) {
   return (
     <div className="fit-grid3">
       {items.map(([label, value, unit, onEdit]) =>
         onEdit ? (
           <button key={label} type="button" className="fit-stat-edit" onClick={onEdit} aria-label={`${label}: ${value ?? 'none'}${unit ? ` ${unit.toLowerCase()}` : ''}. Edit`}>
-            <FitStat label={label} value={value} unit={unit} color={color} small />
+            <FitStat label={label} value={value} unit={unit} color={color} small info={info?.[label]} />
           </button>
         ) : (
-          <FitStat key={label} label={label} value={value} unit={unit} color={color} small />
+          <FitStat key={label} label={label} value={value} unit={unit} color={color} small info={info?.[label]} />
         ),
       )}
     </div>
   );
 }
+
+/** What each stat means, in plain words, for touch and hold. */
+const LIFT_INFO: Record<string, string> = {
+  'Training Max': 'The weight your bench sessions are worked out from, a little under your true one-rep max. It goes up as you complete the program.',
+  Best: 'Your heaviest set recently, as an estimated one-rep max: the most you could lift once, worked out from the weight and reps you did.',
+  Change: 'How much your best has gone up or down over the last 30 days.',
+  Goal: 'The weight you’re working toward for this lift. Tap it to change it.',
+};
+const SIZE_INFO: Record<string, string> = {
+  Latest: 'Your most recent measurement. Tap it to log today’s.',
+  '30 Days': 'How much it changed over the last 30 days.',
+  'Since Start': 'How much it’s changed since your first measurement.',
+};
+const WEIGHT_INFO: Record<string, string> = {
+  Trend: 'Your weight with day-to-day ups and downs (water, salt, food in your stomach) smoothed out. It’s the best guide to where your weight is really heading.',
+  '7-Day Avg': 'The average of your weigh-ins over the last seven days.',
+  'Per Week': 'How fast your trend weight is changing, in pounds a week.',
+};
+const FOOD_INFO: Record<string, string> = {
+  Burn: 'Roughly how many calories you burn in a day, worked out from what you’ve eaten and how your weight has changed.',
+  Today: 'How much you’ve had so far today.',
+  '7-Day Avg': 'Your daily average over the last seven days.',
+  Target: 'What you’re aiming for each day. Tap it to change it.',
+};
 
 /** The lifts you can follow over time, one main lift per muscle group, with short names. */
 const TRACKED: Record<string, string> = {
@@ -132,6 +157,7 @@ function Lifts() {
         >
           <StatGrid
             color={FITNESS.exercise}
+            info={LIFT_INFO}
             items={
               isBench
                 ? [
@@ -275,6 +301,7 @@ function Measurements() {
       >
         <StatGrid
           color={FITNESS.body}
+          info={SIZE_INFO}
           items={[
             ['Latest', latest ? fmt(latest.value, 2) : null, latest ? U : undefined, () => setLogging(true)],
             ['30 Days', signed(month), month === null ? undefined : U],
@@ -340,6 +367,7 @@ function Body() {
         <FitCard title="Weight">
           <StatGrid
             color={FITNESS.body}
+            info={WEIGHT_INFO}
             items={[
               ['Trend', last ? fmt(last.trend, 1) : null, last ? 'LB' : undefined],
               ['7-Day Avg', avg7 ? fmt(avg7, 1) : null, avg7 ? 'LB' : undefined],
@@ -466,6 +494,7 @@ function Food() {
         >
           <StatGrid
             color={n.color}
+            info={FOOD_INFO}
             items={[
               id === 'kcal'
                 ? ['Burn', energy ? fmt(energy.tdee) : null, energy ? UNIT : undefined]
@@ -519,6 +548,13 @@ function Food() {
   );
 }
 
+/** The sleep stages, explained for touch and hold on their rings. */
+const STAGE_INFO = {
+  rem: 'Dreaming sleep, when your brain sorts memories and feelings. Most of it comes in the second half of the night. The ring fills at about a fifth of your sleep goal.',
+  core: 'Light sleep, which makes up most of the night. Your body settles and your brain files away what you learned. The ring fills at about half your sleep goal.',
+  deep: 'Your most restful sleep, mostly early in the night. It’s when your body repairs muscle and recovers from training. The ring fills at about a sixth of your sleep goal.',
+};
+
 /** 18 → "18m", 412 → "6h 52m" */
 const dur = (m: number) => (m < 60 ? `${Math.round(m)}m` : formatMinutes(m));
 
@@ -556,11 +592,36 @@ function Sleep() {
   const watered = new Set(water.filter((w) => w.oz >= settings.waterTargetOz).map((w) => w.date));
   const over = new Set(intake.filter((d) => d.kcal > settings.kcalTarget).map((d) => d.date));
   const insights = [
-    { label: 'After Workouts', phrase: 'after days you train', minutes: sleepAfter(entries, (d) => trained.has(d)) },
-    { label: 'After Meeting Water Goal', phrase: 'after days you hit your water goal', minutes: sleepAfter(entries, (d) => watered.has(d)) },
-    { label: 'After Eating Over Target', phrase: 'after days you eat over your target', minutes: sleepAfter(entries, (d) => over.has(d)) },
+    { short: 'Workouts', phrase: 'after days you train', minutes: sleepAfter(entries, (d) => trained.has(d)) },
+    { short: 'Water Goal', phrase: 'after days you hit your water goal', minutes: sleepAfter(entries, (d) => watered.has(d)) },
+    { short: 'Over Target', phrase: 'after days you eat over your target', minutes: sleepAfter(entries, (d) => over.has(d)) },
   ];
-  const signed = (m: number | null) => (m === null ? <span className="text-[#8d8d93]">—</span> : `${m >= 0 ? '+' : '−'}${dur(Math.abs(m))}`);
+  // What each sleep stat means, in plain words, for touch and hold.
+  const g = hrMin(goal);
+  const after = (what: string) => `How much longer (or shorter) you sleep after days you ${what}, compared with days you don’t.`;
+  const info: Record<string, string> = {
+    'Last Night': 'How long you were actually asleep last night, not counting time lying awake.',
+    '7-Night Avg': 'Your average sleep over the last seven nights you logged. A pattern matters more than one short night.',
+    Goal: `How much sleep you’re aiming for each night, now ${g}. Most adults do best with 7 to 9 hours. Tap it to change it.`,
+    Score: `A rating of the night out of 100. Half of it is how long you slept against your ${g} goal, 30% is how well you slept, and 20% is how close you kept to your usual bedtime and wake-up.`,
+    Asleep: 'Time actually asleep, from falling asleep to waking up, minus any time you were awake in between.',
+    Efficiency: 'How much of your time in bed you spent asleep. 85% or more is good.',
+    Duration: `How close you came to your ${g} goal, out of 100. Sleeping your whole goal scores 100.`,
+    Quality: 'How well you slept, out of 100: little time awake, enough deep and REM sleep, falling asleep quickly, and how rested you felt.',
+    Routine: 'How close your bedtime and wake-up were to your usual times over the past week, out of 100. Being an hour and a half off scores 0.',
+    'Time in Bed': 'From getting into bed to getting up, including the time it took to fall asleep and any time awake.',
+    'Fell Asleep': 'How long it took you to fall asleep after getting into bed. Under 20 minutes is typical.',
+    Awakenings: 'Times you woke for two minutes or more in the night. A few are normal, and you won’t remember most of them.',
+    'Avg Score': 'Your average sleep score over the last seven nights.',
+    'Sleep Debt': `How much less sleep than your ${g} goal you got over the last two weeks, added up. A little extra sleep over the next few nights pays it down.`,
+    'Varies By': 'How much your bedtime changes from night to night. Within half an hour is steady, and steady bedtimes tend to mean better sleep.',
+    Bedtime: 'When you usually fall asleep, averaged over the last two weeks.',
+    'Wake-Up': 'When you usually wake up, averaged over the last two weeks.',
+    Workouts: after('train'),
+    'Water Goal': after('hit your water goal'),
+    'Over Target': after('eat more than your calorie target'),
+  };
+  const signedText = (m: number | null) => (m === null ? null : `${m >= 0 ? '+' : '−'}${dur(Math.abs(m))}`);
 
   return (
     <>
@@ -568,6 +629,7 @@ function Sleep() {
         <FitCard title="Sleep">
           <StatGrid
             color={FITNESS.sleep}
+            info={info}
             items={[
               ['Last Night', lastNight ? formatMinutes(lastNight.minutes) : null],
               ['7-Night Avg', avg ? formatMinutes(avg) : null],
@@ -583,6 +645,7 @@ function Sleep() {
           <FitCard title={night.date === today() ? 'Last Night' : longDate(night.date)}>
             <StatGrid
               color={FITNESS.sleep}
+            info={info}
               items={[
                 ['Score', String(score.score)],
                 ['Asleep', formatMinutes(stats.asleep)],
@@ -603,6 +666,7 @@ function Sleep() {
                     color: STAGE_COLORS[st],
                     gradient: RING_GRADIENT[st],
                     glyph: st === 'rem' ? 'eye.fill' : st === 'core' ? 'moon.fill' : 'moon.zzz.fill',
+                    info: STAGE_INFO[st],
                   }))}
                 />
               </>
@@ -611,26 +675,36 @@ function Sleep() {
             )}
           </FitCard>
         )}
-      </div>
 
-      {night && stats && score && (
-        <>
-          <Section
-            title="Score"
-            footer={scoreNote(night, entries, goal)}
-          >
-            <Row title="Duration" right={`${score.duration}`} />
-            <Row title="Quality" right={score.quality === null ? <span className="text-[#8d8d93]">—</span> : `${score.quality}`} />
-            <Row title="Routine" right={score.routine === null ? <span className="text-[#8d8d93]">—</span> : `${score.routine}`} />
-          </Section>
-          <Section title="Night">
-            <Row title="Time in Bed" right={formatMinutes(stats.inBed)} />
-            <Row title="Fell Asleep In" right={stats.latency === null ? <span className="text-[#8d8d93]">—</span> : dur(stats.latency)} />
-            <Row title="Time Awake" right={stats.stages ? dur(stats.stages.awake) : <span className="text-[#8d8d93]">—</span>} />
-            <Row title="Awakenings" right={stats.awakenings === null ? <span className="text-[#8d8d93]">—</span> : String(stats.awakenings)} />
-            <Row
-              title="Woke Up"
-              right={
+        {night && stats && score && (
+          <>
+            {/* What made the score: its three parts, and the one that cost the most. */}
+            <FitCard title="Score">
+              <StatGrid
+                color={FITNESS.sleep}
+            info={info}
+                items={[
+                  ['Duration', String(score.duration)],
+                  ['Quality', score.quality === null ? null : String(score.quality)],
+                  ['Routine', score.routine === null ? null : String(score.routine)],
+                ]}
+              />
+              <p className="fit-card-note">{scoreNote(night, entries, goal)}</p>
+            </FitCard>
+
+            {/* The night itself: getting to sleep, waking in it, and how you felt after. */}
+            <FitCard title="In Bed">
+              <StatGrid
+                color={FITNESS.sleep}
+            info={info}
+                items={[
+                  ['Time in Bed', formatMinutes(stats.inBed)],
+                  ['Fell Asleep', stats.latency === null ? null : dur(stats.latency)],
+                  ['Awakenings', stats.awakenings === null ? null : String(stats.awakenings)],
+                ]}
+              />
+              <div className="fit-card-row">
+                <span>Woke Up</span>
                 <Seg<number>
                   className="is-compact w-52"
                   value={night.quality ?? 0}
@@ -641,27 +715,35 @@ function Sleep() {
                     [5, 'Rested'],
                   ]}
                 />
-              }
-            />
-          </Section>
-        </>
-      )}
+              </div>
+            </FitCard>
+          </>
+        )}
 
-      <Section
-        title="Trends"
-        footer={trendNote(entries, goal, today())}
-      >
-        <Row title="Score, Last 7 Nights" right={weekScore === null ? <span className="text-[#8d8d93]">—</span> : String(weekScore)} />
-        <Row title="Sleep Debt" right={dur(debt)} />
-        <Row title="Usual Bedtime" right={routine ? `${clockLabel(routine.bed)} ± ${routine.spread}m` : <span className="text-[#8d8d93]">—</span>} />
-        <Row title="Usual Wake-Up" right={routine ? clockLabel(routine.wake) : <span className="text-[#8d8d93]">—</span>} />
-      </Section>
+        {/* The last two weeks: how well, how much you're short, and how steady your times are. */}
+        <FitCard title="Last Two Weeks">
+          <StatGrid
+            color={FITNESS.sleep}
+            info={info}
+            items={[
+              ['Avg Score', weekScore === null ? null : String(weekScore)],
+              ['Sleep Debt', entries.length ? dur(debt) : null],
+              ['Varies By', routine ? `±${dur(routine.spread)}` : null],
+            ]}
+          />
+          <div className="fit-grid3 mt-3">
+            <FitStat label="Bedtime" value={routine ? clockLabel(routine.bed) : null} color={FITNESS.sleep} small info={info.Bedtime} />
+            <FitStat label="Wake-Up" value={routine ? clockLabel(routine.wake) : null} color={FITNESS.sleep} small info={info['Wake-Up']} />
+          </div>
+          {trendNote(entries, goal, today()) && <p className="fit-card-note">{trendNote(entries, goal, today())}</p>}
+        </FitCard>
 
-      <Section title="Insights" footer={insightNote(insights)}>
-        {insights.map((i) => (
-          <Row key={i.label} title={i.label} right={signed(i.minutes)} />
-        ))}
-      </Section>
+        {/* How your days go with your nights: extra sleep after each habit, against days without. */}
+        <FitCard title="Sleep After">
+          <StatGrid color={FITNESS.sleep} info={info} items={insights.map((i) => [i.short, signedText(i.minutes)] as [string, string | null])} />
+          <p className="fit-card-note">{insightNote(insights)}</p>
+        </FitCard>
+      </div>
 
       <NumberPrompt
         opened={editingGoal}

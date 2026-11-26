@@ -527,9 +527,10 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
 }
 
 /** "Move" over "41/170CAL": white label, then the value in the ring's color in SF Rounded with a small uppercase unit. */
-function RingValue({ label, value, target, unit, color, big }: { label: string; value: number; target: number; unit: string; color: string; big?: boolean }) {
+function RingValue({ label, value, target, unit, color, big, info }: { label: string; value: number; target: number; unit: string; color: string; big?: boolean; info?: string }) {
+  const hold = useHoldInfo(label, info);
   return (
-    <div className={`ring-value ${big ? 'is-big' : ''}`}>
+    <div className={`ring-value ${big ? 'is-big' : ''}`} {...hold}>
       <div className="ring-value-label">{label}</div>
       <div className="ring-value-num" style={{ color }}>
         {fmt(value)}/{fmt(target)}
@@ -657,7 +658,8 @@ export function WorkoutCard(props: {
 }
 
 /** "Today" over "991" in the card's color: Fitness's stat, value in SF Rounded with small caps units. */
-export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean }) {
+export function FitStat(props: { label?: string; value: ReactNode | null; unit?: string; color: string; sub?: ReactNode; small?: boolean; info?: string }) {
+  const hold = useHoldInfo(props.label, props.info);
   // No value yet: a gray dash in the value's place, the same everywhere in the app.
   const empty = props.value === null;
   // In a Today square or wide card the value is as large as fits: start at the CSS size and step down only
@@ -674,7 +676,7 @@ export function FitStat(props: { label?: string; value: ReactNode | null; unit?:
     }
   }, [props.value, props.unit]);
   return (
-    <div className={`fit-stat ${props.small ? 'is-small' : ''}`}>
+    <div className={`fit-stat ${props.small ? 'is-small' : ''}`} {...hold}>
       {props.label && <div className="fit-stat-label">{props.label}</div>}
       <div ref={ref} className="fit-stat-value" style={{ color: empty ? '#8d8d93' : props.color }}>
         {empty ? '—' : props.value}
@@ -732,6 +734,8 @@ export interface RingRow {
   color: string;
   gradient: readonly [string, string];
   glyph: RingGlyph;
+  /** What touching and holding its legend line explains. */
+  info?: string;
 }
 
 /**
@@ -752,7 +756,7 @@ export function RingSummary({ rows }: { rows: RingRow[] }) {
       </svg>
       <div className="ring-legend">
         {rows.map((r) => (
-          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} />
+          <RingValue key={r.label} label={r.label} value={r.value} target={r.target} unit={r.unit} color={r.color} info={r.info} />
         ))}
       </div>
     </div>
@@ -990,3 +994,75 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastContext);
+
+// ---------- Touch and hold to explain ----------
+
+const InfoContext = createContext<(title: string, text: string) => void>(() => {});
+
+/** An alert (title, a few plain sentences, OK) that explains whatever was held. */
+export function InfoProvider({ children }: { children: ReactNode }) {
+  const [info, setInfo] = useState<{ title: string; text: string } | null>(null);
+  const [open, setOpen] = useState(false);
+  const show = useCallback((title: string, text: string) => {
+    setInfo({ title, text });
+    setOpen(true);
+  }, []);
+  return (
+    <InfoContext.Provider value={show}>
+      {children}
+      <Dialog
+        opened={open}
+        onBackdropClick={() => setOpen(false)}
+        title={info?.title}
+        content={info?.text}
+        buttons={
+          <DialogButton strong onClick={() => setOpen(false)}>
+            OK
+          </DialogButton>
+        }
+      />
+    </InfoContext.Provider>
+  );
+}
+
+export const useInfo = () => useContext(InfoContext);
+
+/**
+ * Touch and hold (about half a second) to explain something: shows `text` under `title` in an
+ * alert. A quick tap still does whatever a tap does there (editing a goal, opening a card).
+ */
+export function useHoldInfo(title: string | undefined, text: string | undefined) {
+  const show = useInfo();
+  const timer = useRef<number | undefined>(undefined);
+  const from = useRef<[number, number] | null>(null);
+  const fired = useRef(false);
+  if (!text || !title) return {};
+  const cancel = () => window.clearTimeout(timer.current);
+  return {
+    'data-info': '',
+    onPointerDown: (e: React.PointerEvent) => {
+      fired.current = false;
+      from.current = [e.clientX, e.clientY];
+      cancel();
+      timer.current = window.setTimeout(() => {
+        fired.current = true;
+        show(title, text);
+      }, 450);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      // Scrolling or dragging isn't holding.
+      if (from.current && Math.hypot(e.clientX - from.current[0], e.clientY - from.current[1]) > 8) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onPointerLeave: cancel,
+    // The tap that ends a hold doesn't also count as a tap.
+    onClickCapture: (e: React.MouseEvent) => {
+      if (!fired.current) return;
+      e.stopPropagation();
+      e.preventDefault();
+      fired.current = false;
+    },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+}

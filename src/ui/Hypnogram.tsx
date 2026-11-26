@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { hrMin } from '../core/say';
+import { useHoldInfo } from './kit';
 import { clockOf } from '../core/sleepStats';
 import type { SleepStage, StageSpan } from '../core/types';
 
@@ -24,6 +25,10 @@ export const STAGE_ROWS: [SleepStage, string][] = [
  * (the stage rings below the strip cover REM, Core and Deep).
  */
 export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string | undefined }) {
+  const hold = useHoldInfo(
+    'Sleep Stages',
+    'Your night from getting into bed to getting up. Orange is time awake, light blue is REM (dreaming), blue is core (light sleep), and purple is deep sleep.',
+  );
   const clip = `h${useId().replace(/[^\w-]/g, '')}`; // safe inside url(#…)
   const W = 300;
   const H = 30;
@@ -50,7 +55,7 @@ export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string 
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${H + 24}`} className="hypnogram" role="img" aria-label="Sleep stages through the night">
+      <svg viewBox={`0 0 ${W} ${H + 24}`} className="hypnogram" role="img" aria-label="Sleep stages through the night" {...hold}>
         <clipPath id={clip}>
           <rect x={0} y={0} width={W} height={H} rx={10} />
         </clipPath>

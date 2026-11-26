@@ -124,6 +124,21 @@
 .ios-navbar.is-scrolled::after {
   opacity: 1;
 }
+/* With a segmented control or search field in the bar, the edge works like the tab bar's at the
+ * bottom: the bar is solid only down to the middle of the control, and content fades and blurs
+ * out behind its lower half, gone by just past its bottom edge (instead of a band starting under
+ * the control and running 24pt further down). */
+.ios-navbar.has-sub {
+  background: linear-gradient(to bottom, var(--ios-bg) calc(100% - 20px), transparent calc(100% - 20px));
+}
+.ios-navbar.has-sub::after {
+  top: calc(100% - 20px);
+  height: 26px;
+}
+.ios-navbar.has-sub .ios-navbar-sub {
+  position: relative;
+  z-index: 1;
+}
 .ios-navbar-row {
   display: grid;
   /* Sides take at least their buttons' width, so a wide group of buttons pushes the title
@@ -727,7 +742,7 @@ button.meal-row:not(:disabled):active {
 }
 /* Every card responds the same way (History's too), except while you're scrubbing its chart or
  * pressing a control inside it. */
-.fit-card:active:not(:has(.fit-chart:active, .fit-stat-edit:active, .lift-picker:active, button:active)),
+.fit-card:active:not(:has(.fit-chart:active, .fit-stat-edit:active, .lift-picker:active, button:active, [data-info]:active)),
 .wk-card:active:not(:has(button:active)) {
   transform: scale(1.035);
   transition: transform 0.9s cubic-bezier(0.15, 0.55, 0.3, 1);
@@ -1120,6 +1135,22 @@ button.meal-row:not(:disabled):active {
   gap: 12px;
 }
 /* Sleep stages under the hypnogram: four across. */
+/* A sentence inside a card, under its stats (what shaped a score, a trend). */
+.fit-card-note {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+}
+/* A labeled control inside a card (Woke Up: Tired / OK / Rested). */
+.fit-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 17px;
+}
 /* Under the sleep strip: how often you woke (gray) and the time awake (in Awake's orange). */
 .stage-caption {
   display: flex;
@@ -2023,3 +2054,10 @@ button.water-oz:active {
   -webkit-backface-visibility: hidden;
 }
 
+
+/* Anything you can touch and hold for an explanation: no iOS callout or selection while held. */
+[data-info] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
