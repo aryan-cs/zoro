@@ -4,9 +4,10 @@ import { createPortal } from 'react-dom';
 import { AiError } from '../core/gemini';
 import { geminiDeps, logFromPhoto, toInboxFoods, type PhotoFood, type PhotoLog, type PhotoStep } from '../core/photoLog';
 import { logFoods, today } from '../core/store';
-import type { ISODate, Meal } from '../core/types';
+import type { ISODate, Meal, Settings } from '../core/types';
 import { aiKey } from '../ui/aiKey';
-import { Btn, db, Field, FITNESS, FitText, fmt, MacroSummary, Row, Section, SheetPage, useSettings, useToast } from '../ui/kit';
+import { carbTarget } from '../core/calc';
+import { Btn, db, Field, FITNESS, fmt, RING_GRADIENT, Row, Section, SheetPage, SingleRing, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { shrinkPhoto } from '../ui/photo';
 import { Sym } from '../ui/Sym';
@@ -17,24 +18,23 @@ type State =
   | { phase: 'review'; log: PhotoLog }
   | { phase: 'error'; title: string; message: string; kind: AiError['kind'] | 'empty' };
 
-/** A food's four numbers, as the amount sheet shows them: label over a colored rounded value. */
-function Macros({ kcal, protein, carbs, fat }: { kcal: number; protein: number; carbs: number; fat: number }) {
+/** A food's calories and macros as four small rings against the day's targets, each with its amount under it. */
+function ItemRings({ m, settings }: { m: { kcal: number; protein: number; carbs: number; fat: number }; settings: Settings }) {
+  const rings = [
+    { label: 'Calories', value: m.kcal, target: settings.kcalTarget, unit: 'kcal', color: FITNESS.move, gradient: RING_GRADIENT.move, glyph: 'flame.fill' },
+    { label: 'Protein', value: m.protein, target: settings.proteinTarget, unit: 'g', color: FITNESS.exercise, gradient: RING_GRADIENT.exercise, glyph: 'frying.pan.fill' },
+    { label: 'Carbs', value: m.carbs, target: carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget), unit: 'g', color: FITNESS.carbs, gradient: RING_GRADIENT.carbs, glyph: 'carrot.fill' },
+    { label: 'Fat', value: m.fat, target: settings.fatTarget, unit: 'g', color: FITNESS.steps, gradient: RING_GRADIENT.steps, glyph: 'circle.hexagongrid.fill' },
+  ] as const;
   return (
-    <div className="pl-macros">
-      {(
-        [
-          ['Calories', kcal, 'KCAL', FITNESS.move],
-          ['Protein', protein, 'G', FITNESS.exercise],
-          ['Carbs', carbs, 'G', FITNESS.carbs],
-          ['Fat', fat, 'G', FITNESS.steps],
-        ] as const
-      ).map(([label, v, u, color]) => (
-        <div key={label}>
-          <div className="amt-macro-label">{label}</div>
-          <FitText className="amt-macro-value" style={{ color }}>
-            {fmt(v, v > 0 && v < 10 && u === 'G' ? 1 : 0)}
-            <small>{u}</small>
-          </FitText>
+    <div className="pl-rings">
+      {rings.map((r) => (
+        <div key={r.label} className="pl-ring" aria-label={`${r.label}: ${fmt(r.value)} ${r.unit}`}>
+          <SingleRing value={r.value} target={r.target} colors={r.gradient} glyph={r.glyph} />
+          <span className="pl-ring-value" style={{ color: r.color }}>
+            {fmt(r.value, r.value > 0 && r.value < 10 && r.unit === 'g' ? 1 : 0)}
+            <small>{r.unit}</small>
+          </span>
         </div>
       ))}
     </div>
@@ -46,8 +46,8 @@ const times = (f: PhotoFood) => {
   return { kcal: m.kcal * f.quantity, protein: m.protein * f.quantity, carbs: m.carbs * f.quantity, fat: m.fat * f.quantity };
 };
 
-/** One food from the photo: what it is, how many (− 1 +), its numbers, and where they came from. */
-function FoodCell({ food, onQuantity }: { food: PhotoFood; onQuantity: (q: number) => void }) {
+/** One food from the photo: what it is, how many (− 1 +), its rings, and where its numbers came from. */
+function FoodCell({ food, settings, onQuantity }: { food: PhotoFood; settings: Settings; onQuantity: (q: number) => void }) {
   const s = food.food.serving;
   const step = food.quantity % 1 ? 0.5 : 1;
   // "1 bowl" and "560 g" stay on one line each when the line wraps.
@@ -72,7 +72,7 @@ function FoodCell({ food, onQuantity }: { food: PhotoFood; onQuantity: (q: numbe
           </button>
         </div>
       </div>
-      <Macros {...times(food)} />
+      <ItemRings m={times(food)} settings={settings} />
       {food.source ? (
         <a className="pl-source" href={food.source.url} target="_blank" rel="noreferrer">
           <span>{food.source.title}</span>
@@ -174,13 +174,6 @@ export function PhotoLogSheet({ file, date, meal, onClose, onDone }: { file: Fil
   const log = state.phase === 'review' ? state.log : null;
   const update = (patch: Partial<PhotoLog>) => log && setState({ phase: 'review', log: { ...log, ...patch } });
   const chosen = log ? log.foods.filter((f) => f.quantity > 0) : [];
-  const total = chosen.reduce(
-    (t, f) => {
-      const m = times(f);
-      return { kcal: t.kcal + m.kcal, protein: t.protein + m.protein, carbs: t.carbs + m.carbs, fat: t.fat + m.fat };
-    },
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-  );
   const estimates = log ? log.foods.filter((f) => f.basis === 'estimate').length : 0;
   const note = !estimates
     ? 'Numbers are copied from the source shown under each food.'
@@ -219,18 +212,12 @@ export function PhotoLogSheet({ file, date, meal, onClose, onDone }: { file: Fil
 
       {log && (
         <>
-          {/* What these foods add up to, as the Food tab's rings against the day's targets. */}
-          <div className="fit-stack mt-5">
-            <div className="fit-card">
-              <MacroSummary totals={total} settings={settings} />
-            </div>
-          </div>
           <Section
             title="Foods"
             footer={note}
           >
             {log.foods.map((f, i) => (
-              <FoodCell key={i} food={f} onQuantity={(q) => update({ foods: log.foods.map((g, j) => (j === i ? { ...g, quantity: q } : g)) })} />
+              <FoodCell key={i} food={f} settings={settings} onQuantity={(q) => update({ foods: log.foods.map((g, j) => (j === i ? { ...g, quantity: q } : g)) })} />
             ))}
           </Section>
           <Section title="When">
