@@ -66,6 +66,71 @@ function NumSetting({ label, k, settings }: { label: string; k: NumKey; settings
 
 const enc = encodeURIComponent;
 
+/** Connect to USDA: a free FoodData Central key, so search finds generic foods too. */
+function UsdaSheet({ opened, onClose, saved }: { opened: boolean; onClose: () => void; saved?: string }) {
+  const toast = useToast();
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (opened) {
+      setKey('');
+      setError(null);
+    }
+  }, [opened]);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key.trim())}&query=apple&pageSize=1`);
+      if (res.status === 401 || res.status === 403) throw new Error('That key didn’t work. Check it and try again.');
+      await saveSettings({ usdaApiKey: key.trim() });
+      toast('USDA is connected');
+      onClose();
+    } catch (err) {
+      setError(err instanceof TypeError ? 'Couldn’t reach USDA. Check your connection.' : err instanceof Error ? err.message : 'Couldn’t check the key.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <SheetPage opened={opened} onClose={onClose} title="Connect to USDA" closeLabel={saved ? 'Done' : 'Cancel'}>
+      {saved ? (
+        <Section title="Key" footer="Search includes USDA’s generic foods.">
+          <Row title="USDA Key" right="Saved" />
+          <Row
+            danger
+            title="Remove Key"
+            onClick={() => {
+              void saveSettings({ usdaApiKey: undefined });
+              toast('Key removed');
+            }}
+          />
+        </Section>
+      ) : (
+        <>
+          <Section keep title="1. Create Key">
+            <Row accent title="Get a Free Key" chevron onClick={() => window.open('https://fdc.nal.usda.gov/api-key-signup/', '_blank')} />
+          </Section>
+          <ol className="mx-8 mt-2 list-inside list-decimal space-y-1 text-sm text-white/60">
+            <li>Enter your name and email.</li>
+            <li>The key arrives by email; copy it.</li>
+          </ol>
+          <Section keep title="2. Paste Key" footer="Search then includes USDA’s generic foods, like raw chicken or rice.">
+            <Field label="Key" secret placeholder="Paste Key" value={key} onChange={setKey} wide />
+          </Section>
+          {error && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{error}</p>}
+          <div className="mx-4 mt-4">
+            <Btn kind="tint" size="lg" disabled={busy || key.trim().length < 20} onClick={() => void save()}>
+              {busy ? 'Checking…' : 'Save Key'}
+            </Btn>
+          </div>
+        </>
+      )}
+    </SheetPage>
+  );
+}
+
 /**
  * Photo Logging: your free Gemini key, pasted once. Kept on this phone only (aiKey.ts), so it's
  * never in a backup.
@@ -97,7 +162,7 @@ function PhotoLoggingSheet({ opened, onClose }: { opened: boolean; onClose: () =
     }
   };
   return (
-    <SheetPage opened={opened} onClose={onClose} title="Photo Logging" closeLabel={saved ? 'Done' : 'Cancel'}>
+    <SheetPage opened={opened} onClose={onClose} title="Connect to Gemini" closeLabel={saved ? 'Done' : 'Cancel'}>
       {saved ? (
         <Section title="Key" footer="Your Gemini key is saved on this iPhone only. It isn’t part of your backup.">
           <Row title="Gemini Key" right="Saved" />
@@ -135,10 +200,13 @@ function PhotoLoggingSheet({ opened, onClose }: { opened: boolean; onClose: () =
   );
 }
 
-function CloudBackup() {
+/**
+ * Connect to GitHub: off, it walks you through making a token and connecting; on, it shows the
+ * last backup with Back Up Now and Disconnect. The choose-a-backup alert lives here too.
+ */
+function GitHubSheet({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const toast = useToast();
   const status = useSync();
-  const [open, setOpen] = useState(false);
   const [token, setToken] = useState('');
   const [repo, setRepo] = useState(syncConfig()?.repo ?? DEFAULT_REPO);
   const [busy, setBusy] = useState(false);
@@ -153,7 +221,7 @@ function CloudBackup() {
     setError(null);
     try {
       const result = await connect({ token: token.trim(), repo: repo.trim() });
-      setOpen(false);
+      onClose();
       setToken('');
       toast(result === 'restored' ? 'Backup restored' : result === 'saved' ? 'Backup connected' : 'Choose a backup');
     } catch (err) {
@@ -167,33 +235,31 @@ function CloudBackup() {
 
   return (
     <>
-      <Section title="Cloud Backup">
-        {status.state === 'off' ? (
-          <Row title="GitHub Backup" chevron onClick={() => setOpen(true)} />
+      <SheetPage opened={opened} onClose={onClose} title="Connect to GitHub" closeLabel={status.state === 'off' ? 'Cancel' : 'Done'}>
+        {status.state !== 'off' ? (
+          <>
+            <Section title="Backup" footer={`Everything you log is saved to ${syncConfig()?.repo ?? repo} on its own.`}>
+              <Row
+                title="Last Backup"
+                right={
+                  status.state === 'saving' ? (
+                    'Saving…'
+                  ) : status.state === 'error' ? (
+                    <span className="text-[#ff453a]">Not saved</span>
+                  ) : status.state === 'conflict' ? (
+                    <span className="text-[#ff9f0a]">Choose backup</span>
+                  ) : (
+                    `Saved ${timeAgo(status.lastSavedAt)}`
+                  )
+                }
+              />
+              <Row accent title="Back Up Now" onClick={() => void backupNow()} />
+              <Row danger title="Disconnect" onClick={() => disconnect()} />
+            </Section>
+            {status.state === 'error' && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{status.message}</p>}
+          </>
         ) : (
           <>
-            <Row
-              title="Backup"
-              right={
-                status.state === 'saving' ? (
-                  'Saving…'
-                ) : status.state === 'error' ? (
-                  <span className="text-[#ff453a]">Not saved</span>
-                ) : status.state === 'conflict' ? (
-                  <span className="text-[#ff9f0a]">Choose backup</span>
-                ) : (
-                  `Saved ${timeAgo(status.lastSavedAt)}`
-                )
-              }
-            />
-            <Row accent title="Back Up Now" onClick={() => void backupNow()} />
-            <Row danger title="Disconnect" onClick={() => disconnect()} />
-          </>
-        )}
-      </Section>
-      {status.state === 'error' && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{status.message}</p>}
-
-      <SheetPage opened={open} onClose={() => setOpen(false)} title="GitHub Backup">
         <Section keep title="1. Create Token">
           <Row accent title="Create Token" chevron onClick={() => window.open(tokenUrl, '_blank')} />
         </Section>
@@ -212,6 +278,8 @@ function CloudBackup() {
             {busy ? 'Connecting…' : 'Connect'}
           </Btn>
         </div>
+          </>
+        )}
       </SheetPage>
 
       <Dialog
@@ -243,10 +311,11 @@ export function SettingsScreen() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [pendingImport, setPendingImport] = useState<unknown>(null);
-  const [usda, setUsda] = useState(settings.usdaApiKey ?? '');
   const gemini = useAiKey();
   const [photoSheet, setPhotoSheet] = useState(false);
-  useEffect(() => setUsda(settings.usdaApiKey ?? ''), [settings.usdaApiKey]);
+  const [usdaSheet, setUsdaSheet] = useState(false);
+  const [githubSheet, setGithubSheet] = useState(false);
+  const backup = useSync();
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted);
   }, []);
@@ -432,18 +501,24 @@ export function SettingsScreen() {
         <NumSetting label="Heaviest Dumbbells (lb)" k="dumbbellMax" settings={settings} />
       </Section>
 
-      {/* Connections: food search and Apple Health. */}
+      {/* Connections: each row opens its own page to connect, or to see and undo it. */}
       <Section
         title="Connections"
-        footer="A free USDA key adds generic foods to search. A free Gemini key lets Zoro read receipts, orders and plates from a photo. Apple Health sends your sleep and steps to Zoro on its own."
+        footer="A free USDA key adds generic foods to search. A free Gemini key lets Zoro read receipts, orders and plates from a photo. Apple Health sends your sleep and steps to Zoro on its own. GitHub keeps a backup of everything in your private repo."
       >
-        <Field label="Connect to USDA" placeholder="Key" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+        <Row title="Connect to USDA" right={settings.usdaApiKey ? 'On' : 'Off'} chevron onClick={() => setUsdaSheet(true)} />
         <Row title="Connect to Gemini" right={gemini ? 'On' : 'Off'} chevron onClick={() => setPhotoSheet(true)} />
         <Row title="Connect to Apple Health" right={healthSyncedAt ? 'On' : 'Off'} chevron onClick={() => nav.push({ name: 'healthSetup' })} />
+        <Row
+          title="Connect to GitHub"
+          right={backup.state === 'off' ? 'Off' : backup.state === 'error' ? <span className="text-[#ff453a]">Not Saved</span> : backup.state === 'conflict' ? <span className="text-[#ff9f0a]">Choose</span> : 'On'}
+          chevron
+          onClick={() => setGithubSheet(true)}
+        />
       </Section>
+      <UsdaSheet opened={usdaSheet} onClose={() => setUsdaSheet(false)} saved={settings.usdaApiKey} />
       <PhotoLoggingSheet opened={photoSheet} onClose={() => setPhotoSheet(false)} />
-
-      <CloudBackup />
+      <GitHubSheet opened={githubSheet} onClose={() => setGithubSheet(false)} />
 
       <Section title="This Phone" footer={<>Food data: USDA FoodData Central · Open Food Facts (ODbL). Build {__BUILD__}</>}>
         <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />

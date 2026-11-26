@@ -155,7 +155,7 @@ export function TodayScreen() {
       <div className="fit-stack">
         {/* Sleep, water, steps and today's workout as Fitness's combined rings, each labeled beside
             them; tap a line to open it, touch and hold to see what it counts. */}
-        <section className="fit-card">
+        <section className="fit-card is-plain">
           <RingSummary
             rows={[
               {

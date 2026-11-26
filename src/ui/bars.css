@@ -756,6 +756,10 @@ button.meal-row:not(:disabled):active {
   background: var(--ios-cell);
   -webkit-tap-highlight-color: transparent;
 }
+/* The rings at the top of Today and Food sit straight on the black, with no card behind them. */
+.fit-card.is-plain {
+  background: transparent;
+}
 /* Press, as Fitness (iOS 27): the card grows about its center while held, with no color change,
  * and eases back down on release. Fitness's half-width cards grow 7.5% (about 6.5pt a side);
  * full-width cards grow the same few points, not the same percent, so they stay inside the
