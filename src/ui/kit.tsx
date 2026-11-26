@@ -1098,20 +1098,140 @@ export function Note({ children, className }: { children: ReactNode; className?:
   return <p className={`mx-8 mt-1.5 text-[15px] leading-[20px] text-[#8d8d93] ${className ?? ''}`}>{children}</p>;
 }
 
-/** iOS bottom sheet (Konsta Sheet) with a grabber. */
+/**
+ * Drag a sheet down to close it, as on iOS: it follows the finger down (and rubber-bands if pulled
+ * up), and on release closes if the flick would carry it past halfway (the release velocity
+ * projected as UIScrollView decelerates, rate 0.998 per ms), or springs back. A drag starts only
+ * when what's under the finger is scrolled to its top, so scrolling the sheet still scrolls.
+ * Attach the returned ref to any element inside the sheet.
+ */
+function useSwipeToClose(opened: boolean, onClose: () => void) {
+  const anchor = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const sheet = anchor.current?.closest<HTMLElement>('.k-sheet, .k-popup');
+    if (!opened || !sheet) return;
+    const backdrop = sheet.previousElementSibling as HTMLElement | null;
+    let start: { y: number; x: number; scroller: HTMLElement | null } | null = null;
+    let engaged = false;
+    let offset = 0;
+    let samples: { y: number; t: number }[] = [];
+    let settle = 0;
+    const scrollerOf = (el: Element | null): HTMLElement | null => {
+      for (let n = el as HTMLElement | null; n && n !== sheet.parentElement; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 1) return n;
+      }
+      return null;
+    };
+    // Past the edge it gives less and less, as iOS's rubber band does.
+    const rubber = (x: number, d: number) => (1 - 1 / ((Math.abs(x) * 0.55) / d + 1)) * d * Math.sign(x);
+    const place = (y: number, how: string) => {
+      sheet.style.transition = how;
+      sheet.style.transform = `translateY(${y}px)`;
+      if (backdrop) {
+        backdrop.style.transition = how.replace('transform', 'opacity');
+        backdrop.style.opacity = String(1 - Math.max(0, y) / sheet.offsetHeight);
+      }
+    };
+    const reset = () => {
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (backdrop) {
+        backdrop.style.transition = '';
+        backdrop.style.opacity = '';
+      }
+    };
+    const down = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      window.clearTimeout(settle);
+      const t = e.touches[0];
+      start = { y: t.clientY, x: t.clientX, scroller: scrollerOf(e.target as Element) };
+      engaged = false;
+      samples = [{ y: t.clientY, t: e.timeStamp }];
+    };
+    const move = (e: TouchEvent) => {
+      if (!start) return;
+      const t = e.touches[0];
+      const dy = t.clientY - start.y;
+      const dx = t.clientX - start.x;
+      if (!engaged) {
+        const atTop = !start.scroller || start.scroller.scrollTop <= 0;
+        // Down from the top of whatever's scrolled, or up on a sheet that doesn't scroll at all.
+        const wanted = (dy > 6 && atTop) || (dy < -6 && !start.scroller);
+        if (!wanted || Math.abs(dx) > Math.abs(dy)) {
+          if (Math.abs(dy) > 6 || Math.abs(dx) > 6) start = null;
+          return;
+        }
+        engaged = true;
+        start.y = t.clientY; // follow from here, so it doesn't jump
+      }
+      e.preventDefault();
+      const d = t.clientY - start.y;
+      offset = d >= 0 ? d : rubber(d, sheet.offsetHeight);
+      place(offset, 'none');
+      samples.push({ y: t.clientY, t: e.timeStamp });
+      if (samples.length > 6) samples.shift();
+    };
+    const up = () => {
+      if (!start || !engaged) {
+        start = null;
+        return;
+      }
+      start = null;
+      engaged = false;
+      const a = samples[0];
+      const b = samples[samples.length - 1];
+      const v = b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0; // pt per ms
+      const projected = offset + (v * 0.998) / (1 - 0.998);
+      if (offset > 0 && projected > sheet.offsetHeight / 2) {
+        // Closing slides on from where the finger left it.
+        place(offset, '');
+        if (backdrop) {
+          backdrop.style.transition = 'opacity 0.35s ease-out';
+          backdrop.style.opacity = '0';
+        }
+        close.current();
+        settle = window.setTimeout(reset, 450);
+      } else {
+        place(0, 'transform 0.5s cubic-bezier(0.2, 0.9, 0.25, 1)');
+        settle = window.setTimeout(reset, 500);
+      }
+    };
+    sheet.addEventListener('touchstart', down, { passive: true });
+    sheet.addEventListener('touchmove', move, { passive: false });
+    sheet.addEventListener('touchend', up);
+    sheet.addEventListener('touchcancel', up);
+    return () => {
+      window.clearTimeout(settle);
+      sheet.removeEventListener('touchstart', down);
+      sheet.removeEventListener('touchmove', move);
+      sheet.removeEventListener('touchend', up);
+      sheet.removeEventListener('touchcancel', up);
+    };
+  }, [opened]);
+  return anchor;
+}
+
+/** iOS bottom sheet (Konsta Sheet) with a grabber; drag it down to close. */
 export function GlassSheet({ opened, onClose, children }: { opened: boolean; onClose: () => void; children: ReactNode }) {
+  const drag = useSwipeToClose(opened, onClose);
   return (
     <Sheet opened={opened} onBackdropClick={onClose} className="pb-[calc(var(--k-safe-area-bottom,0px)+12px)] pt-2">
-      <div aria-hidden="true" className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-white/30" />
+      <div ref={drag} aria-hidden="true" className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-white/30" />
       {children}
     </Sheet>
   );
 }
 
-/** Full-height modal sheet (Konsta Popup) with a navigation bar and a close button. */
+/** Full-height modal sheet (Konsta Popup) with a navigation bar and a close button; drag it down
+ * from the top of its content to close. */
 export function SheetPage({ opened, onClose, title, children, closeLabel = 'Cancel' }: { opened: boolean; onClose: () => void; title: string; children: ReactNode; closeLabel?: string }) {
+  const drag = useSwipeToClose(opened, onClose);
   return (
     <Popup opened={opened} onBackdropClick={onClose}>
+      <div ref={drag} hidden />
       {/* A sheet isn't a pushed screen, even when opened from one: its bar has no Back (which
           would pop the screen underneath), only its own Cancel or Done. */}
       <InStack.Provider value={false}>
