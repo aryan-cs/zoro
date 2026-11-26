@@ -280,7 +280,7 @@ function TabPane({ active, children, paneRef }: { active: boolean; children: Rea
 }
 
 /** Touches that start on these keep the sideways swipe for themselves (scrubbing a chart, dragging a dial). */
-const OWN_SWIPE = '.fit-chart, canvas, input, textarea, select, .ios-segmented, .sleep-dial, .zoro-tabbar, .k-dialog, .k-popup, .k-sheet, .k-actions';
+const OWN_SWIPE = '[data-no-swipe], .fit-chart, canvas, input, textarea, select, .ios-segmented, .sleep-dial, .zoro-tabbar, .k-dialog, .k-popup, .k-sheet, .k-actions';
 
 /**
  * The tabs as pages, moved like a UIKit paging scroll view. One position (in pages) drives every
