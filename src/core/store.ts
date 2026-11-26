@@ -158,6 +158,30 @@ export interface InboxFood {
   /** How many servings. */
   quantity: number;
   food: { name: string; brand?: string; serving: { label: string; grams?: number; macros: Macros } };
+  /** The page or PDF its nutrition came from. */
+  source?: string;
+}
+
+/** Whether `item` is a food to log, in the inbox's shape. */
+export function isInboxFood(item: unknown): item is InboxFood {
+  const f = item as InboxFood;
+  const m = f?.food?.serving?.macros;
+  const meals: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+  return (
+    f?.kind === 'food' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(f.date) &&
+    meals.includes(f.meal) &&
+    f.quantity > 0 &&
+    !!f.food?.name &&
+    !!m &&
+    [m.kcal, m.protein, m.carbs, m.fat].every((n) => Number.isFinite(n) && n >= 0)
+  );
+}
+
+/** Log one inbox-shaped food (as one serving's worth times its quantity). */
+function logInboxShaped(f: InboxFood, db: ZoroDB): Promise<number> {
+  const food: FoodItem = { name: f.food.name, brand: f.food.brand, serving: f.food.serving, source: 'custom', url: f.source, updatedAt: Date.now() };
+  return logFood({ food, quantity: f.quantity, unit: 'serving', meal: f.meal, date: f.date }, db);
 }
 
 /**
@@ -165,16 +189,19 @@ export interface InboxFood {
  * again adds nothing. Returns whether it added it; throws if it isn't an inbox food.
  */
 export async function logInboxFood(id: string, item: unknown, db: ZoroDB = getDB()): Promise<boolean> {
-  const f = item as InboxFood;
-  const m = f?.food?.serving?.macros;
-  const meals: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-  if (f?.kind !== 'food' || !/^\d{4}-\d{2}-\d{2}$/.test(f.date) || !meals.includes(f.meal) || !(f.quantity > 0) || !f.food.name || !m || ![m.kcal, m.protein, m.carbs, m.fat].every((n) => Number.isFinite(n) && n >= 0)) {
-    throw new Error('Not an inbox food.');
-  }
+  if (!isInboxFood(item)) throw new Error('Not an inbox food.');
   if (await db.entries.filter((e) => e.inboxId === id).first()) return false;
-  const entryId = await logFood({ food: { name: f.food.name, brand: f.food.brand, serving: f.food.serving, source: 'custom', updatedAt: Date.now() }, quantity: f.quantity, unit: 'serving', meal: f.meal, date: f.date }, db);
+  const entryId = await logInboxShaped(item, db);
   await db.entries.update(entryId, { inboxId: id });
   return true;
+}
+
+/** Log the foods read off a photo (photoLog.ts), the way inbox foods are logged. Returns their entry ids. */
+export async function logFoods(items: InboxFood[], db: ZoroDB = getDB()): Promise<number[]> {
+  if (!items.every(isInboxFood)) throw new Error('Not a food to log.');
+  const ids: number[] = [];
+  for (const f of items) ids.push(await logInboxShaped(f, db));
+  return ids;
 }
 
 /** Takes back what an earlier inbox file logged (say, an order that never came). */

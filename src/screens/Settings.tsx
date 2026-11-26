@@ -14,6 +14,8 @@ import { Btn, db, Field, fmt, Header, Menu, NumberPrompt, Row, Section, Seg, She
 import { useNav } from '../ui/nav';
 import { useHealthSyncedAt } from '../ui/healthSync';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
+import { checkKey } from '../core/gemini';
+import { setAiKey, useAiKey } from '../ui/aiKey';
 
 type NumKey = 'benchMax' | 'benchGoal' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
 type TargetKey = 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'fiberTarget' | 'waterTargetOz' | 'sleepTargetMin';
@@ -63,6 +65,75 @@ function NumSetting({ label, k, settings }: { label: string; k: NumKey; settings
 }
 
 const enc = encodeURIComponent;
+
+/**
+ * Photo Logging: your free Gemini key, pasted once. Kept on this phone only (aiKey.ts), so it's
+ * never in a backup.
+ */
+function PhotoLoggingSheet({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+  const toast = useToast();
+  const saved = useAiKey();
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (opened) {
+      setKey('');
+      setError(null);
+    }
+  }, [opened]);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await checkKey(key.trim());
+      setAiKey(key.trim());
+      toast('Photo logging is on');
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Couldn’t check the key.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <SheetPage opened={opened} onClose={onClose} title="Photo Logging" closeLabel={saved ? 'Done' : 'Cancel'}>
+      {saved ? (
+        <Section title="Key" footer="Your Gemini key is saved on this iPhone only. It isn’t part of your backup.">
+          <Row title="Gemini Key" right="Saved" />
+          <Row
+            danger
+            title="Remove Key"
+            onClick={() => {
+              setAiKey(null);
+              toast('Key removed');
+            }}
+          />
+        </Section>
+      ) : (
+        <>
+          <Section keep title="1. Create Key">
+            <Row accent title="Get a Free Key" chevron onClick={() => window.open('https://aistudio.google.com/apikey', '_blank')} />
+          </Section>
+          <ol className="mx-8 mt-2 list-inside list-decimal space-y-1 text-sm text-white/60">
+            <li>Sign in to Google AI Studio.</li>
+            <li>Create API Key, then copy it.</li>
+            <li>The free tier is enough; no card needed.</li>
+          </ol>
+          <Section keep title="2. Paste Key" footer="Saved on this iPhone only, never in your backup. Photos go to Google’s Gemini to read.">
+            <Field label="Key" secret placeholder="Paste Key" value={key} onChange={setKey} wide />
+          </Section>
+          {error && <p role="alert" className="mx-8 mt-2 text-sm text-[#ff453a]">{error}</p>}
+          <div className="mx-4 mt-4">
+            <Btn kind="tint" size="lg" disabled={busy || key.trim().length < 20} onClick={() => void save()}>
+              {busy ? 'Checking…' : 'Save Key'}
+            </Btn>
+          </div>
+        </>
+      )}
+    </SheetPage>
+  );
+}
 
 function CloudBackup() {
   const toast = useToast();
@@ -173,6 +244,8 @@ export function SettingsScreen() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [pendingImport, setPendingImport] = useState<unknown>(null);
   const [usda, setUsda] = useState(settings.usdaApiKey ?? '');
+  const gemini = useAiKey();
+  const [photoSheet, setPhotoSheet] = useState(false);
   useEffect(() => setUsda(settings.usdaApiKey ?? ''), [settings.usdaApiKey]);
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted);
@@ -360,10 +433,15 @@ export function SettingsScreen() {
       </Section>
 
       {/* Connections: food search and Apple Health. */}
-      <Section title="Connections" footer="Add a free USDA key to search generic foods too. The Apple Health automation sends your sleep and steps to Zoro on its own.">
+      <Section
+        title="Connections"
+        footer="Add a free USDA key to search generic foods too. Photo Logging reads receipts, orders and plates with your free Gemini key. The Apple Health automation sends your sleep and steps to Zoro on its own."
+      >
         <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
+        <Row title="Photo Logging" right={gemini ? 'On' : 'Off'} chevron onClick={() => setPhotoSheet(true)} />
         <Row title="Apple Health Automation" right={healthSyncedAt ? 'On' : 'Off'} chevron onClick={() => nav.push({ name: 'healthSetup' })} />
       </Section>
+      <PhotoLoggingSheet opened={photoSheet} onClose={() => setPhotoSheet(false)} />
 
       <CloudBackup />
 
