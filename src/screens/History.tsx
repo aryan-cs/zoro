@@ -14,6 +14,7 @@ import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, RING_GRADIENT, RingSummary, Row, Section, Seg, useFitRow, useHoldInfo, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
 import { Box, Boxes, ShowHidden } from '../ui/boxes';
+import { Pager } from '../ui/pager';
 import { useNav } from '../ui/nav';
 import { longDate } from './Today';
 
@@ -837,8 +838,11 @@ function Sleep() {
   );
 }
 
+const TABS: Tab[] = ['lifts', 'body', 'food', 'sleep'];
+
 export function HistoryScreen({ initial }: { initial?: Tab }) {
   const [tab, setTab] = useState<Tab>(initial ?? 'lifts');
+  const pageRef = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<Range>(() => {
     try {
       const saved = Number(localStorage.getItem(RANGE_KEY));
@@ -861,7 +865,11 @@ export function HistoryScreen({ initial }: { initial?: Tab }) {
       >
         <Seg
           value={tab}
-          onChange={setTab}
+          onChange={(t) => {
+            // Each section starts at its top: the page scrolls back up as the sections slide.
+            pageRef.current?.closest('.k-page')?.scrollTo({ top: 0, behavior: 'smooth' });
+            setTab(t);
+          }}
           options={[
             ['lifts', 'Lifts'],
             ['body', 'Body'],
@@ -870,11 +878,9 @@ export function HistoryScreen({ initial }: { initial?: Tab }) {
           ]}
         />
       </Header>
+      <div ref={pageRef} />
       <RangeContext.Provider value={range}>
-        {tab === 'lifts' && <Lifts />}
-        {tab === 'body' && <Body />}
-        {tab === 'food' && <Food />}
-        {tab === 'sleep' && <Sleep />}
+        <Pager index={TABS.indexOf(tab)} pages={[<Lifts key="l" />, <Body key="b" />, <Food key="f" />, <Sleep key="s" />]} />
       </RangeContext.Provider>
       <Menu
         anchor={rangeMenu}

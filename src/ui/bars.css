@@ -2160,11 +2160,18 @@ button.water-oz:active {
   backdrop-filter: blur(14px);
   animation: ctx-fade 0.22s ease-out both;
 }
+/* Closing has its own keyframes: re-running the opening ones in reverse doesn't restart them, so
+ * the blur would vanish at once instead of fading. */
 .ctx-scrim.is-closing {
-  animation: ctx-fade 0.22s ease-in reverse both;
+  animation: ctx-fade-out 0.24s ease-in both;
 }
 @keyframes ctx-fade {
   from {
+    opacity: 0;
+  }
+}
+@keyframes ctx-fade-out {
+  to {
     opacity: 0;
   }
 }
@@ -2184,7 +2191,7 @@ button.water-oz:active {
 }
 /* The held box's copy fades out with the blur as the real one returns. */
 .ctx-lift.is-closing {
-  animation: ctx-fade 0.22s ease-in reverse both;
+  animation: ctx-fade-out 0.24s ease-in both;
 }
 /* A pinned box: a small gray pin in its top-right corner. */
 .hold-box {
@@ -2210,4 +2217,35 @@ button.water-oz:active {
 }
 .show-hidden:active {
   opacity: 0.4;
+}
+
+/* History's sections side by side; the track slides to the one picked. */
+.pager {
+  overflow-x: clip;
+}
+.pager-track {
+  display: flex;
+  align-items: flex-start;
+  transition: transform var(--push-ms) var(--push-ease);
+}
+.pager-page {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+/* At rest, the sections you're not on fold away so the page only scrolls as far as yours. */
+.pager-page.is-away {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+/* Food's meals: the old day's copy slides out over the new day sliding in. */
+.slide-clip {
+  position: relative;
+  overflow-x: clip;
+}
+.slide-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
 }

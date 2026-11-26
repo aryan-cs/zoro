@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
+import { useSlideSwap } from '../ui/pager';
 import { Sym } from '../ui/Sym';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { addDays, sumEntries } from '../core/calc';
@@ -277,6 +278,7 @@ export function FoodScreen() {
   const [selected, setSelected] = useState<FoodEntry | null>(null);
   const [scanning, setScanning] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const slideMeals = useSlideSwap(listRef, date);
   const totals = sumEntries(entries);
 
   // A dropped food shows in its new place straight away, before the database catches up.
@@ -340,7 +342,16 @@ export function FoodScreen() {
   return (
     <Page className="tab-safe">
       <Header
-        title={<DayTitle date={date} onChange={setDate} />}
+        title={
+          <DayTitle
+            date={date}
+            onChange={(d) => {
+              // The meals slide: a later day comes in from the right, an earlier one from the left.
+              slideMeals(d > date ? 1 : -1);
+              setDate(d);
+            }}
+          />
+        }
         right={
           <IconGroup
             items={[
@@ -357,6 +368,7 @@ export function FoodScreen() {
         </div>
       </div>
 
+      <div className="slide-clip">
       <div ref={listRef}>
         {MEALS.map((m) => {
           const items = shown.filter((e) => e.meal === m.id && e.id !== drop?.id);
@@ -408,6 +420,7 @@ export function FoodScreen() {
             </div>
           );
         })}
+      </div>
       </div>
 
       <Scanner opened={scanning} onClose={() => setScanning(false)} onCode={(c) => void onCode(c)} />
