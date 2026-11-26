@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 import { useSyncExternalStore } from 'react';
 import { getDB } from '../core/db';
 import { checkRepo, readRemote, SyncError, writeRemote, type GitHubConfig, type Remote } from '../core/github';
-import { exportAll, importAll } from '../core/store';
+import { exportAll, importAll, mergeBackup } from '../core/store';
 
 /**
  * Automatic backup to a private GitHub repo. The token is saved on this phone, so you connect once.
@@ -76,6 +76,10 @@ let quietUntil = 0;
 let changes = 0;
 let running: Promise<void> | null = null;
 
+/** A copy set up for you on a computer (profile, goals, starting weights), not another phone's
+ * history: it merges into this phone instead of asking which to keep. */
+const fromSetup = (r: Remote): boolean => r.backup.device === 'setup';
+
 function schedule(ms: number): void {
   window.clearTimeout(timer);
   timer = window.setTimeout(() => void backupNow(), ms);
@@ -96,15 +100,18 @@ export function backupNow(): Promise<void> {
     const seen = changes;
     emit({ state: 'saving', lastSavedAt: meta.lastSavedAt });
     try {
-      const backup = { ...(await exportAll(getDB())), device: meta.device };
+      let backup = { ...(await exportAll(getDB())), device: meta.device };
       let sha: string;
       try {
         sha = await writeRemote(current, backup, meta.sha);
       } catch (err) {
         if (!(err instanceof SyncError) || err.kind !== 'conflict') throw err;
         const remote = await readRemote(current);
-        // Someone else's copy (another phone, or Safari instead of the Home Screen app): ask first.
-        if (remote && remote.backup.device !== meta.device) {
+        if (remote && fromSetup(remote)) {
+          await mergeBackup(remote.backup, getDB());
+          backup = { ...(await exportAll(getDB())), device: meta.device };
+        } else if (remote && remote.backup.device !== meta.device) {
+          // Someone else's copy (another phone, or Safari instead of the Home Screen app): ask first.
           emit({ state: 'conflict', remote, lastSavedAt: meta.lastSavedAt });
           return;
         }
@@ -143,10 +150,12 @@ async function checkRemote(): Promise<void> {
       saveMeta({ sha: remote.sha });
       return;
     }
-    if (!(await hasLoggedData())) await restore(remote);
+    if (fromSetup(remote)) await mergeSetup(remote);
+    else if (!(await hasLoggedData())) await restore(remote);
     else emit({ state: 'conflict', remote, lastSavedAt: meta.lastSavedAt });
-  } catch {
-    /* offline or GitHub unreachable: check again next time */
+  } catch (err) {
+    // Offline: check again next time. Anything else (an expired key, say) shows in Settings.
+    if (err instanceof SyncError && err.kind !== 'network') emit({ state: 'error', message: err.message, lastSavedAt: meta.lastSavedAt });
   }
 }
 
@@ -154,6 +163,13 @@ async function hasLocalData(): Promise<boolean> {
   const db = getDB();
   const counts = await Promise.all([db.sessions.count(), db.entries.count(), db.sleep.count(), db.metrics.count(), db.water.count()]);
   return counts.some((n) => n > 0);
+}
+
+/** Merge a set-up copy in, then save the result as this phone's backup. */
+async function mergeSetup(remote: Remote): Promise<void> {
+  await mergeBackup(remote.backup, getDB());
+  saveMeta({ sha: remote.sha, dirty: true });
+  await backupNow();
 }
 
 async function restore(remote: Remote): Promise<void> {
@@ -176,6 +192,10 @@ export async function connect(next: GitHubConfig): Promise<'saved' | 'restored' 
     saveMeta({ sha: undefined });
     await backupNow();
     return 'saved';
+  }
+  if (fromSetup(remote)) {
+    await mergeSetup(remote);
+    return 'restored';
   }
   if (!(await hasLocalData())) {
     await restore(remote);

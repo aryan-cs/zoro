@@ -8,6 +8,7 @@ import {
   finishSession,
   importAll,
   logFood,
+  mergeBackup,
   logSet,
   saveMetric,
   saveSleep,
@@ -79,5 +80,32 @@ describe('store', () => {
     expect(await other.entries.count()).toBe(1);
     expect((await other.metrics.toArray())[0].value).toBe(35.25);
     await expect(importAll({ nope: true }, other)).rejects.toThrow(/not a Zoro backup/);
+  });
+
+  it('merges a set-up copy without losing what the phone logged', async () => {
+    // The phone: a weigh-in today, a food, and settings it changed itself.
+    await saveSettings({ sex: 'male', phase: 'cut', daysPerWeek: 5 }, db);
+    await saveMetric('weight', 194, today(), db);
+    await logFood({ food: yogurt, quantity: 1, unit: 'serving', meal: 'lunch' }, db);
+    const setup = {
+      app: 'zoro',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      tables: {
+        settings: [{ key: 'settings', birthDate: '2006-03-05', heightIn: 73, daysPerWeek: 4, goalMetric: 'arm' }],
+        metrics: [
+          { id: 1, date: today(), type: 'weight', value: 195 },
+          { id: 2, date: today(), type: 'arm', value: 16.25 },
+        ],
+        entries: [],
+      },
+    };
+    await mergeBackup(setup, db);
+    const s = await db.settings.get('settings');
+    expect(s).toMatchObject({ sex: 'male', phase: 'cut', birthDate: '2006-03-05', heightIn: 73, daysPerWeek: 4, goalMetric: 'arm' });
+    const metrics = await db.metrics.toArray();
+    expect(metrics.find((m) => m.type === 'weight')?.value).toBe(194);
+    expect(metrics.find((m) => m.type === 'arm')?.value).toBe(16.25);
+    expect(await db.entries.count()).toBe(1);
   });
 });

@@ -10,6 +10,7 @@ import type {
   ISODate,
   Macros,
   Meal,
+  Settings,
   MetricType,
   SavedMeal,
   SetLog,
@@ -286,6 +287,32 @@ export async function exportAll(db: ZoroDB = getDB()): Promise<Backup> {
     tables[name] = rows.filter((r) => !r.sample && !(name === 'sets' && r.sessionId !== undefined && sampleSessions.has(r.sessionId)));
   }
   return { app: 'zoro', version: 1, exportedAt: new Date().toISOString(), tables };
+}
+
+/**
+ * Bring in a copy that was set up for you on a computer (your profile, goals and starting weights,
+ * maybe a few measurements) without touching what this phone has logged. Its settings win; a
+ * measurement comes in unless this phone already has that kind for that day; any other table
+ * comes in only if it's empty here.
+ */
+export async function mergeBackup(backup: unknown, db: ZoroDB = getDB()): Promise<void> {
+  const b = backup as Backup;
+  if (!b || b.app !== 'zoro' || typeof b.tables !== 'object') throw new Error('That file is not a Zoro backup.');
+  await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
+    for (const name of TABLES) {
+      const rows = b.tables[name];
+      if (!Array.isArray(rows) || !rows.length) continue;
+      if (name === 'settings') {
+        await db.settings.put({ ...(await getSettings(db)), ...(rows[0] as Partial<Settings>), key: 'settings' });
+      } else if (name === 'metrics') {
+        for (const { id: _id, ...m } of rows as BodyMetric[]) {
+          if (!(await db.metrics.where('[type+date]').equals([m.type, m.date]).first())) await db.metrics.add(m);
+        }
+      } else if ((await db.table(name).count()) === 0) {
+        await db.table(name).bulkPut(rows);
+      }
+    }
+  });
 }
 
 /** Replace everything with a backup. Throws if the file isn't a Zoro backup. */
