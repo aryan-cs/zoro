@@ -20,7 +20,7 @@ export const RUN_URL = 'shortcuts://run-shortcut?name=Connect%20Zoro%20to%20Heal
  * shortcut (scripts/make-health-shortcut.py), add the new build and share a fresh link. The shared
  * copy asks for the backup key when added; no key is in it.
  */
-const ICLOUD_URL = 'https://www.icloud.com/shortcuts/d3c267607b4f443995db3821e5994f86';
+const ICLOUD_URL = 'https://www.icloud.com/shortcuts/5c449d9db6d849ee8f19b68e1935c678';
 
 /** Add Connect Zoro to Health to Shortcuts, for the automation to run. */
 export function addHealthAutomation() {
@@ -62,7 +62,7 @@ export function HealthSetupScreen() {
       <Section
         keep
         title="2. Make the Automation"
-        footer="It runs once a day: the first time you open that app after 5 AM, once last night’s sleep is in Apple Health. Opening it again that day does nothing. It waits for you to open an app because Apple Health can’t be read while your iPhone is locked."
+        footer="It runs once a day, the first time you open that app after 5 AM; opening it again that day does nothing. It waits for you to open an app because Apple Health can’t be read while your iPhone is locked."
       >
         <Cell className="py-2.5 text-[15px]">
           In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and choose Is Opened. Then choose Run Immediately, turn off Notify When Run, and pick Connect Zoro to Health.

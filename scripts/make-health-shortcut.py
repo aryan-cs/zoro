@@ -5,9 +5,9 @@ Run on a Mac: python3 scripts/make-health-shortcut.py
 Writes public/ZoroHealth.shortcut (signed so anyone can add it). Nothing personal is in it: adding
 it asks for the backup key and repo (Import Questions), which stay on that iPhone.
 
-Once a day (the first run after 5 AM that finds last night in Apple Health; a note in the
-Shortcuts folder, Zoro Health.txt, remembers the day), the shortcut finds Sleep and Steps samples
-from the last two days, builds one block of text:
+Once a day (the first run after 5 AM; a note in the Shortcuts folder, Zoro Health.txt, remembers
+the day), the shortcut finds Sleep and Steps samples from the last two days, builds one block of
+text:
     ZORO-HEALTH1
     <sleep start dates> --- <sleep end dates> --- <sleep values (Asleep Core, Awake, ...)>
     --- <step start dates> --- <step counts> --- <step sources (iPhone, Apple Watch)>
@@ -34,10 +34,7 @@ ADJ = str(uuid.uuid4()).upper()
 DAY = str(uuid.uuid4()).upper()
 FILE = str(uuid.uuid4()).upper()
 LAST = str(uuid.uuid4()).upper()
-ENDS = str(uuid.uuid4()).upper()
-TODAY = str(uuid.uuid4()).upper()
 SKIP = str(uuid.uuid4()).upper()
-MARK = str(uuid.uuid4()).upper()
 
 
 def samples(prop: str, iso: bool, uid: str = FIND) -> dict:
@@ -142,7 +139,7 @@ def if_end(group: str) -> dict:
     return {'WFWorkflowActionIdentifier': 'is.workflow.actions.conditional', 'WFWorkflowActionParameters': {'GroupingIdentifier': group, 'WFControlFlowMode': 2}}
 
 
-IS, CONTAINS = 4, 99
+IS = 4
 MARK_FILE = 'Zoro Health.txt'  # in the Shortcuts folder: the last day it brought in last night
 now = {'Type': 'CurrentDate'}
 
@@ -212,11 +209,8 @@ actions = [
             }),
         },
     },
-    # Done for the day only once last night is in Apple Health (some sleep ends today); until then
-    # the next time the app opens tries again.
-    {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': ENDS, 'WFTextActionText': tokens(fmt({'Type': 'ActionOutput', 'OutputUUID': FIND, 'OutputName': 'Health Samples', 'Aggrandizements': [{'Type': 'WFPropertyVariableAggrandizement', 'PropertyName': 'End Date'}]}, 'yyyy-MM-dd'))}},
-    {'WFWorkflowActionIdentifier': 'is.workflow.actions.gettext', 'WFWorkflowActionParameters': {'UUID': TODAY, 'WFTextActionText': tokens(fmt(now, 'yyyy-MM-dd'))}},
-    if_start(MARK, output(ENDS, 'Text'), CONTAINS, tokens(output(TODAY, 'Text'))),
+    # Done for the day: later runs stop at the first check. (Without an Apple Watch nothing writes
+    # sleep to Apple Health, so it doesn't wait for last night; two days per run covers a late sync.)
     {
         'WFWorkflowActionIdentifier': 'is.workflow.actions.documentpicker.save',
         'WFWorkflowActionParameters': {
@@ -226,7 +220,6 @@ actions = [
             'WFSaveFileOverwrite': True,
         },
     },
-    if_end(MARK),
 ]
 
 shortcut = {
@@ -234,7 +227,7 @@ shortcut = {
     'WFWorkflowClientVersion': '2605.0.5',
     'WFWorkflowMinimumClientVersion': 900,
     'WFWorkflowMinimumClientVersionString': '900',
-    'WFWorkflowIcon': {'WFWorkflowIconStartColor': 1440408063, 'WFWorkflowIconGlyphNumber': 59446},
+    'WFWorkflowIcon': {'WFWorkflowIconStartColor': 4292093695, 'WFWorkflowIconGlyphNumber': 59754},  # green, heart
     'WFWorkflowImportQuestions': [
         {'ActionIndex': 0, 'Category': 'Parameter', 'DefaultValue': '', 'ParameterKey': 'WFTextActionText', 'Text': 'Paste the key you use for Zoro’s Cloud Backup (github_pat_…).'},
         {'ActionIndex': 1, 'Category': 'Parameter', 'DefaultValue': 'aryan-cs/zoro-data', 'ParameterKey': 'WFTextActionText', 'Text': 'Your backup repo, as in Zoro’s Settings.'},
