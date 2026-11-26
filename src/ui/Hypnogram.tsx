@@ -24,7 +24,7 @@ const dur = (m: number) => (m < 60 ? `${Math.round(m)}m` : `${Math.floor(m / 60)
  * stretch colored by its stage, clock times underneath, then each stage's total with its color.
  */
 export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string | undefined }) {
-  const clip = useId();
+  const clip = `h${useId().replace(/[^\w-]/g, '')}`; // safe inside url(#…)
   const W = 300;
   const H = 30;
   const t0 = spans[0][0];

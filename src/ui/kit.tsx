@@ -12,7 +12,7 @@ import {
   Sheet,
   Toast,
 } from 'konsta/react';
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { carbTarget } from '../core/calc';
 import { NavBar, NavButton, NavButtonGroup, NavTextButton, PullDownMenu, SegmentedControl } from './bars';
 import { Sym } from './Sym';
@@ -386,6 +386,8 @@ export function RollingNumber({ value, suffix = '' }: { value: number; suffix?: 
 function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [number, number]; r: number; w: number; value: number; target: number; colors: readonly [string, string]; glyph: RingGlyph }) {
   // The ring glides to a new value instead of jumping.
   const value = useTweened(raw);
+  // Ids for the tip shadow's clip and blur (useId's punctuation isn't safe inside url(#…)).
+  const uid = `r${useId().replace(/[^\w-]/g, '')}`;
   const p = target > 0 ? Math.max(0, value / target) : 0;
   // Full (up to ~4% over, where a second lap's tip would just sit on the start as a disc): one
   // seamless loop with no caps. The shading runs start → end color over three quarters of the
@@ -427,9 +429,22 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
   const end = Math.min(p, 1) * 360;
   const [ex, ey] = onRing(cx, cy, r, end);
   const [ox, oy] = onRing(cx, cy, r, over);
-  // Which way the second lap's tip is heading (clockwise), for its shadow.
+  // Which way the second lap's tip is heading (clockwise), and the line across the ring through
+  // its center: the tip's shadow falls only ahead of that line, and only on the ring itself.
   const tx = Math.cos((over * Math.PI) / 180);
   const ty = Math.sin((over * Math.PI) / 180);
+  const L = w * 3;
+  const ahead = [
+    [ox - ty * L, oy + tx * L],
+    [ox - ty * L + tx * L, oy + tx * L + ty * L],
+    [ox + ty * L + tx * L, oy - tx * L + ty * L],
+    [ox + ty * L, oy - tx * L],
+  ]
+    .map((q) => q.join(','))
+    .join(' ');
+  const ro = r + w / 2;
+  const ri = r - w / 2;
+  const band = `M${cx - ro} ${cy}a${ro} ${ro} 0 1 0 ${2 * ro} 0a${ro} ${ro} 0 1 0 ${-2 * ro} 0ZM${cx - ri} ${cy}a${ri} ${ri} 0 1 0 ${2 * ri} 0a${ri} ${ri} 0 1 0 ${-2 * ri} 0Z`;
   const [sx, sy] = onRing(cx, cy, r, 0);
   // The glyph rides the ring's leading end (at 25% it sits at 3 o'clock); at the top while empty
   // or exactly full, and on the second lap's tip past the goal.
@@ -494,16 +509,30 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
               o'clock so its square start overlaps the first lap's end (same shade there) instead of
               meeting it edge to edge. */}
           {lap(-2, over, 'b', 360)}
-          {/* The tip goes on top, so the lap's square start can never cut it (past 200% the tip sits
-              right on it). Its shadow falls ahead along the ring, onto the lap it overlaps, offset
-              enough that none shows behind it. */}
-          <circle
-            cx={ox}
-            cy={oy}
-            r={w / 2}
-            fill={shade(total)}
-            style={{ filter: `drop-shadow(${tx * w * 0.3}px ${ty * w * 0.3}px ${w * 0.18}px rgba(0,0,0,0.75))` }}
-          />
+          {/* The tip's shadow, as on Apple's rings: cast forward onto the lap the tip is passing
+              over, clipped to the half ahead of the tip and to the ring's own band, so it never
+              rims the tip's trailing half (which would outline it as a separate disc) or spills
+              onto the card or the next ring. */}
+          <defs>
+            <clipPath id={`${uid}b`}>
+              <path d={band} clipRule="evenodd" />
+            </clipPath>
+            <clipPath id={`${uid}a`}>
+              <polygon points={ahead} />
+            </clipPath>
+            <filter id={`${uid}s`} x="-1" y="-1" width="3" height="3">
+              <feGaussianBlur stdDeviation={w * 0.14} />
+            </filter>
+          </defs>
+          <g clipPath={`url(#${uid}b)`}>
+            <g clipPath={`url(#${uid}a)`}>
+              <circle cx={ox + tx * w * 0.1} cy={oy + ty * w * 0.1} r={w / 2} fill="#000" fillOpacity={0.6} filter={`url(#${uid}s)`} />
+            </g>
+          </g>
+          {/* The tip on top, so the lap's square start can never cut it (past 200% the tip sits right
+              on it). Its color is the lap's at that point, so its trailing half melts into the
+              stroke and only the rounded front shows. */}
+          <circle cx={ox} cy={oy} r={w / 2} fill={shade(total)} />
         </>
       )}
       {glyphEl}
