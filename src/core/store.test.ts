@@ -8,6 +8,7 @@ import {
   finishSession,
   importAll,
   logFood,
+  applyInboxItem,
   logInboxFood,
   mergeBackup,
   saveHealthImport,
@@ -141,6 +142,16 @@ describe('store', () => {
     expect(entries[0].macros).toMatchObject({ kcal: 2094, protein: 114, carbs: 206, fat: 92 });
     await expect(logInboxFood('b.json', { ...item, meal: 'brunch' }, db)).rejects.toThrow();
     await expect(logInboxFood('c.json', { kind: 'note' }, db)).rejects.toThrow();
+  });
+
+  it('takes back what an inbox file logged', async () => {
+    const food = { name: 'Bowl', serving: { label: '1 bowl', macros: { kcal: 500, protein: 30, carbs: 50, fat: 20 } } };
+    await applyInboxItem('a.json', { kind: 'food', date: today(), meal: 'lunch', quantity: 2, food }, db);
+    await applyInboxItem('b.json', { kind: 'food', date: today(), meal: 'lunch', quantity: 1, food }, db);
+    expect(await applyInboxItem('c.json', { kind: 'unlog', inboxId: 'a.json' }, db)).toBe(true);
+    expect((await db.entries.toArray()).map((e) => e.inboxId)).toEqual(['b.json']);
+    expect(await applyInboxItem('c.json', { kind: 'unlog', inboxId: 'a.json' }, db)).toBe(false);
+    await expect(applyInboxItem('d.json', { kind: 'unlog' }, db)).rejects.toThrow();
   });
 });
 

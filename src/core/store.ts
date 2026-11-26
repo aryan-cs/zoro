@@ -177,6 +177,21 @@ export async function logInboxFood(id: string, item: unknown, db: ZoroDB = getDB
   return true;
 }
 
+/** Takes back what an earlier inbox file logged (say, an order that never came). */
+export interface InboxUnlog {
+  kind: 'unlog';
+  /** The name of the inbox file that logged it. */
+  inboxId: string;
+}
+
+/** Apply one inbox file: log a food, or take one back. Throws if it's neither. */
+export async function applyInboxItem(id: string, item: unknown, db: ZoroDB = getDB()): Promise<boolean> {
+  const u = item as InboxUnlog;
+  if (u?.kind !== 'unlog') return logInboxFood(id, item, db);
+  if (typeof u.inboxId !== 'string' || !u.inboxId) throw new Error('Not an inbox item.');
+  return (await db.entries.filter((e) => e.inboxId === u.inboxId).delete()) > 0;
+}
+
 export async function quickAdd(name: string, macros: Macros, meal: Meal, date: ISODate = today(), db: ZoroDB = getDB()): Promise<number> {
   return (await db.entries.add({ date, meal, name, quantity: 1, unit: 'serving', macros, loggedAt: Date.now() })) as number;
 }

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { getDB } from '../core/db';
 import { deleteFile, listFolder, readText } from '../core/github';
-import { logInboxFood, saveHealthImport } from '../core/store';
+import { applyInboxItem, saveHealthImport } from '../core/store';
 import { syncConfig, whenChecked } from './sync';
 
 /**
@@ -11,7 +11,7 @@ import { syncConfig, whenChecked } from './sync';
  * files it hasn't seen, oldest first (so the newest wins), and clears out ones over a week old.
  *
  * The same pull empties the repo's inbox/: foods to log, sent there when you ask Claude to log
- * something (see logInboxFood). Each is logged once and its file deleted.
+ * something (see logInboxFood), or to take one back. Each is applied once and its file deleted.
  */
 
 const FOLDER = 'health';
@@ -99,12 +99,12 @@ export function pullHealth(force = false): Promise<number> {
   return running;
 }
 
-/** Log what's waiting in inbox/, then delete each file (a file that won't read is left alone). */
+/** Apply what's waiting in inbox/, then delete each file (a file that won't read is left alone). */
 async function pullInbox(cfg: NonNullable<ReturnType<typeof syncConfig>>): Promise<void> {
   const files = (await listFolder(cfg, 'inbox')).filter((f) => f.name.endsWith('.json')).sort((a, b) => a.name.localeCompare(b.name));
   for (const f of files) {
     try {
-      await logInboxFood(f.name, JSON.parse(await readText(cfg, f.path)), getDB());
+      await applyInboxItem(f.name, JSON.parse(await readText(cfg, f.path)), getDB());
       await deleteFile(cfg, f, `Logged ${f.name}`);
     } catch {
       // Not readable yet (or not a food): leave it for next time.
