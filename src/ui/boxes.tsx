@@ -239,6 +239,8 @@ function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void;
 
   return createPortal(
     <div className={`ctx-scrim ${closing ? 'is-closing' : ''}`} onClick={() => close()} onContextMenu={(e) => e.preventDefault()}>
+      {/* Only the blur and dimming fade in: the box is lifted at full strength from the start. */}
+      <div className={`ctx-blur ${closing ? 'is-closing' : ''}`} />
       <div ref={lift} className={`ctx-lift ${closing ? 'is-closing' : ''}`} style={{ top: r.top, left: r.left, width: r.width, height: r.height }} />
       <div className={`ios-menu ctx-menu ${closing ? 'is-closing' : ''}`} role="menu" style={{ top, left: r.left, transformOrigin: top >= r.bottom ? 'top left' : 'bottom left' }} onClick={(e) => e.stopPropagation()}>
         <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onPin)}>
