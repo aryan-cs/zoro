@@ -18,12 +18,20 @@ export const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Health';
  * Where Zoro Health installs from: the signed copy this app serves. Adding it asks for the backup
  * key, so nothing personal is in the file.
  */
-const ADD_URL = new URL(`${import.meta.env.BASE_URL}ZoroHealth.shortcut`, location.origin).href;
+const FILE_URL = new URL(`${import.meta.env.BASE_URL}ZoroHealth.shortcut`, location.origin).href;
 
-/** Add Zoro Health to Shortcuts, for the automation to run. */
+/**
+ * Add Zoro Health to Shortcuts. Shortcuts' own import link fetches the signed file and shows its
+ * Add Shortcut screen. (Opening the file itself from the Home Screen app lands in an in-app
+ * browser that can't hand a .shortcut on, so that's only the fallback below.)
+ */
 export function addHealthAutomation() {
-  // A new window leaves the Home Screen app, so iOS hands the file to Safari and then Shortcuts.
-  if (!window.open(ADD_URL, '_blank')) window.location.href = ADD_URL;
+  window.location.href = `shortcuts://import-shortcut?url=${encodeURIComponent(FILE_URL)}&name=${encodeURIComponent('Zoro Health')}`;
+}
+
+/** The fallback: the file in a browser page, to open in Safari and download. */
+function openShortcutFile() {
+  if (!window.open(FILE_URL, '_blank')) window.location.href = FILE_URL;
 }
 
 /** "today at 9:02 AM", "yesterday at 9:02 AM" or "Nov 24 at 9:02 AM". */
@@ -55,8 +63,13 @@ export function HealthSetupScreen() {
       >
         <Row title="Last Brought In" right={syncedAt ? whenWas(syncedAt) : 'Not Yet'} />
       </Section>
-      <Section keep title="1. Add Zoro Health" footer="These are the steps the automation runs. Adding them asks once for your Cloud Backup key.">
+      <Section
+        keep
+        title="1. Add Zoro Health"
+        footer="These are the steps the automation runs. Adding them asks once for your Cloud Backup key. If Shortcuts doesn’t open them, tap Download Instead, then the compass at the bottom right to open it in Safari, download the file, and open it from Downloads."
+      >
         <Row accent title="Add to Shortcuts" onClick={addHealthAutomation} />
+        <Row accent title="Download Instead" onClick={openShortcutFile} />
       </Section>
       <Section
         keep
