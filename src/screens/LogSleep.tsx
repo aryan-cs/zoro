@@ -97,6 +97,28 @@ export function LogSleepScreen() {
     <Page className="tab-safe">
       <Header title="Log Sleep" onBack={nav.pop} />
 
+      {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
+      <div className="fit-stack">
+        <FitCard title="Last Night" className="is-log sleep-manual">
+          <div className="sleep-times">
+            <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
+            <SleepTime icon="alarm.waves.left.and.right.fill" label="WAKE UP" time={wake} day="Today" />
+          </div>
+          <SleepDial
+            bed={bed}
+            wake={wake}
+            onChange={(b, w) => {
+              setBed(b);
+              setWake(w);
+            }}
+          />
+          <div className="sleep-total">{hrMin(span)}</div>
+          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'You met your sleep goal.' : `That’s ${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
+          <Btn size="lg" className="sleep-save" onClick={() => void saveManual()}>
+            Save
+          </Btn>
+        </FitCard>
+      </div>
       <div className="fit-stack">
         {/* From Apple Health: the shortcut copies last night's sleep, then paste it here. */}
         <FitCard title="Import from Apple Health" className="is-log">
@@ -137,29 +159,6 @@ export function LogSleepScreen() {
           {paste.trim() && <Row accent title="Import" onClick={() => void importText(paste)} />}
         </Section>
       )}
-
-      {/* Manual: drag bedtime and wake-up on the dial, as in Health's sleep schedule. */}
-      <div className="fit-stack">
-        <FitCard title="Last Night" className="is-log sleep-manual">
-          <div className="sleep-times">
-            <SleepTime icon="bed.double.fill" label="BEDTIME" time={bed} day={toMin(bed) >= toMin(wake) ? 'Last Night' : 'Today'} />
-            <SleepTime icon="alarm.waves.left.and.right.fill" label="WAKE UP" time={wake} day="Today" />
-          </div>
-          <SleepDial
-            bed={bed}
-            wake={wake}
-            onChange={(b, w) => {
-              setBed(b);
-              setWake(w);
-            }}
-          />
-          <div className="sleep-total">{hrMin(span)}</div>
-          <div className="sleep-goal">{span >= settings.sleepTargetMin ? 'You met your sleep goal.' : `That’s ${hrMin(settings.sleepTargetMin - span)} short of your sleep goal.`}</div>
-          <Btn size="lg" className="sleep-save" onClick={() => void saveManual()}>
-            Save
-          </Btn>
-        </FitCard>
-      </div>
     </Page>
   );
 }
