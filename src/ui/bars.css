@@ -1204,11 +1204,20 @@ button.meal-row:not(:disabled):active {
 }
 
 /* ---------- Water ---------- */
+/* Water is one screen that doesn't scroll: the ring in the middle, the quick amounts 20pt above
+ * the tab bar. (Nothing ever sits behind the tab bar here, so its fade is hidden too.) */
+.k-page.water-page {
+  overflow: hidden !important;
+  padding-bottom: calc(var(--tabbar-bottom) + 74px);
+}
 .water-body {
   display: flex;
   flex-direction: column;
-  /* Fill the page between the bar and the tab bar (the page already pads for the tab bar). */
-  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 44px - var(--tabbar-bottom) - 74px);
+  /* Exactly the space between the bar and the tab bar. */
+  height: calc(100dvh - env(safe-area-inset-top, 0px) - 44px - var(--tabbar-bottom) - 74px);
+}
+body:has([aria-hidden='false'] > .stack-layer:not(.is-covered) .water-page) .ios-bottom-edge {
+  opacity: 0;
 }
 .water-hero {
   display: flex;

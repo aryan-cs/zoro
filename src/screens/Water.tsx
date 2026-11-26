@@ -101,7 +101,7 @@ export function WaterScreen() {
   };
 
   return (
-    <Page className="tab-safe">
+    <Page className="water-page">
       <Header title="Water" />
 
       {/* The ring, percent and ounces centered in the space; the quick amounts along the bottom. */}
