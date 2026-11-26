@@ -6,7 +6,7 @@ export type Tab = 'water' | 'food' | 'today' | 'lift' | 'history';
 export type Route =
   | { name: 'workout'; sessionId: number }
   /** How to do an exercise: its photos and a few pointers (swipe a set to the left). */
-  | { name: 'exercise'; exerciseId: string }
+  | { name: 'exercise'; exerciseId: string; lastSet?: boolean }
   | { name: 'addFood'; meal?: Meal; date: ISODate; barcode?: string }
   | { name: 'logSleep' }
   | { name: 'sleepSetup' }

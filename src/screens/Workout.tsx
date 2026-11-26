@@ -47,6 +47,8 @@ function SetStep(props: {
   current: boolean;
   /** Which step this is, so the screen can scroll to it. */
   stepId: string;
+  /** The exercise's final set (its how-to says to take this one to failure, if that's the plan). */
+  last: boolean;
   /** Weight used on the previous set, when there's no target yet. */
   fallbackWeight?: number;
   onLog: (weight: number, reps: number) => void;
@@ -78,7 +80,7 @@ function SetStep(props: {
     settle(sw.off);
     // Far enough, or a quick flick that's still moving when you let go.
     const flick = sw.off < -24 && sw.v < -0.8 && at - sw.t < 80;
-    if (open && (sw.off < -70 || flick)) nav.push({ name: 'exercise', exerciseId: def.id });
+    if (open && (sw.off < -70 || flick)) nav.push({ name: 'exercise', exerciseId: def.id, lastSet: props.last });
   };
   const done = !!props.logged;
   const weight = props.logged?.weight ?? edit.w ?? props.target.weight ?? props.fallbackWeight;
@@ -504,6 +506,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             <SetStep
               key={key}
               stepId={`s${key}`}
+              last={i === ex.sets.length - 1}
               target={t}
               ex={ex}
               current={key === currentKey}

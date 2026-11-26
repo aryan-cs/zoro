@@ -1,6 +1,6 @@
 import { Page } from 'konsta/react';
 import { useState } from 'react';
-import { GUIDE, videoUrl } from '../core/guide';
+import { effortTip, GUIDE, videoUrl } from '../core/guide';
 import { EXERCISES } from '../core/program';
 import { FitText, Header, Section } from '../ui/kit';
 import { useNav } from '../ui/nav';
@@ -13,7 +13,7 @@ const PHOTOS = `${import.meta.env.BASE_URL}exercises/`;
  * streamed from their site; the two photos shown in turn when there isn't one or it won't load)
  * and one to three pointers on form and how hard to push.
  */
-export function ExerciseScreen({ exerciseId }: { exerciseId: string }) {
+export function ExerciseScreen({ exerciseId, lastSet = false }: { exerciseId: string; lastSet?: boolean }) {
   const nav = useNav();
   const def = EXERCISES[exerciseId];
   const guide = GUIDE[exerciseId];
@@ -68,7 +68,7 @@ export function ExerciseScreen({ exerciseId }: { exerciseId: string }) {
             )}
           </Section>
           <Section title="How To">
-            {guide.tips.map((t) => (
+            {[...guide.tips, effortTip(guide, lastSet)].filter((t): t is string => !!t).map((t) => (
               <li key={t} className="ex-tip">
                 {t}
               </li>

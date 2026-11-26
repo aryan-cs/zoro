@@ -2599,7 +2599,7 @@ button.water-oz:active {
   position: absolute;
   top: 0;
   left: 16px;
-  right: 0;
+  right: 16px; /* inset the same at both ends */
   height: 0.5px;
   background: rgba(84, 84, 88, 0.65);
 }
