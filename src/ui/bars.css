@@ -2378,7 +2378,7 @@ button.water-oz:active {
 }
 .step-card {
   padding: 14px 16px 16px;
-  border-radius: 18px;
+  border-radius: 26px; /* the list groups' corners (Settings): one row reads as a single rounded row */
   background: var(--ios-cell);
   transition: opacity 0.25s;
 }
@@ -2440,7 +2440,7 @@ button.water-oz:active {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
+  min-height: 52px; /* a Settings row */
   padding: 8px 10px 8px 16px;
   color: #8d8d93;
 }

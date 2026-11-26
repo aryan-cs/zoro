@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page } from 'konsta/react';
 import { Sym } from '../ui/Sym';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { platesPerSide } from '../core/calc';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
@@ -46,6 +46,8 @@ function SetStep(props: {
   ex: ExercisePlan;
   logged?: SetLog;
   current: boolean;
+  /** Which step this is, so the screen can scroll to it. */
+  stepId: string;
   /** Weight used on the previous set, to prefill when there's no target yet. */
   fallbackWeight?: number;
   notes?: string[];
@@ -79,7 +81,7 @@ function SetStep(props: {
   };
 
   return (
-    <section className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}>
+    <section data-step={props.stepId} className={`step-card ${done ? 'is-done' : ''} ${props.current ? 'is-current' : ''}`}>
       <div className="step-head">
         <div className="min-w-0">
           <h3 className="step-title">{props.ex.name}</h3>
@@ -115,11 +117,29 @@ function SetStep(props: {
   );
 }
 
+/** Scrolls the workout so the active step sits just under the navigation bar. */
+function ScrollToActive({ active, first }: { active: string; first: RefObject<boolean> }) {
+  // Found from its own spot in the list: a parent's ref isn't attached yet when this first runs.
+  const self = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const root = self.current?.parentElement;
+    const page = root?.closest('.k-page');
+    const el = active ? root?.querySelector<HTMLElement>(`[data-step="${CSS.escape(active)}"]`) : null;
+    if (!page || !el) return;
+    const bar = page.querySelector('.ios-navbar')?.getBoundingClientRect().bottom ?? 0;
+    const top = page.scrollTop + el.getBoundingClientRect().top - bar - 12;
+    // Opening a workout partway through lands on your step; after that, it glides there.
+    page.scrollTo({ top: Math.max(0, top), behavior: first.current ? 'smooth' : 'auto' });
+    first.current = true;
+  }, [active, first]);
+  return <span ref={self} hidden />;
+}
+
 /**
  * A rest between sets, as a step: how long, and once the set before it is ticked off, a countdown
  * you can stretch or skip. It reads as done once the rest is over or you've moved on.
  */
-function RestStep({ sec, state, endsAt, onAdd, onSkip }: { sec: number; state: 'waiting' | 'running' | 'done'; endsAt?: number; onAdd: () => void; onSkip: () => void }) {
+function RestStep({ sec, state, endsAt, onAdd, onSkip, stepId }: { sec: number; state: 'waiting' | 'running' | 'done'; endsAt?: number; onAdd: () => void; onSkip: () => void; stepId: string }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (state !== 'running') return;
@@ -129,7 +149,7 @@ function RestStep({ sec, state, endsAt, onAdd, onSkip }: { sec: number; state: '
   const left = endsAt ? Math.max(0, Math.round((endsAt - now) / 1000)) : sec;
   const label = sec >= 60 ? `${Math.round((sec / 60) * 2) / 2} min` : `${sec} sec`;
   return (
-    <section className={`step-card is-rest ${state === 'done' ? 'is-done' : ''} ${state === 'running' ? 'is-current' : ''}`}>
+    <section data-step={stepId} className={`step-card is-rest ${state === 'done' ? 'is-done' : ''} ${state === 'running' ? 'is-current' : ''}`}>
       <Sym name="timer" size={17} />
       {state === 'running' ? (
         <>
@@ -167,6 +187,10 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek]);
 
   const finished = !!session?.finishedAt;
+  // The step you're on (a running rest, else the next set): kept at the top of the screen, just
+  // under the title, so ticking a set off moves the workout along under your thumb.
+  const activeStep = useRef('');
+  const scrolledOnce = useRef(false);
   useWakeLock(!!session && !finished);
 
   const byKey = useMemo(() => {
@@ -213,6 +237,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   // The next set to do: the first one not yet logged.
   const firstOpen = steps.find((x) => x.kind === 'set' && !byKey.get(`${x.ex.exerciseId}:${x.i}`)) as SetStepT | undefined;
   const currentKey = firstOpen ? `${firstOpen.ex.exerciseId}:${firstOpen.i}` : '';
+  activeStep.current = rest ? `r${rest.after}` : currentKey ? `s${currentKey}` : '';
   // Notes for an exercise, shown with its first set: plates to load, a starting weight, last time.
   const notesFor = (ex: ExercisePlan) => {
     const def = EXERCISES[ex.exerciseId];
@@ -270,6 +295,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
       {/* The workout as steps, in the order you do them: each set, then the rest after it.
           Supersets alternate their exercises set by set, resting after each round. */}
       <div className="fit-stack step-list">
+        <ScrollToActive active={activeStep.current} first={scrolledOnce} />
         {steps.map((step) => {
           if (step.kind === 'rest') {
             const before = byKey.get(step.after);
@@ -278,6 +304,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
             return (
               <RestStep
                 key={`r${step.after}`}
+                stepId={`r${step.after}`}
                 sec={step.sec}
                 state={state}
                 endsAt={rest?.after === step.after ? rest.endsAt : undefined}
@@ -292,6 +319,7 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
           return (
             <SetStep
               key={key}
+              stepId={`s${key}`}
               index={i}
               of={ex.sets.length}
               target={t}
