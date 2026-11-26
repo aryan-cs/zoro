@@ -854,6 +854,22 @@ button.meal-row:not(:disabled):active {
 }
 .ring-hero-backdrop {
   background: var(--ios-bg);
+  transform-origin: top;
+}
+.ring-hero-backdrop,
+.ring-hero-edge,
+.ring-hero-art,
+.ring-hero-item {
+  will-change: transform;
+}
+/* Where a released scroll may come to rest: the top, and fully collapsed (RingHero). */
+.ring-hero-snap {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 0;
+  pointer-events: none;
+  scroll-snap-align: start;
 }
 .ring-hero-edge {
   height: 24px;

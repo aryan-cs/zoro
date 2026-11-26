@@ -911,13 +911,17 @@ export function RingSummary({ rows, hero }: { rows: RingRow[]; hero?: boolean })
 /**
  * The rings at the top of a page (Today, Food), sized by how far the page is scrolled: full width
  * with the legend two by two under them at the top, the usual card once scrolled, and every step
- * between (core/heroMotion.ts has the motion). Let go partway and they settle into whichever is
- * nearer, as iOS's large titles do.
+ * between (core/heroMotion.ts has the motion).
+ *
+ * As in iOS: the motion tracks the scroll exactly, and runs as a scroll-driven animation, which
+ * Safari plays on its scrolling thread in step with the content (a scroll listener paints it where
+ * that isn't supported). Let go partway and the page's own momentum lands on whichever end is
+ * nearer (CSS scroll snapping, which WebKit does in UIScrollView's landing callback, from the
+ * flick's projected stop), instead of stopping and then animating.
  *
  * The hero stays pinned (sticky) while it collapses and the content below scrolls at the finger's
- * speed; where its top would touch the hero, a black backdrop as tall as the hero and a soft edge
- * under it let it slip just beneath. Everything moves by transform, so scrolling doesn't lay out
- * the page again.
+ * speed; where its top would touch the hero, a black backdrop and a soft edge under it let it slip
+ * just beneath. Everything moves by transform and opacity, so scrolling never lays out the page.
  */
 function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
   const box = useRef<HTMLDivElement>(null);
@@ -925,49 +929,85 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
 
   useLayoutEffect(() => {
     const spacer = box.current;
-    const inner = spacer?.firstElementChild as HTMLElement | null;
+    const inner = spacer?.querySelector<HTMLElement>('.ring-hero-inner');
     const page = spacer?.closest<HTMLElement>('.k-page');
     if (!spacer || !inner || !page) return;
     const backdrop = inner.querySelector<HTMLElement>('.ring-hero-backdrop');
     const edge = inner.querySelector<HTMLElement>('.ring-hero-edge');
+    const ring = inner.querySelector<SVGElement>('.ring-hero-art');
+    const items = [...inner.querySelectorAll<HTMLElement>('.ring-hero-item')];
+    const [snapTop, snapEnd, snapRest] = [...spacer.querySelectorAll<HTMLElement>('.ring-hero-snap')];
+    const Timeline = (window as Window & { ScrollTimeline?: new (o: { source: Element; axis: string }) => AnimationTimeline }).ScrollTimeline;
     let plan: HeroPlan | null = null;
+    let width = 0;
     let below = 0; // from the hero's bottom (big) to the content under it
+    let anims: Animation[] = [];
 
+    /** Every part's transform (and the edge's opacity) at progress p. */
+    const at = (p: number) => {
+      const f = plan!.frame(p);
+      const contentTop = plan!.bigH + below - p * plan!.span;
+      return {
+        ring: `translate(${f.ring.x}px, ${f.ring.y}px) scale(${f.ring.size / width})`,
+        items: f.items.map((it) => `translate(${it.x}px, ${it.y}px)`),
+        backdrop: `scaleY(${(f.height + 4) / plan!.bigH})`,
+        edge: `translateY(${f.height + 4}px)`,
+        edgeOpacity: Math.min(1, Math.max(0, (f.height + 4 + 24 - contentTop) / 24)),
+      };
+    };
     const paint = () => {
       if (!plan) return;
-      const f = plan.frame(page.scrollTop / plan.span);
-      const ring = inner.querySelector<SVGElement>('.ring-hero-art');
-      if (ring) ring.style.transform = `translate(${f.ring.x}px, ${f.ring.y}px) scale(${f.ring.size / spacer.clientWidth})`;
-      inner.querySelectorAll<HTMLElement>('.ring-hero-item').forEach((el, i) => {
-        const at = f.items[i];
-        if (at) el.style.transform = `translate(${at.x}px, ${at.y}px)`;
-      });
-      // The backdrop covers the hero; its soft edge shows only while content is under it.
-      const s = Math.min(page.scrollTop, plan.span);
-      const contentTop = plan.bigH + below - s;
-      if (backdrop) backdrop.style.height = `${f.height + 4}px`;
+      const f = at(Math.min(1, Math.max(0, page.scrollTop / plan.span)));
+      if (ring) ring.style.transform = f.ring;
+      items.forEach((el, i) => (el.style.transform = f.items[i] ?? ''));
+      if (backdrop) backdrop.style.transform = f.backdrop;
       if (edge) {
-        edge.style.transform = `translateY(${f.height + 4}px)`;
-        edge.style.opacity = String(Math.min(1, Math.max(0, (f.height + 4 + 24 - contentTop) / 24)));
+        edge.style.transform = f.edge;
+        edge.style.opacity = String(f.edgeOpacity);
       }
     };
+    /** Hand the motion to a scroll timeline, sampled from the plan. False if there isn't one. */
+    const animate = () => {
+      anims.forEach((a) => a.cancel());
+      anims = [];
+      const max = page.scrollHeight - page.clientHeight;
+      if (!Timeline || !plan || max <= 0) return false;
+      const timeline = new Timeline({ source: page, axis: 'block' });
+      // The timeline runs over the page's whole scroll; the hero's part is its first `span`.
+      const last = Math.min(1, max / plan.span);
+      const N = 48;
+      const steps = Array.from({ length: N + 1 }, (_, k) => {
+        const p = (k / N) * last;
+        return { p, offset: Math.min(1, (p * plan!.span) / max), f: at(p) };
+      });
+      const run = (el: Element | null, frames: (f: ReturnType<typeof at>) => Keyframe) => {
+        if (!el) return;
+        const kf = steps.map((st) => ({ ...frames(st.f), offset: st.offset }));
+        if (kf[kf.length - 1].offset < 1) kf.push({ ...kf[kf.length - 1], offset: 1 });
+        anims.push(el.animate(kf, { timeline, fill: 'both', easing: 'linear' } as KeyframeAnimationOptions));
+      };
+      run(ring, (f) => ({ transform: f.ring }));
+      items.forEach((el, i) => run(el, (f) => ({ transform: f.items[i] })));
+      run(backdrop, (f) => ({ transform: f.backdrop }));
+      run(edge, (f) => ({ transform: f.edge, opacity: f.edgeOpacity }));
+      return true;
+    };
+    let animated = false;
 
     const measure = () => {
-      const width = spacer.clientWidth;
+      width = spacer.clientWidth;
       if (!width) return;
-      const items = [...inner.querySelectorAll<HTMLElement>('.ring-hero-item')];
       plan = planHero({ width, ws: items.map((el) => el.offsetWidth), hs: items.map((el) => el.offsetHeight) });
       // The page keeps the big height; the rings stay pinned where they start while they shrink.
       const start = spacer.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop;
       spacer.style.height = `${plan.bigH}px`;
       inner.style.height = `${plan.smallH}px`;
       inner.style.top = `${start}px`;
-      const ring = inner.querySelector<SVGElement>('.ring-hero-art');
       if (ring) {
         ring.style.width = `${width}px`;
         ring.style.height = `${width}px`;
       }
-      // The backdrop spans the page's width, from edge to edge.
+      // The backdrop spans the page's width, edge to edge, as tall as the big hero (scaled down to fit).
       const pageBox = page.getBoundingClientRect();
       const heroBox = spacer.getBoundingClientRect();
       for (const el of [backdrop, edge]) {
@@ -975,61 +1015,49 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
         el.style.left = `${pageBox.left - heroBox.left}px`;
         el.style.width = `${pageBox.width}px`;
       }
+      if (backdrop) backdrop.style.height = `${plan.bigH}px`;
       // Where the next thing on the page starts, under the big hero.
       const card = spacer.closest('.fit-card') ?? spacer;
       let next = card.nextElementSibling ?? card.parentElement?.nextElementSibling ?? null;
       while (next && !(next as HTMLElement).offsetHeight) next = next.nextElementSibling;
       below = next ? next.getBoundingClientRect().top - (heroBox.top + plan.bigH) : 0;
+      // Snap points at the top and at fully collapsed, and past that one snap area as tall as the
+      // rest of the page, so a flick into the content isn't pulled back (WebKit doesn't snap
+      // inside an area taller than the screen).
+      if (snapTop) snapTop.style.top = `${-start}px`;
+      if (snapEnd) snapEnd.style.top = `${plan.span - start}px`;
+      if (snapRest) {
+        snapRest.style.top = `${plan.span - start}px`;
+        snapRest.style.height = `${Math.max(0, page.scrollHeight - plan.span)}px`;
+      }
       paint();
+      animated = animate();
     };
     relayout.current = measure;
 
     let frame = 0;
-    let settle = 0;
-    let touching = false;
-    // Partway between the two when the scroll comes to rest: finish to the nearer one.
-    const settleSoon = () => {
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => {
-        if (touching || !plan) return;
-        const s = page.scrollTop;
-        const end = Math.min(plan.span, page.scrollHeight - page.clientHeight);
-        if (s <= 1 || s >= end - 1) return;
-        page.scrollTo({ top: s < end / 2 ? 0 : end, behavior: 'smooth' });
-      }, 140);
-    };
     const onScroll = () => {
-      if (!frame)
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          paint();
-        });
-      settleSoon();
+      if (animated || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        paint();
+      });
     };
-    const down = () => {
-      touching = true;
-      window.clearTimeout(settle);
-    };
-    const up = () => {
-      touching = false;
-      settleSoon();
-    };
+    const snap = page.style.scrollSnapType;
+    page.style.scrollSnapType = 'y proximity';
     const sizes = new ResizeObserver(() => measure());
     sizes.observe(spacer);
-    inner.querySelectorAll('.ring-hero-item').forEach((el) => sizes.observe(el));
+    items.forEach((el) => sizes.observe(el));
+    // The page's length sets the timeline's: watch everything on it.
+    [...page.children].forEach((el) => sizes.observe(el));
     page.addEventListener('scroll', onScroll, { passive: true });
-    page.addEventListener('touchstart', down, { passive: true });
-    page.addEventListener('touchend', up, { passive: true });
-    page.addEventListener('touchcancel', up, { passive: true });
     measure();
     return () => {
       sizes.disconnect();
       cancelAnimationFrame(frame);
-      window.clearTimeout(settle);
+      anims.forEach((a) => a.cancel());
+      page.style.scrollSnapType = snap;
       page.removeEventListener('scroll', onScroll);
-      page.removeEventListener('touchstart', down);
-      page.removeEventListener('touchend', up);
-      page.removeEventListener('touchcancel', up);
     };
   }, [legend.length]);
 
@@ -1038,6 +1066,9 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
 
   return (
     <div ref={box} className="ring-hero">
+      <i className="ring-hero-snap" aria-hidden />
+      <i className="ring-hero-snap" aria-hidden />
+      <i className="ring-hero-snap is-rest" aria-hidden />
       <div className="ring-hero-inner">
         <div className="ring-hero-backdrop" aria-hidden />
         <div className="ring-hero-edge" aria-hidden />
