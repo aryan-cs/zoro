@@ -1676,28 +1676,12 @@ button.water-oz:active {
   padding: 16px;
   text-align: left;
 }
-/* Apple Health: a line of status, then the one-time setup. */
+/* Apple Health on Log Sleep: where it stands. */
 .health-note {
   margin: 2px 0 14px;
   font-size: 15px;
   line-height: 20px;
   color: #8d8d93;
-}
-.health-note.is-small {
-  margin: 12px 0 0;
-  font-size: 13px;
-  line-height: 18px;
-}
-.health-steps {
-  margin: 0 0 16px;
-  padding-left: 22px;
-  list-style: decimal;
-  font-size: 15px;
-  line-height: 20px;
-  color: var(--ios-label);
-}
-.health-steps li + li {
-  margin-top: 8px;
 }
 .sleep-import-btns {
   display: grid;

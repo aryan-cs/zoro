@@ -6,7 +6,7 @@ import { HistoryScreen, type HistoryTab } from './screens/History';
 import { LiftScreen } from './screens/Lift';
 import { LogSleepScreen } from './screens/LogSleep';
 import { SettingsScreen } from './screens/Settings';
-import { SleepSetupScreen } from './screens/SleepSetup';
+import { HealthSetupScreen } from './screens/HealthSetup';
 import { TodayScreen } from './screens/Today';
 import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
@@ -38,8 +38,8 @@ function RouteScreen({ route }: { route: Route }) {
       return <AddFoodScreen meal={route.meal} date={route.date} barcode={route.barcode} />;
     case 'logSleep':
       return <LogSleepScreen />;
-    case 'sleepSetup':
-      return <SleepSetupScreen />;
+    case 'healthSetup':
+      return <HealthSetupScreen />;
     case 'settings':
       return <SettingsScreen />;
     case 'screen':

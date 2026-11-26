@@ -238,7 +238,7 @@ export function LiftScreen() {
             progress={dayProgress(secondId)}
           />
         )}
-        {/* Steps, every day: from Apple Health (the Zoro Health shortcut), against the daily goal. */}
+        {/* Steps, every day: from Apple Health (the automation), against the daily goal. */}
         <WorkoutCard
           title="Steps"
           glyph="figure.walk"

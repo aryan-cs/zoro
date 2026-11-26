@@ -144,7 +144,7 @@ export function stepsFromSamples(starts: string[], counts: string[], sources: st
 }
 
 /**
- * What the Zoro Health shortcut copies: last night's sleep and the last two days' steps, as
+ * What the Apple Health automation (Zoro Health) sends: last night's sleep and the last two days' steps, as
  *   ZORO-HEALTH1
  *   <sleep starts> --- <sleep ends> --- <sleep values> --- <step starts> --- <step counts> --- <step sources>
  * (each list one item per line). The older Zoro Sleep shortcut's text still reads as sleep only.

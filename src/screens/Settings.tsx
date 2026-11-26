@@ -12,7 +12,7 @@ import { Sym } from '../ui/Sym';
 import type { Phase, Settings } from '../core/types';
 import { Btn, db, Field, fmt, Header, Menu, NumberPrompt, Row, Section, Seg, SheetPage, timeAgo, useSettings, useToast } from '../ui/kit';
 import { useNav } from '../ui/nav';
-import { addSleepShortcut } from './LogSleep';
+import { useHealthSyncedAt } from '../ui/healthSync';
 import { backupNow, connect, DEFAULT_REPO, disconnect, resolveConflict, syncConfig, useSync } from '../ui/sync';
 
 type NumKey = 'benchMax' | 'benchGoal' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
@@ -166,6 +166,7 @@ function CloudBackup() {
 
 export function SettingsScreen() {
   const nav = useNav();
+  const healthSyncedAt = useHealthSyncedAt();
   const toast = useToast();
   const settings = useSettings();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -359,10 +360,9 @@ export function SettingsScreen() {
       </Section>
 
       {/* Connections: food search and Apple Health. */}
-      <Section title="Connections" footer="Add a free USDA key to search generic foods too. The shortcut brings in last night’s sleep from Apple Health.">
+      <Section title="Connections" footer="Add a free USDA key to search generic foods too. The Apple Health automation sends your sleep and steps to Zoro on its own.">
         <Field label="USDA Key" placeholder="Optional" value={usda} onChange={(v) => setUsda(v.trim())} onBlur={() => void saveSettings({ usdaApiKey: usda || undefined })} wide />
-        <Row title="Apple Health Shortcut" chevron onClick={addSleepShortcut} />
-        <Row title="Shortcut Setup" chevron onClick={() => nav.push({ name: 'sleepSetup' })} />
+        <Row title="Apple Health Automation" right={healthSyncedAt ? 'On' : 'Off'} chevron onClick={() => nav.push({ name: 'healthSetup' })} />
       </Section>
 
       <CloudBackup />

@@ -11,7 +11,7 @@ export type Route =
   | { name: 'exercise'; exerciseId: string; lastSet?: boolean }
   | { name: 'addFood'; meal?: Meal; date: ISODate; barcode?: string }
   | { name: 'logSleep' }
-  | { name: 'sleepSetup' }
+  | { name: 'healthSetup' }
   | { name: 'settings' }
   /** A tab's screen opened from a card (Today's Water, This Week…), pushed with a Back button. */
   | { name: 'screen'; tab: Tab; section?: string };

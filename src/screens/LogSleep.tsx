@@ -6,6 +6,7 @@ import { saveSleep, today } from '../core/store';
 import { hrMin } from '../core/say';
 import { Btn, db, FitCard, Header, useSettings, useToast } from '../ui/kit';
 import { useHealthSyncedAt } from '../ui/healthSync';
+import { RUN_URL, whenWas } from './HealthSetup';
 import { useSync } from '../ui/sync';
 import { SleepDial, SleepTime } from '../ui/SleepDial';
 
@@ -24,41 +25,6 @@ const toMin = (hhmm: string) => {
   return h * 60 + m;
 };
 import { useNav } from '../ui/nav';
-
-const RUN_URL = 'shortcuts://run-shortcut?name=Zoro%20Health';
-const INSTALLED_KEY = 'zoro.healthShortcut'; // new name: the old sleep-only shortcut has to be swapped
-
-/** Remember that you've been sent to add the shortcut. */
-function setShortcutState(v: 'tried') {
-  try {
-    localStorage.setItem(INSTALLED_KEY, v);
-  } catch {
-    // Storage blocked: nothing depends on it.
-  }
-}
-
-/** "today at 9:02 AM", "yesterday at 9:02 AM" or "Nov 24 at 9:02 AM". */
-function whenWas(t: number): string {
-  const d = new Date(t);
-  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const day = d.toDateString() === new Date().toDateString() ? 'today' : d.toDateString() === new Date(Date.now() - 86_400_000).toDateString() ? 'yesterday' : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  return `${day} at ${time}`;
-}
-
-/**
- * Where Zoro Health installs from (it brings in sleep and steps). The signed copy this app serves (scripts/make-health-shortcut.py)
- * is the working one: the old iCloud link (323631b5…) has the Type filter as plain text, so
- * Shortcuts shows it as "Choose" and finds nothing. Swap in a fresh iCloud link here once one is
- * shared from the working copy; iCloud links open Shortcuts' Add Shortcut screen directly.
- */
-const SHORTCUT_URL = new URL(`${import.meta.env.BASE_URL}ZoroHealth.shortcut`, location.origin).href;
-
-/** Open Zoro Health in Shortcuts to add it. */
-export function addSleepShortcut() {
-  setShortcutState('tried');
-  // A new window leaves the Home Screen app, so iOS hands the file to Safari and then Shortcuts.
-  if (!window.open(SHORTCUT_URL, '_blank')) window.location.href = SHORTCUT_URL;
-}
 
 export function LogSleepScreen() {
   const nav = useNav();
@@ -124,8 +90,8 @@ export function LogSleepScreen() {
         </FitCard>
       </div>
       <div className="fit-stack">
-        {/* From Apple Health, on its own: a Shortcuts automation runs Zoro Health, which sends
-            last night's sleep and the last two days' steps through the backup repo. */}
+        {/* From Apple Health, on its own: an automation sends last night's sleep and the last two
+            days' steps through the backup repo (see HealthSetup). */}
         <FitCard title="Apple Health" className="is-log">
           {!connected ? (
             <>
@@ -139,20 +105,12 @@ export function LogSleepScreen() {
               <p className="health-note">
                 {syncedAt
                   ? `Your sleep and steps come in on their own. Last brought in ${whenWas(syncedAt)}.`
-                  : 'Set this up once and your sleep and steps come in on their own.'}
+                  : 'Set up the Apple Health automation once and your sleep and steps come in on their own.'}
               </p>
-              {!syncedAt && (
-                <ol className="health-steps">
-                  <li>Add the Zoro Health shortcut. It asks once for the key you use for Cloud Backup.</li>
-                  <li>In Shortcuts, tap Automation, then +. Choose App, pick an app you open every morning (Messages, say) and Is Opened.</li>
-                  <li>Choose Run Immediately, turn off Notify When Run, and pick Zoro Health.</li>
-                </ol>
-              )}
               <div className="sleep-import-btns">
-                <Btn onClick={addSleepShortcut}>{syncedAt ? 'Add Again' : 'Add Shortcut'}</Btn>
+                <Btn onClick={() => nav.push({ name: 'healthSetup' })}>{syncedAt ? 'Automation' : 'Set Up'}</Btn>
                 <Btn onClick={() => (window.location.href = RUN_URL)}>Run Now</Btn>
               </div>
-              {!syncedAt && <p className="health-note is-small">It runs when that app opens because Apple Health can’t be read while your iPhone is locked.</p>}
             </>
           )}
         </FitCard>
