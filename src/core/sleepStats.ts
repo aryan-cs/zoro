@@ -1,5 +1,5 @@
 import { addDays } from './calc';
-import type { ISODate, SleepEntry, SleepStage } from './types';
+import type { ISODate, SleepEntry, SleepStage, StageSpan } from './types';
 
 /**
  * What a night of sleep says, modeled on Sleep Cycle: a 0–100 score from three pillars
@@ -161,4 +161,35 @@ export function sleepAfter(entries: SleepEntry[], had: (day: ISODate) => boolean
 export function clockLabel(m: number): string {
   const h = Math.floor(m / 60) % 24;
   return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+/**
+ * A believable night for sample data: in bed a few minutes before sleep, then ~90-minute cycles
+ * of Core, Deep, Core and REM, with Deep shrinking and REM growing toward morning and the odd
+ * brief awakening. `total` is minutes from falling asleep to waking; `seed` varies the night.
+ */
+export function sampleStages(total: number, seed: number): StageSpan[] {
+  const r = (k: number) => {
+    const v = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const spans: StageSpan[] = [[-(5 + Math.round(r(1) * 15)), 0, 'awake']];
+  let t = 0;
+  const add = (stage: SleepStage, len: number) => {
+    const end = Math.min(total, t + Math.max(1, Math.round(len)));
+    if (end <= t) return;
+    const last = spans[spans.length - 1];
+    if (last[2] === stage) last[1] = end;
+    else spans.push([t, end, stage]);
+    t = end;
+  };
+  for (let c = 0; t < total; c++) {
+    const k = Math.min(1, (c * 95) / Math.max(1, total)); // how far through the night
+    add('core', 18 + r(c * 7 + 2) * 16);
+    add('deep', Math.max(3, (1 - k) * 38 - r(c * 7 + 3) * 10));
+    add('core', 10 + r(c * 7 + 4) * 12);
+    add('rem', 8 + k * 26 + r(c * 7 + 5) * 8);
+    if (r(c * 7 + 6) > 0.5) add('awake', 2 + r(c * 7 + 7) * 5);
+  }
+  return spans;
 }

@@ -7,6 +7,8 @@ import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchProgress } from '../core/progression';
 import { dailyIntake, dailyWater, loadHistory, metricsOf, saveMetric, today } from '../core/store';
 import type { MetricType, Settings } from '../core/types';
+import { clockLabel, nightStats, sleepAfter, sleepDebt, sleepRoutine, sleepScore } from '../core/sleepStats';
+import { Hypnogram, STAGE_COLORS, STAGE_ROWS } from '../ui/Hypnogram';
 import { LineChart, type Series } from '../ui/LineChart';
 import { Bar, Btn, db, FITNESS, FitCard, FitStat, fmt, fmtLb, Header, Menu, NumberPrompt, Row, Section, Seg, useSettings, useToast, EmptyRow } from '../ui/kit';
 import { Sym } from '../ui/Sym';
@@ -516,16 +518,48 @@ function Food() {
   );
 }
 
+/** 18 → "18m", 412 → "6h 52m" */
+const dur = (m: number) => (m < 60 ? `${Math.round(m)}m` : formatMinutes(m));
+
+/**
+ * Sleep, after Sleep Cycle: the month's trend, then one night in detail (score, stages from
+ * Apple Health, efficiency, time to fall asleep, how you felt), then the longer view (sleep debt,
+ * your usual times and how steady they are) and how your days go with your nights.
+ */
 function Sleep() {
   const settings = useSettings();
   const toast = useToast();
   const [editingGoal, setEditingGoal] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
   const entries = useLiveQuery(() => db.sleep.where('date').aboveOrEqual(addDays(today(), -60)).sortBy('date'), []) ?? [];
+  const sessions = useLiveQuery(() => db.sessions.where('date').aboveOrEqual(addDays(today(), -61)).toArray(), []) ?? [];
+  const water = useLiveQuery(() => dailyWater(61, db), []) ?? [];
+  const intake = useLiveQuery(() => dailyIntake(61, db), []) ?? [];
+  const goal = settings.sleepTargetMin;
   const lastNight = entries.find((e) => e.date === today());
   const avg = averageSleep(entries, today());
   const recent = entries.filter((e) => e.date >= addDays(today(), -30));
   const labels = useMemo(() => (recent.length ? recent.map((e) => short(e.date)) : emptyDays(30)), [recent]);
   const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: recent.map((e) => roundTo(e.minutes / 60, 0.1)), color: FITNESS.sleep }], [recent]);
+
+  const night = (picked ? entries.find((e) => e.date === picked) : undefined) ?? entries.at(-1);
+  const stats = night ? nightStats(night) : null;
+  const score = night ? sleepScore(night, entries, goal) : null;
+  const week = entries.filter((e) => e.date > addDays(today(), -7));
+  const weekScore = week.length ? Math.round(week.reduce((n, e) => n + sleepScore(e, entries, goal).score, 0) / week.length) : null;
+  const debt = sleepDebt(entries, goal, today());
+  const routine = sleepRoutine(entries, today());
+
+  // How the day before goes with the night: training, hitting the water goal, eating over target.
+  const trained = new Set(sessions.map((x) => x.date));
+  const watered = new Set(water.filter((w) => w.oz >= settings.waterTargetOz).map((w) => w.date));
+  const over = new Set(intake.filter((d) => d.kcal > settings.kcalTarget).map((d) => d.date));
+  const insights: [string, number | null][] = [
+    ['After Workouts', sleepAfter(entries, (d) => trained.has(d))],
+    ['After Meeting Water Goal', sleepAfter(entries, (d) => watered.has(d))],
+    ['After Eating Over Target', sleepAfter(entries, (d) => over.has(d))],
+  ];
+  const signed = (m: number | null) => (m === null ? <span className="text-[#8d8d93]">—</span> : `${m >= 0 ? '+' : '−'}${dur(Math.abs(m))}`);
 
   return (
     <>
@@ -543,7 +577,84 @@ function Sleep() {
             <LineChart labels={labels} series={series} unit=" h" height={140} />
           </div>
         </FitCard>
+
+        {night && stats && score && (
+          <FitCard title={night.date === today() ? 'Last Night' : longDate(night.date)}>
+            <StatGrid
+              color={FITNESS.sleep}
+              items={[
+                ['Score', String(score.score)],
+                ['Asleep', formatMinutes(stats.asleep)],
+                ['Efficiency', stats.efficiency === null ? null : `${Math.round(stats.efficiency * 100)}%`],
+              ]}
+            />
+            {night.stages?.length ? (
+              <>
+                <div className="fit-chart">
+                  <Hypnogram spans={night.stages} onset={night.bedtime} />
+                </div>
+                <div className="fit-grid4">
+                  {STAGE_ROWS.map(([st, label]) => (
+                    <FitStat key={st} label={label} value={dur(stats.stages![st] + (st === 'core' ? stats.stages!.asleep : 0))} color={STAGE_COLORS[st]} small />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="sleep-no-stages">Stages come from Apple Health when you sleep with Apple Watch.</p>
+            )}
+          </FitCard>
+        )}
       </div>
+
+      {night && stats && score && (
+        <>
+          <Section
+            title="Score"
+            footer="Score: half duration against your goal, 30% quality, 20% keeping to your usual times."
+          >
+            <Row title="Duration" right={`${score.duration}`} />
+            <Row title="Quality" right={score.quality === null ? <span className="text-[#8d8d93]">—</span> : `${score.quality}`} />
+            <Row title="Routine" right={score.routine === null ? <span className="text-[#8d8d93]">—</span> : `${score.routine}`} />
+          </Section>
+          <Section title="Night">
+            <Row title="Time in Bed" right={formatMinutes(stats.inBed)} />
+            <Row title="Fell Asleep In" right={stats.latency === null ? <span className="text-[#8d8d93]">—</span> : dur(stats.latency)} />
+            <Row title="Awakenings" right={stats.awakenings === null ? <span className="text-[#8d8d93]">—</span> : String(stats.awakenings)} />
+            <Row
+              title="Woke Up"
+              right={
+                <Seg<number>
+                  className="is-compact w-52"
+                  value={night.quality ?? 0}
+                  onChange={(q) => night.id !== undefined && void db.sleep.update(night.id, { quality: q as 1 | 3 | 5 })}
+                  options={[
+                    [1, 'Tired'],
+                    [3, 'OK'],
+                    [5, 'Rested'],
+                  ]}
+                />
+              }
+            />
+          </Section>
+        </>
+      )}
+
+      <Section
+        title="Trends"
+        footer="Sleep debt is how far short of your goal the last 14 nights fell, added up."
+      >
+        <Row title="Score, Last 7 Nights" right={weekScore === null ? <span className="text-[#8d8d93]">—</span> : String(weekScore)} />
+        <Row title="Sleep Debt" right={dur(debt)} />
+        <Row title="Usual Bedtime" right={routine ? `${clockLabel(routine.bed)} ± ${routine.spread}m` : <span className="text-[#8d8d93]">—</span>} />
+        <Row title="Usual Wake-Up" right={routine ? clockLabel(routine.wake) : <span className="text-[#8d8d93]">—</span>} />
+      </Section>
+
+      <Section title="Insights" footer="Extra sleep after days with each, against days without.">
+        {insights.map(([label, m]) => (
+          <Row key={label} title={label} right={signed(m)} />
+        ))}
+      </Section>
+
       <NumberPrompt
         opened={editingGoal}
         title="Sleep Goal"
@@ -559,12 +670,20 @@ function Sleep() {
           toast(`Goal set to ${formatMinutes(min)}`);
         }}
       />
-      <Section title="Nights">
+      <Section title="Nights" footer={entries.length ? 'Tap a night to see it above.' : undefined}>
         {[...entries]
           .reverse()
           .slice(0, 14)
           .map((e) => (
-            <Row key={e.date} title={longDate(e.date)} right={formatMinutes(e.minutes)} />
+            <Row
+              key={e.date}
+              title={longDate(e.date)}
+              right={`${sleepScore(e, entries, goal).score} · ${formatMinutes(e.minutes)}`}
+              onClick={() => {
+                setPicked(e.date);
+                document.querySelector('.k-page[aria-hidden="false"], .k-page')?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           ))}
         {!entries.length && <EmptyRow>No Sleep Logs</EmptyRow>}
       </Section>

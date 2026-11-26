@@ -1118,6 +1118,30 @@ button.meal-row:not(:disabled):active {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
+/* Sleep stages under the hypnogram: four across. */
+.fit-grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+/* Health's Stages chart: names on the right, clock times underneath, in secondary gray. */
+.hypnogram {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hypnogram-label,
+.hypnogram-tick {
+  fill: #8d8d93;
+  font: 500 12px -apple-system, 'SF Pro Text', system-ui, sans-serif;
+}
+.sleep-no-stages {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
+}
 .fit-stat.is-small .fit-stat-value {
   font-size: 22px;
   line-height: 28px;

@@ -3,6 +3,7 @@ import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, TABLES, type ZoroDB } from './db';
 import { BENCH_STEPS, EXERCISES, templateFor, templateForWeekday } from './program';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
+import { sampleStages } from './sleepStats';
 import type {
   BodyMetric,
   FoodEntry,
@@ -344,7 +345,12 @@ export async function addSampleWeek(db: ZoroDB = getDB()): Promise<number> {
       const date = addDays(t, -d);
       if (slept.has(date)) continue;
       const [bed, wake] = nights[d % nights.length];
-      await db.sleep.add({ date, bedtime: bed, wakeTime: wake, minutes: (toMin(wake) - toMin(bed) + 1440) % 1440, source: 'manual', sample: true });
+      // Stages as Apple Health records them, and how you felt on some mornings.
+      const total = (toMin(wake) - toMin(bed) + 1440) % 1440;
+      const stages = sampleStages(total, d + 1);
+      const awake = stages.filter(([a, , s]) => s === 'awake' && a >= 0).reduce((m, [a, b]) => m + b - a, 0);
+      const quality = d % 3 === 0 ? 5 : d % 5 === 1 ? 1 : d % 3 === 1 ? 3 : undefined;
+      await db.sleep.add({ date, bedtime: bed, wakeTime: wake, minutes: total - awake, quality, stages, source: 'shortcut', sample: true });
     }
     // Eight weeks of morning weights drifting down about half a pound a week, and a waist, arm
     // and forearm measurement every other week; days already weighed or measured are left alone.
@@ -417,7 +423,9 @@ async function addSampleWorkouts(db: ZoroDB) {
  */
 export async function ensureSampleData(db: ZoroDB = getDB()): Promise<void> {
   const current = await db.entries.where('date').equals(today()).filter((e) => !!e.sample).count();
-  if (!current) await addSampleWeek(db);
+  // Also refresh sample data made before nights had stages.
+  const stale = await db.sleep.filter((e) => !!e.sample && !e.stages).count();
+  if (!current || stale) await addSampleWeek(db);
 }
 
 /** Deletes everything "Add Sample Week" made (foods, water, sleep, body metrics, workouts). Returns how many foods. */

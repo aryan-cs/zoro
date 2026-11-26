@@ -15,9 +15,24 @@ describe('targets', () => {
     expect(cut.protein).toBeGreaterThan(keep.protein);
     expect(cut.carbs).toBeGreaterThan(0);
   });
+  it('matches the research worked example', () => {
+    // Man, 30 y, 180 cm, 80 kg, moderate, cut at 0.5%/week (0.4 kg = 0.882 lb).
+    const r = recommend({ sex: 'male', age: 30, heightIn: 180 / 2.54, weightLb: 80 / 0.45359237, activity: 'moderate', phase: 'cut', ratePerWeek: -0.4 / 0.45359237 });
+    expect(r.tdee).toBe(2759);
+    expect(r.kcal).toBe(2320);
+    expect(r.protein).toBe(176);
+    expect(r.fat).toBe(64);
+    expect(r.carbs).toBe(260);
+    expect(r.fiber).toBe(32);
+    expect(r.waterOz).toBe(120);
+    expect(r.sleepMin).toBe(480);
+  });
+  it('uses fat-free mass when body fat is known', () => {
+    expect(Math.round(bmr({ sex: 'male', age: 30, heightIn: 70, weightLb: 80 / 0.45359237, bodyFat: 0.15 }))).toBe(1996);
+  });
   it('rates, ages and weeks to goal', () => {
-    expect(defaultRate('cut', 200)).toBe(-1.5);
-    expect(defaultRate('bulk', 160)).toBe(0.5);
+    expect(defaultRate('cut', 200)).toBe(-1);
+    expect(defaultRate('bulk', 160)).toBe(0.4);
     expect(ageOn('2000-12-01', '2026-11-25')).toBe(25);
     expect(weeksToGoal(190, 180, -1)).toBe(10);
     expect(weeksToGoal(190, 200, -1)).toBeNull();
