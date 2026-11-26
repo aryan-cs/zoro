@@ -172,26 +172,16 @@ export function WorkoutScreen({ sessionId }: { sessionId: number }) {
   };
 
   return (
-    <Page className="tab-safe">
+    <Page className="tab-safe has-dock">
       <Header
         title={TEMPLATES[session.templateId].name}
         onBack={nav.pop}
       />
 
-      {/* How far through the workout: sets done of all of them, like Today's nutrition bars. */}
-      <div className="fit-stack">
-        <div className="fit-card">
-          <div className="nut-row">
-            <div className="nut-head">
-              <span>Sets</span>
-              <span className="nut-value" style={{ color: FITNESS.exercise }}>
-                {doneSets}
-                <small>/{totalSets}</small>
-              </span>
-            </div>
-            <Bar value={doneSets} target={totalSets} color={FITNESS.exercise} />
-          </div>
-        </div>
+      {/* How far through the workout (sets done of all of them): a glass bar held just above the
+          tab bar, like a toolbar, with nothing but the bar in it. */}
+      <div className="wk-progress-dock ios-glass" role="progressbar" aria-label="Sets done" aria-valuemin={0} aria-valuemax={totalSets} aria-valuenow={doneSets}>
+        <Bar value={doneSets} target={totalSets} color={FITNESS.exercise} />
       </div>
       {plan.deload && (
         <Section>

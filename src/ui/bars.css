@@ -2341,3 +2341,31 @@ button.water-oz:active {
   margin: 16px -4px -4px;
   background-color: #3e3e40 !important;
 }
+
+/* The workout's progress: a glass capsule floating just above the tab bar (same side margins),
+ * holding only the bar. It stays put while the sets scroll under it. */
+.wk-progress-dock {
+  position: fixed;
+  left: 21px;
+  right: 21px;
+  bottom: calc(var(--tabbar-bottom) + 54px + 10px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(52, 52, 54, 0.62);
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0.5px rgba(255, 255, 255, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 6px 24px rgba(0, 0, 0, 0.4);
+}
+.wk-progress-dock > * {
+  flex: 1;
+}
+/* A page with that capsule scrolls far enough for its last sets to clear it. */
+.k-page.tab-safe.has-dock {
+  padding-bottom: calc(var(--tabbar-bottom) + 98px + 40px);
+}
