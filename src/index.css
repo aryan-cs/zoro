@@ -3,11 +3,11 @@
 
 /* ---------- Theme: Apple dark with a mint accent ---------- */
 @theme {
-  --color-brand-primary: #0a84ff;
-  --color-accent: #0a84ff;
+  --color-brand-primary: #fff;
+  --color-accent: #fff;
 }
 :root {
-  --k-color-primary: #0a84ff !important;
+  --k-color-primary: #fff !important;
   color-scheme: dark;
 }
 
@@ -449,7 +449,7 @@ select {
   width: 44px;
   height: 44px;
   margin: -11px -11px -11px 0;
-  color: var(--ios-blue);
+  color: var(--ios-tint);
   -webkit-tap-highlight-color: transparent;
 }
 .zoro-header-icon:active {

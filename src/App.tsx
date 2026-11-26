@@ -298,18 +298,19 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   });
   const live = useRef({ pushed, current });
   live.current = { pushed, current };
-  // Width of a page, kept up to date without measuring during a swipe (which forces a layout).
+  // Width of a page, for turning a finger's travel into pages: read as a swipe starts, not during
+  // it (which would force a layout). The tabs themselves are placed in percent of their own width,
+  // so they line up even if this is off (Safari can report a narrower window while a page loads).
   const width = useRef(window.innerWidth);
 
   /** Puts every tab at position `p` directly (at rest, or under your finger). */
   const place = (p: number, moving: boolean) => {
-    const W = width.current || 1;
     root.current?.classList.toggle('is-paging', moving);
     panes.current?.forEach((el, i) => {
       if (!el) return;
       const off = i - p;
       // No transform on the tab at rest: a transformed box would hold fixed-position sheets.
-      el.style.transform = !moving && Math.abs(off) < 1e-4 ? '' : `translate3d(${off * W}px, 0, 0)`;
+      el.style.transform = !moving && Math.abs(off) < 1e-4 ? '' : `translate3d(${off * 100}%, 0, 0)`;
       // The tabs either side stay drawn (just off screen) so a swipe has nothing to paint first.
       el.style.visibility = Math.abs(off) < 1.999 ? 'visible' : 'hidden';
     });
@@ -367,7 +368,6 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       place(target, false);
       return;
     }
-    const W = width.current || 1;
     const lo = Math.min(...ps);
     const hi = Math.max(...ps);
     root.current?.classList.add('is-paging');
@@ -377,7 +377,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       // Shown if it passes through the screen at any point in the slide.
       el.style.visibility = i > lo - 1 && i < hi + 1 ? 'visible' : Math.abs(i - p0) < 1.999 ? 'visible' : 'hidden';
       // Every tab moves by the same curve, so share keyframes sampled from it.
-      const frames = ps.map((q) => ({ transform: `translate3d(${(i - q) * W}px, 0, 0)` }));
+      const frames = ps.map((q) => ({ transform: `translate3d(${(i - q) * 100}%, 0, 0)` }));
       anims.push(el.animate(frames, { duration: (ps.length - 1) * dt * 1000, easing: 'linear', fill: 'forwards' }));
     });
     const run = { t0: performance.now(), dt, ps, vs, anims };
@@ -394,7 +394,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   useLayoutEffect(() => {
     place(st.current.p, false);
     const onResize = () => {
-      width.current = window.innerWidth;
+      width.current = root.current?.clientWidth || window.innerWidth;
       if (!st.current.run) place(st.current.p, false);
     };
     window.addEventListener('resize', onResize);
@@ -420,6 +420,7 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
       if (e.touches.length !== 1 || live.current.pushed) return;
       if ((e.target as Element).closest(OWN_SWIPE)) return;
       const t = e.touches[0];
+      width.current = node.clientWidth || window.innerWidth;
       start = { x: t.clientX, y: t.clientY, t: e.timeStamp, p: 0 };
       last = { x: t.clientX, t: e.timeStamp };
       v = 0;
