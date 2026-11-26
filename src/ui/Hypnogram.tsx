@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { hrMin } from '../core/say';
 import { clockOf } from '../core/sleepStats';
 import type { SleepStage, StageSpan } from '../core/types';
 
@@ -16,12 +17,11 @@ export const STAGE_ROWS: [SleepStage, string][] = [
   ['core', 'Core'],
   ['deep', 'Deep'],
 ];
-/** 18 → "18m", 412 → "6h 52m" */
-const dur = (m: number) => (m < 60 ? `${Math.round(m)}m` : `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m`);
 
 /**
  * A night's stages as one timeline strip: a rounded bar from lying down to getting up, each
- * stretch colored by its stage, clock times underneath, then each stage's total with its color.
+ * stretch colored by its stage, clock times underneath, then how often and how long you were awake
+ * (the stage rings below the strip cover REM, Core and Deep).
  */
 export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string | undefined }) {
   const clip = `h${useId().replace(/[^\w-]/g, '')}`; // safe inside url(#…)
@@ -44,6 +44,9 @@ export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string 
 
   const totals: Record<SleepStage, number> = { awake: 0, rem: 0, core: 0, deep: 0, asleep: 0 };
   for (const [a, b, s] of spans) totals[s] += b - a;
+  // Times you woke for two minutes or more between falling asleep and your last bit of sleep.
+  const lastSleep = Math.max(...spans.filter((sp) => sp[2] !== 'awake').map((sp) => sp[1]));
+  const wakes = spans.filter(([a, b, st]) => st === 'awake' && a >= 0 && b < lastSleep && b - a >= 2).length;
 
   return (
     <>
@@ -63,18 +66,10 @@ export function Hypnogram({ spans, onset }: { spans: StageSpan[]; onset: string 
           </text>
         ))}
       </svg>
-      <div className="stage-key">
-        {STAGE_ROWS.map(([s, label]) => (
-          <div key={s}>
-            <div className="stage-key-name">
-              <span style={{ background: STAGE_COLORS[s] }} />
-              {label}
-            </div>
-            <div className="stage-key-value" style={{ color: STAGE_COLORS[s] }}>
-              {dur(totals[s] + (s === 'core' ? totals.asleep : 0))}
-            </div>
-          </div>
-        ))}
+      {/* Time awake, which the rings below don't show: how often and how long in all. */}
+      <div className="stage-caption">
+        <span>{wakes === 0 ? 'Slept straight through' : `Awake ${wakes === 1 ? 'once' : wakes === 2 ? 'twice' : `${wakes} times`}`}</span>
+        <span style={{ color: STAGE_COLORS.awake }}>{hrMin(totals.awake)} awake</span>
       </div>
     </>
   );

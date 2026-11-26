@@ -494,7 +494,8 @@ button.meal-row:not(:disabled):active {
   white-space: nowrap;
 }
 .ring-value-num small {
-  margin-left: 1px;
+  /* Units sit a thin space after the number (like "9.9 LB" beside it), not glued to it. */
+  margin-left: 0.2em;
   font-size: 15px;
   font-weight: 600;
 }
@@ -779,7 +780,7 @@ button.meal-row:not(:disabled):active {
   text-overflow: ellipsis;
 }
 .fit-stat-value small {
-  margin-left: 1px;
+  margin-left: 0.2em;
   font-size: 20px;
   font-weight: 600;
 }
@@ -1040,7 +1041,7 @@ button.meal-row:not(:disabled):active {
   white-space: nowrap;
 }
 .amt-macro-value small {
-  margin-left: 1px;
+  margin-left: 0.2em;
   font-size: 0.6em;
 }
 .amt-card {
@@ -1119,32 +1120,18 @@ button.meal-row:not(:disabled):active {
   gap: 12px;
 }
 /* Sleep stages under the hypnogram: four across. */
-/* Sleep stages as one strip, with each stage's color, name and total underneath. */
-.stage-key {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 10px;
-}
-.stage-key-name {
+/* Under the sleep strip: how often you woke (gray) and the time awake (in Awake's orange). */
+.stage-caption {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  line-height: 18px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 20px;
   color: #8d8d93;
 }
-.stage-key-name span {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.stage-key-value {
-  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 17px;
+.stage-caption span:last-child {
   font-weight: 600;
-  line-height: 22px;
-  white-space: nowrap;
 }
 .hypnogram {
   display: block;
@@ -1748,7 +1735,7 @@ button.water-oz:active {
   color: #00b7ff;
 }
 .sq-ring-value small {
-  margin-left: 1px;
+  margin-left: 0.2em;
   font-size: 0.55em;
 }
 /* Weight change: an arrow then the amount; green when it went the way your phase wants, red when
@@ -1867,7 +1854,7 @@ button.water-oz:active {
   font-variant-numeric: tabular-nums;
 }
 .nut-value small {
-  margin-left: 1px;
+  margin-left: 1px; /* "/2,860 kcal" follows the number directly */
   font-size: 13px;
   font-weight: 600;
   color: #8d8d93;

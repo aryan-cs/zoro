@@ -389,22 +389,19 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
   // Ids for the tip shadow's clip and blur (useId's punctuation isn't safe inside url(#…)).
   const uid = `r${useId().replace(/[^\w-]/g, '')}`;
   const p = target > 0 ? Math.max(0, value / target) : 0;
-  // Full (up to ~4% over, where a second lap's tip would just sit on the start as a disc): one
-  // seamless loop with no caps. The shading runs start → end color over three quarters of the
-  // ring, then eases back to the start color so the ends meet without a tip.
-  const closed = p >= 1 && p < 1.04;
-  const over = p > 1 && !closed ? Math.min(p - 1, 1) * 360 : 0;
-  // Past the goal, the shading runs along the whole length (both laps), so the second lap picks up
-  // exactly where the first left off instead of jumping back to the start color at the top.
-  const total = 360 + over;
-  const shade = (a: number) =>
-    closed
-      ? (a % 360 + 360) % 360 < 270
-        ? mixColor(colors[0], colors[1], ((a % 360 + 360) % 360) / 270)
-        : mixColor(colors[1], colors[0], (((a % 360 + 360) % 360) - 270) / 90)
-      : over > 0
-        ? mixColor(colors[0], colors[1], Math.min(1, a / total))
-        : mixColor(colors[0], colors[1], (a % 360) / 360);
+
+  // Everything below is a continuous function of p, so the ring animates smoothly through any
+  // value, 100% included: no modes that switch on at a threshold (an earlier "closed loop" mode
+  // between 100% and 104% made rings jump in color and pop a tip in as they animated past it).
+  //
+  // The first lap runs to `end`; past the goal a second lap runs to `over` (one extra lap at most).
+  const end = Math.min(p, 1) * 360;
+  const over = Math.min(Math.max(p - 1, 0), 1) * 360;
+  const past = p >= 1;
+  // Shading runs start → end color along the whole drawn length (both laps past the goal), so the
+  // tip is always the end color and the second lap picks up where the first left off.
+  const total = past ? 360 + over : 360;
+  const shade = (a: number) => mixColor(colors[0], colors[1], Math.min(1, Math.max(0, a / total)));
   // `base` is how far round the ring this lap starts (360 for the second lap).
   const lap = (from: number, to: number, key: string, base = 0) => {
     // Short arcs with butt ends, each in its own shade, overlapping a hair so no seams show.
@@ -426,32 +423,35 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
       );
     });
   };
-  const end = Math.min(p, 1) * 360;
-  const [ex, ey] = onRing(cx, cy, r, end);
-  const [ox, oy] = onRing(cx, cy, r, over);
-  // Which way the second lap's tip is heading (clockwise), and the line across the ring through
-  // its center: the tip's shadow falls only ahead of that line, and only on the ring itself.
-  const tx = Math.cos((over * Math.PI) / 180);
-  const ty = Math.sin((over * Math.PI) / 180);
+
+  // The leading tip: the first lap's end, or the second lap's past the goal (the same point at 100%).
+  const lead = past ? over : end;
+  const [lx, ly] = onRing(cx, cy, r, lead);
+  const [sx, sy] = onRing(cx, cy, r, 0);
+  // Its shadow falls ahead along the ring, onto the start it's catching up with: it fades in over
+  // the last 30° before the goal (the tip only overlaps the start cap from there) and stays past
+  // it. Clipped to the half ahead of the tip and to the ring's band, so it never rims the tip's
+  // trailing half (which would outline it as a disc) or spills onto the card or the next ring.
+  const shadow = past ? 1 : Math.min(1, Math.max(0, (end - 330) / 30));
+  const tx = Math.cos((lead * Math.PI) / 180);
+  const ty = Math.sin((lead * Math.PI) / 180);
   const L = w * 3;
   const ahead = [
-    [ox - ty * L, oy + tx * L],
-    [ox - ty * L + tx * L, oy + tx * L + ty * L],
-    [ox + ty * L + tx * L, oy - tx * L + ty * L],
-    [ox + ty * L, oy - tx * L],
+    [lx - ty * L, ly + tx * L],
+    [lx - ty * L + tx * L, ly + tx * L + ty * L],
+    [lx + ty * L + tx * L, ly - tx * L + ty * L],
+    [lx + ty * L, ly - tx * L],
   ]
     .map((q) => q.join(','))
     .join(' ');
   const ro = r + w / 2;
   const ri = r - w / 2;
   const band = `M${cx - ro} ${cy}a${ro} ${ro} 0 1 0 ${2 * ro} 0a${ro} ${ro} 0 1 0 ${-2 * ro} 0ZM${cx - ri} ${cy}a${ri} ${ri} 0 1 0 ${2 * ri} 0a${ri} ${ri} 0 1 0 ${-2 * ri} 0Z`;
-  const [sx, sy] = onRing(cx, cy, r, 0);
-  // The glyph rides the ring's leading end (at 25% it sits at 3 o'clock); at the top while empty
-  // or exactly full, and on the second lap's tip past the goal.
-  const lead = p === 0 || closed ? 0 : over > 0 ? over : end;
-  const [gx, gy] = onRing(cx, cy, r, lead);
+
+  // The glyph rides the leading tip (at 25% it sits at 3 o'clock); at the top while empty.
+  const [gx, gy] = [lx, ly];
   const g = w * 0.22; // arrow half-size
-  // On the cap, a deep shade of the ring's own color (pure black read as a hole); on an empty
+  // On the tip, a deep shade of the ring's own color (pure black read as a hole); on an empty
   // track, the ring color itself so the glyph stays legible.
   const ink = p > 0 ? mixColor(colors[0], '#000000', 0.62) : colors[0];
   const inkOpacity = p > 0 ? 1 : 0.7;
@@ -470,7 +470,7 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
       />
     );
   } else {
-    // The symbol fits a box 60% of the ring's width, centered on the leading cap.
+    // The symbol fits a box 60% of the ring's width, centered on the leading tip.
     const sym = SF[glyph];
     const k = (w * 0.6) / Math.max(sym.w, sym.h);
     glyphEl = (
@@ -489,50 +489,36 @@ function Ring({ c: [cx, cy], r, w, value: raw, target, colors, glyph }: { c: [nu
       {p > 0 && (
         <>
           {lap(0, end, 'a')}
-          {/* A full loop's two square ends meet at 12 o'clock, and their anti-aliased edges leave
-              a hairline there: bridge the join with a short arc in the shared color. */}
-          {closed && lap(-3, 3, 'j', 360)}
-          {/* Round caps only while the ring is under its goal. Past it the first lap is a closed
-              loop: a start cap would show as a flat-edged disc of the start color at 12 o'clock,
-              cut straight by the second lap's square start. */}
-          {!closed && over === 0 && (
+          {/* The start's round cap, only under the goal: once the ring has come all the way round,
+              the first lap's end is behind it, and a start-colored disc there would show as a flat-
+              edged half disc. (The tip covers that spot at exactly 100%.) */}
+          {!past && <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />}
+          {/* The second lap, drawn over the first. It starts a little before 12 o'clock so its square
+              start overlaps the first lap's end (same shade there) instead of meeting it edge to edge. */}
+          {past && over > 0 && lap(-2, over, 'b', 360)}
+          {shadow > 0 && (
             <>
-              <circle cx={sx} cy={sy} r={w / 2} fill={colors[0]} />
-              <circle cx={ex} cy={ey} r={w / 2} fill={mixColor(colors[0], colors[1], (end % 360) / 360 || 1)} />
+              <defs>
+                <clipPath id={`${uid}b`}>
+                  <path d={band} clipRule="evenodd" />
+                </clipPath>
+                <clipPath id={`${uid}a`}>
+                  <polygon points={ahead} />
+                </clipPath>
+                <filter id={`${uid}s`} x="-1" y="-1" width="3" height="3">
+                  <feGaussianBlur stdDeviation={w * 0.14} />
+                </filter>
+              </defs>
+              <g clipPath={`url(#${uid}b)`}>
+                <g clipPath={`url(#${uid}a)`}>
+                  <circle cx={lx + tx * w * 0.1} cy={ly + ty * w * 0.1} r={w / 2} fill="#000" fillOpacity={0.6 * shadow} filter={`url(#${uid}s)`} />
+                </g>
+              </g>
             </>
           )}
-        </>
-      )}
-      {over > 0 && (
-        <>
-          {/* The second lap is drawn over the first, start included. It starts a little before 12
-              o'clock so its square start overlaps the first lap's end (same shade there) instead of
-              meeting it edge to edge. */}
-          {lap(-2, over, 'b', 360)}
-          {/* The tip's shadow, as on Apple's rings: cast forward onto the lap the tip is passing
-              over, clipped to the half ahead of the tip and to the ring's own band, so it never
-              rims the tip's trailing half (which would outline it as a separate disc) or spills
-              onto the card or the next ring. */}
-          <defs>
-            <clipPath id={`${uid}b`}>
-              <path d={band} clipRule="evenodd" />
-            </clipPath>
-            <clipPath id={`${uid}a`}>
-              <polygon points={ahead} />
-            </clipPath>
-            <filter id={`${uid}s`} x="-1" y="-1" width="3" height="3">
-              <feGaussianBlur stdDeviation={w * 0.14} />
-            </filter>
-          </defs>
-          <g clipPath={`url(#${uid}b)`}>
-            <g clipPath={`url(#${uid}a)`}>
-              <circle cx={ox + tx * w * 0.1} cy={oy + ty * w * 0.1} r={w / 2} fill="#000" fillOpacity={0.6} filter={`url(#${uid}s)`} />
-            </g>
-          </g>
-          {/* The tip on top, so the lap's square start can never cut it (past 200% the tip sits right
-              on it). Its color is the lap's at that point, so its trailing half melts into the
+          {/* The tip on top, in the lap's color at that point, so its trailing half melts into the
               stroke and only the rounded front shows. */}
-          <circle cx={ox} cy={oy} r={w / 2} fill={shade(total)} />
+          <circle cx={lx} cy={ly} r={w / 2} fill={shade(past ? total : end)} />
         </>
       )}
       {glyphEl}
