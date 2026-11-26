@@ -1,5 +1,5 @@
 import { minutesBetween, toISODate } from './calc';
-import type { SleepEntry } from './types';
+import type { SleepEntry, SleepStage, StageSpan } from './types';
 
 /**
  * Parse sleep data copied by the iPhone Shortcut. Accepts either JSON
@@ -14,6 +14,58 @@ interface Sample {
 
 const NOT_ASLEEP = /awake|in\s*bed|inbed/i;
 
+/** What a Health sleep sample's value means ("Asleep Core", "REM", "In Bed", …). */
+export function stageOf(value: unknown): SleepStage | 'inbed' {
+  if (typeof value !== 'string') return 'asleep';
+  if (/awake/i.test(value)) return 'awake';
+  if (/in\s*bed|inbed/i.test(value)) return 'inbed';
+  if (/\brem\b/i.test(value)) return 'rem';
+  if (/deep/i.test(value)) return 'deep';
+  if (/core|light/i.test(value)) return 'core';
+  return 'asleep';
+}
+
+/** When several sources overlap (watch, phone, another app), the more specific stage wins. */
+const RANK: Record<SleepStage | 'inbed', number> = { inbed: 0, awake: 1, asleep: 2, core: 3, rem: 4, deep: 5 };
+
+/**
+ * The night's stages, minute by minute, from falling asleep (`onset`) to waking: in-bed and
+ * awake samples before, during and just after the sleep count as awake, and gaps with no
+ * sample at all inside the night count as awake too. Null when the samples only say "asleep".
+ */
+function stagesFor(rows: { start: Date; end: Date; stage: SleepStage | 'inbed' }[], onset: Date, wake: Date): StageSpan[] | undefined {
+  if (!rows.some((r) => r.stage !== 'asleep')) return undefined;
+  const MIN = 60_000;
+  // Time in bed before falling asleep (up to 3 hours) and after waking (up to an hour) belongs to this night.
+  let from = onset.getTime();
+  let to = wake.getTime();
+  for (const r of rows) {
+    if (r.stage !== 'inbed' && r.stage !== 'awake') continue;
+    if (r.end.getTime() < onset.getTime() - 60 * MIN || r.start.getTime() > wake.getTime() + 60 * MIN) continue;
+    from = Math.min(from, Math.max(r.start.getTime(), onset.getTime() - 180 * MIN));
+    to = Math.max(to, Math.min(r.end.getTime(), wake.getTime() + 60 * MIN));
+  }
+  const n = Math.round((to - from) / MIN);
+  if (n <= 0 || n > 24 * 60) return undefined;
+  const best: (SleepStage | 'inbed' | null)[] = new Array(n).fill(null);
+  for (const r of rows) {
+    const a = Math.max(0, Math.round((r.start.getTime() - from) / MIN));
+    const b = Math.min(n, Math.round((r.end.getTime() - from) / MIN));
+    for (let i = a; i < b; i++) if (best[i] === null || RANK[r.stage] > RANK[best[i]!]) best[i] = r.stage;
+  }
+  const shift = Math.round((onset.getTime() - from) / MIN);
+  const spans: StageSpan[] = [];
+  for (let i = 0; i < n; i++) {
+    const s = best[i];
+    const stage: SleepStage = s === null || s === 'inbed' ? 'awake' : s;
+    const last = spans[spans.length - 1];
+    if (last && last[2] === stage) last[1] = i + 1 - shift;
+    else spans.push([i - shift, i + 1 - shift, stage]);
+  }
+  // Trailing "awake" after the last bit of sleep is only kept if a sample put it there (not a gap).
+  return spans;
+}
+
 /** Dates from Shortcuts may be ISO 8601 or "Nov 25, 2026 at 7:10 AM". */
 function parseDate(s: unknown): Date | null {
   if (typeof s !== 'string') return null;
@@ -26,6 +78,9 @@ function parseDate(s: unknown): Date | null {
  * (watch + phone can both write), and take the last cluster of sleep (gaps under 3 hours).
  */
 export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?: unknown }[]): SleepEntry | null {
+  const all = rows
+    .map((r) => ({ start: parseDate(r.start), end: parseDate(r.end), stage: stageOf(r.value) }))
+    .filter((r): r is Sample & { stage: SleepStage | 'inbed' } => !!r.start && !!r.end && r.end > r.start);
   const samples: Sample[] = rows
     .filter((r) => !(typeof r.value === 'string' && NOT_ASLEEP.test(r.value)))
     .map((r) => ({ start: parseDate(r.start), end: parseDate(r.end) }))
@@ -51,7 +106,10 @@ export function nightFromSamples(rows: { start?: unknown; end?: unknown; value?:
   const bed = night[0].start;
   const wake = night[night.length - 1].end;
   if (minutes <= 0 || minutes > 20 * 60) return null;
-  return { date: toISODate(wake), bedtime: bed.toISOString(), wakeTime: wake.toISOString(), minutes, source: 'shortcut' };
+  const entry: SleepEntry = { date: toISODate(wake), bedtime: bed.toISOString(), wakeTime: wake.toISOString(), minutes, source: 'shortcut' };
+  const stages = stagesFor(all, bed, wake);
+  if (stages) entry.stages = stages;
+  return entry;
 }
 
 export function parseSleepImport(text: string): SleepEntry | null {

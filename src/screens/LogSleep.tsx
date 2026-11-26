@@ -35,14 +35,19 @@ function setShortcutState(v: 'tried' | 'ok') {
 }
 export const shortcutInstalled = () => shortcutState() === 'ok';
 
-/** Apple's iCloud link for the Zoro Sleep shortcut: opening it shows Shortcuts' own Add Shortcut screen. */
-const SHORTCUT_ICLOUD = 'https://www.icloud.com/shortcuts/323631b5cb6e484ea7559840a38aed85';
+/**
+ * Where Zoro Sleep installs from. The signed copy this app serves (scripts/make-sleep-shortcut.py)
+ * is the working one: the old iCloud link (323631b5…) has the Type filter as plain text, so
+ * Shortcuts shows it as "Choose" and finds nothing. Swap in a fresh iCloud link here once one is
+ * shared from the working copy; iCloud links open Shortcuts' Add Shortcut screen directly.
+ */
+const SHORTCUT_URL = new URL(`${import.meta.env.BASE_URL}ZoroSleep.shortcut`, location.origin).href;
 
-/** Open Shortcuts' Add Shortcut screen for Zoro Sleep (one tap, no share sheet). */
+/** Open Zoro Sleep in Shortcuts to add it. */
 export function addSleepShortcut() {
   setShortcutState('tried');
-  // A new window leaves the Home Screen app, so iOS hands the link to Shortcuts.
-  if (!window.open(SHORTCUT_ICLOUD, '_blank')) window.location.href = SHORTCUT_ICLOUD;
+  // A new window leaves the Home Screen app, so iOS hands the file to Safari and then Shortcuts.
+  if (!window.open(SHORTCUT_URL, '_blank')) window.location.href = SHORTCUT_URL;
 }
 
 export function LogSleepScreen() {

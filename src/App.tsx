@@ -135,6 +135,8 @@ const NO_SWIPE = 'input, textarea, select, [contenteditable], .k-stepper, .k-ran
  */
 const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; covered: boolean }) {
   const { pop } = useNav();
+  // Slide in once: hidden tabs are display:none, which would replay the animation on return.
+  const [landed, setLanded] = useState(false);
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; t: number; active: boolean; dead: boolean } | null>(null);
   const under = () => el.current?.previousElementSibling as HTMLElement | null;
@@ -210,7 +212,10 @@ const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; co
   return (
     <div
       ref={el}
-      className={`stack-layer stack-page absolute inset-0 touch-pan-y ${entry.leaving ? 'stack-out' : 'stack-in'} ${covered ? 'is-covered' : ''}`}
+      className={`stack-layer stack-page absolute inset-0 touch-pan-y ${entry.leaving ? 'stack-out' : landed ? '' : 'stack-in'} ${covered ? 'is-covered' : ''}`}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget && !entry.leaving) setLanded(true);
+      }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

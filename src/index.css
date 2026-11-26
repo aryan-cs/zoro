@@ -90,9 +90,10 @@ select {
 .ios-navbar + div > .zoro-section-title {
   margin-top: 19px !important;
 }
-/* Cards with no header are 35pt apart; the first one 20pt under the navigation bar. */
+/* Cards with no header are 24pt apart (Aryan's choice: Settings uses 35pt, which reads as too
+ * loose here), counted from a footnote when there is one; the first 20pt under the nav bar. */
 .zoro-section-untitled {
-  margin-top: 35px;
+  margin-top: 24px;
 }
 /* Under a search field or segmented control: the same 12pt gap as above it. The header's
  * 22pt line box has ~5pt above its capitals, so 7pt of margin reads as 12pt. */
@@ -521,10 +522,11 @@ select {
   background-color: #34c759 !important;
 }
 
-/* Footnote under a grouped list (Settings): 13pt secondary text, aligned with the rows' text. */
+/* Footnote under a grouped list (Settings, iOS 27): 15pt #8D8D93, aligned with the rows' text,
+ * capitals ~10pt below the card (the 20pt line box adds ~4pt above them). */
 .zoro-section-footer {
-  margin: 7px 32px 0;
-  font-size: 13px;
-  line-height: 18px;
-  color: rgba(235, 235, 245, 0.6);
+  margin: 6px 32px 0;
+  font-size: 15px;
+  line-height: 20px;
+  color: #8d8d93;
 }

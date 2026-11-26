@@ -64,8 +64,16 @@ export function NavProvider({ children }: { children: ReactNode }) {
     const entry = (route: Route): Entry => ({ id: nextId.current++, route });
     return {
       setTab: (t) => {
-        // Tapping the active tab again goes back to its first screen, like iOS.
-        if (t === tabRef.current) setStacks((s) => (s[t].length ? { ...s, [t]: [] } : s));
+        const from = tabRef.current;
+        if (t === from) {
+          // Tapping the active tab again slides back to its first screen, like iOS.
+          setStacks((s) => (s[t].some((e) => !e.leaving) ? { ...s, [t]: s[t].map((e) => ({ ...e, leaving: true })) } : s));
+          setTimeout(() => setStacks((s) => ({ ...s, [t]: s[t].filter((e) => !e.leaving) })), SLIDE_MS);
+          return;
+        }
+        // Leaving a tab closes what was opened on it (Settings, Water…), so coming back shows the
+        // tab itself. Only a workout in progress stays open.
+        setStacks((s) => ({ ...s, [from]: s[from].filter((e) => e.route.name === 'workout' && !e.leaving) }));
         tabRef.current = t;
         setTabState(t);
       },

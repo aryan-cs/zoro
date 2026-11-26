@@ -206,7 +206,7 @@ export function SettingsScreen() {
   };
 
   const carbs = carbTarget(settings.kcalTarget, settings.proteinTarget, settings.fatTarget);
-  const [prompt, setPrompt] = useState<'height' | 'weight' | 'goal' | null>(null);
+  const [prompt, setPrompt] = useState<'height' | 'weight' | 'goal' | 'rate' | null>(null);
   const [activityMenu, setActivityMenu] = useState<DOMRect | null>(null);
   const weight = useLatestWeight();
   const { profile, rec } = useRecommendation();
@@ -221,7 +221,9 @@ export function SettingsScreen() {
       ? 'Holding your weight steady.'
       : weeks !== null && settings.goalWeight
         ? `About ${weeks} week${weeks === 1 ? '' : 's'} to ${fmt(settings.goalWeight)} lb at ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`
-        : `${settings.targetRate < 0 ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`;
+        : settings.goalWeight && weight
+          ? `${settings.phase === 'cut' ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week. Your goal of ${fmt(settings.goalWeight)} lb is ${settings.goalWeight < weight ? 'below' : 'above'} your weight now.`
+          : `${settings.phase === 'cut' ? 'Lose' : 'Gain'} ${fmt(Math.abs(settings.targetRate), 2)} lb a week.`;
   const targetsNote = !profile
     ? 'Fill in your profile and weight above and these are set for you.'
     : settings.autoTargets === false
@@ -279,7 +281,14 @@ export function SettingsScreen() {
             />
           }
         />
-        <NumSetting label="Weekly Change (lb)" k="targetRate" settings={settings} />
+        {settings.phase !== 'maintain' && (
+          <Row
+            title={settings.phase === 'cut' ? 'Lose per Week' : 'Gain per Week'}
+            right={`${fmt(Math.abs(settings.targetRate), 2)} lb`}
+            chevron
+            onClick={() => setPrompt('rate')}
+          />
+        )}
         <Row title="Goal Weight" right={settings.goalWeight ? `${fmt(settings.goalWeight)} lb` : <span className="text-[#8d8d93]">—</span>} chevron onClick={() => setPrompt('goal')} />
       </Section>
 
@@ -372,6 +381,20 @@ export function SettingsScreen() {
           await saveMetric('weight', Math.round(n * 10) / 10, today(), db);
           setPrompt(null);
           toast('Weight saved');
+        }}
+      />
+      <NumberPrompt
+        opened={prompt === 'rate'}
+        title={settings.phase === 'cut' ? 'Lose per Week' : 'Gain per Week'}
+        unit="lb"
+        initial={String(Math.round(Math.abs(settings.targetRate) * 100) / 100)}
+        min={0.1}
+        max={3}
+        onCancel={() => setPrompt(null)}
+        onSave={(n) => {
+          const r = Math.round(n * 100) / 100;
+          void saveSettings({ targetRate: settings.phase === 'cut' ? -r : r });
+          setPrompt(null);
         }}
       />
       <NumberPrompt

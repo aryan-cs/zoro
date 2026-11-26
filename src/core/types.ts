@@ -163,14 +163,24 @@ export interface SavedMeal {
   items: Omit<FoodEntry, 'id' | 'date' | 'meal' | 'loggedAt'>[];
 }
 
+/** Sleep stages as Apple Health records them ('asleep' when the source doesn't say which). */
+export type SleepStage = 'awake' | 'rem' | 'core' | 'deep' | 'asleep';
+/** One stretch of a night: [start, end] in minutes from falling asleep (negative before it), and its stage. */
+export type StageSpan = [number, number, SleepStage];
+
 export interface SleepEntry {
   id?: number;
   /** The morning you woke up. */
   date: ISODate;
+  /** When you fell asleep (ISO, or "HH:MM" for older manual entries). */
   bedtime?: string;
   wakeTime?: string;
+  /** Time actually asleep. */
   minutes: number;
+  /** How you felt waking up: 1 tired, 3 OK, 5 rested. */
   quality?: 1 | 2 | 3 | 4 | 5;
+  /** The night's stages from Apple Health, including time awake in bed before and during it. */
+  stages?: StageSpan[];
   source: 'manual' | 'shortcut';
   /** Made by Settings › Add Sample Week. */
   sample?: boolean;
