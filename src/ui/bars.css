@@ -705,17 +705,19 @@ button.meal-row:not(:disabled):active {
  * and eases back down on release. Fitness's half-width cards grow 7.5% (about 6.5pt a side);
  * full-width cards grow the same few points, not the same percent, so they stay inside the
  * screen's 16pt margins. */
-.fit-card.is-link,
-.wk-card.is-link {
+.fit-card,
+.wk-card {
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
-.fit-card.is-link:active,
-.wk-card.is-link:active {
+/* Every card responds the same way (History's too), except while you're scrubbing its chart or
+ * pressing a control inside it. */
+.fit-card:active:not(:has(.fit-chart:active, .fit-stat-edit:active, .lift-picker:active, button:active)),
+.wk-card:active:not(:has(button:active)) {
   transform: scale(1.035);
   transition: transform 0.9s cubic-bezier(0.15, 0.55, 0.3, 1);
 }
-.fit-grid > .fit-card.is-link:active,
-.fit-grid > .wk-card.is-link:active {
+.fit-grid > .fit-card:active:not(:has(button:active)),
+.fit-grid > .wk-card:active:not(:has(button:active)) {
   transform: scale(1.075);
 }
 .fit-card-head {
