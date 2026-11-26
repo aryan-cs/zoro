@@ -1970,7 +1970,7 @@ button.water-oz:active {
 .wt-head-side .card-glyph-btn {
   position: absolute;
   top: -5px;
-  right: 0;
+  right: -5px;
 }
 /* A small round button inside a card (gray fill, white glyph), like Health's and Fitness's. */
 .card-glyph-btn {
@@ -1989,9 +1989,11 @@ button.water-oz:active {
 .card-glyph-btn:active {
   opacity: 0.5;
 }
-/* In a card's title row it hangs over the row's edges a little, so the row keeps its height. */
+/* In a card's title row it hangs over the row's edges a little, so the row keeps its height. It
+ * sits as far from the card's right edge as from its top (11pt), so it's concentric with the
+ * card's 26pt corner. */
 .fit-card-head .card-glyph-btn {
-  margin: -4px 0;
+  margin: -4px -5px -4px 0;
 }
 
 /* A card title that's also a menu (History's lift): the name, then a small up-down chevron. */
