@@ -21,9 +21,11 @@ export interface Guide {
 
 /**
  * Animations of each exercise, streamed from RepCount's site (repcountapp.com) when you open it:
- * nothing of theirs is copied into this app. Where RepCount has no animation of the exercise, the
- * nearest one it has stands in; without one at all (dead hang, woodchopper, side plank), or when
- * a video won't load (offline), the photos above show instead.
+ * nothing of theirs is copied into this app. Only where RepCount's animation is the same movement:
+ * each was checked frame by frame (27 Nov 2026). Where it isn't, or there's none, or a video won't
+ * load (offline), the photos above show instead. Two stand-ins are the same movement on other
+ * equipment: a two-handed rope overhead extension for the single-arm one, and a Smith-machine
+ * Bulgarian split squat for the dumbbell one.
  */
 export const VIDEO_BASE = 'https://www.repcountapp.com/videos/exercises/';
 export const VIDEO: Record<string, string> = {
@@ -38,25 +40,20 @@ export const VIDEO: Record<string, string> = {
   cableRow: 'seated-cable-row',
   barbellRow: 'barbell-row',
   kneelingPulldown: 'single-arm-lat-pulldown',
-  facePull: 'band-face-pull',
   rearDeltFly: 'rear-delt-fly',
   cableLateral: 'cable-lateral-raise',
   lateralRaise: 'dumbbell-lateral-raise',
   ohTricepsExt: 'overhead-cable-triceps-extension',
-  leaningOhExt: 'single-arm-tricep-extension',
+  // RepCount's single-arm-tricep-extension is a one-arm pushdown, not overhead.
+  leaningOhExt: 'overhead-cable-triceps-extension',
   pushdown: 'triceps-pushdown',
-  skullCrusher: 'dumbbell-skull-crusher',
   inclineCurl: 'incline-dumbbell-curl',
-  preacherCurl: 'preacher-curl',
-  bayesianCurl: 'cable-curl',
   hammerCurl: 'hammer-curl',
   ezCurl: 'ez-bar-curl',
   reverseCurl: 'reverse-curl',
-  wristCurl: 'dumbbell-wrist-curl',
   reverseWristCurl: 'reverse-wrist-curl',
   squat: 'squat',
   rdl: 'romanian-deadlift',
-  walkingLunge: 'walking-lunges',
   ballLegCurl: 'swiss-ball-leg-curl',
   cableLegCurl: 'seated-leg-curl',
   calfRaise: 'standing-dumbbell-calf-raise',
@@ -67,7 +64,9 @@ export const VIDEO: Record<string, string> = {
   cableCrunch: 'cable-crunch',
   rollout: 'ab-wheel-rollout',
   plank: 'front-plank',
-  inclineWalk: 'treadmill',
+  // Photos instead, as RepCount's are other exercises: face pulls (a band), skull crushers and
+  // wrist curls (dumbbells), the cable preacher curl (a barbell), the Bayesian curl (two hands,
+  // facing the machine), walking lunges (no dumbbells), the incline walk (running).
 };
 export const videoUrl = (exerciseId: string) => (VIDEO[exerciseId] ? `${VIDEO_BASE}${VIDEO[exerciseId]}.mp4` : undefined);
 
