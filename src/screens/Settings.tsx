@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
-import { disableRestPush, enableRestPush, restPushOn, restPushSupported } from '../ui/restPush';
+import { disableRestPush, enableRestPush, restPushError, restPushOn, restPushSupported } from '../ui/restPush';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
@@ -546,7 +546,7 @@ export function SettingsScreen() {
                   setRestPush(r === 'on');
                   if (r === 'denied') toast('Allow notifications for Zoro in Settings › Notifications');
                   else if (r === 'unsupported') toast('Open Zoro from your Home Screen first');
-                  else if (r === 'failed') toast('Couldn’t turn on notifications');
+                  else if (r === 'failed') toast(`Couldn’t turn on notifications (${restPushError})`);
                 });
               }}
             />

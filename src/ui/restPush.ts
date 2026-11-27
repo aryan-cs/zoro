@@ -54,14 +54,21 @@ async function subscription(make: boolean): Promise<PushSubscription | null> {
   return sub;
 }
 
+/** Why turning them on last failed (shown with the message, to tell one cause from another). */
+export let restPushError = '';
+
 /** Turn rest notifications on (from a tap: iOS asks for permission only then). */
 export async function enableRestPush(): Promise<'on' | 'denied' | 'unsupported' | 'failed'> {
   if (!restPushSupported()) return 'unsupported';
   const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
   if (permission !== 'granted') return 'denied';
   try {
-    if (!(await subscription(true))) return 'failed';
-  } catch {
+    if (!(await subscription(true))) {
+      restPushError = 'no subscription';
+      return 'failed';
+    }
+  } catch (e) {
+    restPushError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     return 'failed';
   }
   write(ON_KEY, '1');
