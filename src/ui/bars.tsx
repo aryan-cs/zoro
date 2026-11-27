@@ -1,6 +1,7 @@
 import { Sym } from './Sym';
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { MENU_CLOSE, MENU_CLOSE_CONTENT, MENU_CLOSE_MS, MENU_OPEN, MENU_OPEN_MS, menuFrame } from './appleMotion';
 import { InStack, useNav } from './nav';
 import './bars.css';
 
@@ -119,13 +120,6 @@ export function NavButtonGroup({ items }: { items: { label: string; icon: ReactN
   );
 }
 
-/** One of Apple's springs from index.css ("820ms linear(…)"), split for the Web Animations API. */
-function spring(name: string, fallbackMs: number): { duration: number; easing: string } {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const m = v.match(/^([\d.]+)ms\s+(.+)$/);
-  return m ? { duration: Number(m[1]), easing: m[2] } : { duration: fallbackMs, easing: 'ease-out' };
-}
-
 export type MenuItem = {
   label: string;
   icon?: ReactNode;
@@ -191,16 +185,22 @@ export function PullDownMenu(props: {
   const h = MENU.pad * 2 + props.items.length * MENU.row + seps * MENU.sep + (props.title ? MENU.title : 0);
   const up = !!a && a.top + h > window.innerHeight - 96 && a.bottom - h > 56;
   const right = !!a && a.left + a.width / 2 >= window.innerWidth / 2;
-  // Where the button sits inside the menu, so the glass can grow out of exactly it.
-  const bw = a ? Math.min(a.width, MENU.width) : 44;
-  const bh = a ? Math.min(a.height, 48) : 44;
-  const from = `inset(${up ? `calc(100% - ${bh}px)` : '0px'} ${right ? '0px' : `calc(100% - ${bw}px)`} ${up ? '0px' : `calc(100% - ${bh}px)`} ${right ? `calc(100% - ${bw}px)` : '0px'} round ${Math.min(bw, bh) / 2}px)`;
-  // Its full size, plus room for the shadow (the clip's corners stay outside the glass's own).
-  const to = `inset(-40px round ${MENU.radius + 40}px)`;
+  const near = { x: right ? 'right' : 'left', y: up ? 'bottom' : 'top' } as const;
   const origin = `${up ? 'bottom' : 'top'} ${right ? 'right' : 'left'}`;
 
-  // Open: the glass grows from the button on Apple's bouncy spring; the rows start blurred and
-  // small and come into focus a little behind it.
+  /** The menu's shape over time, measured from UIKit (appleMotion): from a 24pt circle at the button. */
+  const shapes = (rows: number[][], el: HTMLElement, total: number) => {
+    const box = el.getBoundingClientRect();
+    const to = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+    const cx = a ? a.left + a.width / 2 : box.right - 22;
+    const cy = a ? a.top + a.height / 2 : box.top + 22;
+    const from = { left: cx - 12, top: cy - 12, right: cx + 12, bottom: cy + 12 };
+    return rows.map((row) => ({ offset: Math.min(1, row[0] / total), ...menuFrame(row, from, to, near, MENU.radius) }));
+  };
+
+  // Open: the glass grows out of the button along UIKit's own curves (far edge shooting past, near
+  // edge swinging back), each layer clipped to the shape and the menu moved and scaled where the
+  // shape pokes out of it. The rows come into focus as the glass reaches them.
   useLayoutEffect(() => {
     const el = panel.current;
     if (!el || !props.anchor) return;
@@ -211,18 +211,11 @@ export function PullDownMenu(props: {
       btn.style.visibility = 'hidden';
       source.current = btn;
     }
-    const s = spring('--spring-bouncy', 820);
-    const grow = { ...s, duration: s.duration * 0.75 };
-    // Each layer is clipped on its own (a clip on the menu would cut its glass off from the page).
-    for (const layer of el.children) (layer as HTMLElement).animate([{ clipPath: from }, { clipPath: to }], grow);
-    el.animate([{ transform: 'scale(0.96)' }, { transform: 'scale(1)' }], grow);
-    el.querySelector('.ios-menu-body')?.animate(
-      [
-        { filter: 'blur(8px)', opacity: 0, transform: 'scale(0.85)' },
-        { filter: 'blur(0px)', opacity: 1, transform: 'scale(1)' },
-      ],
-      { duration: 380, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'backwards' },
-    );
+    const frames = shapes([[0, 0, 0, 0, 0], ...MENU_OPEN], el, MENU_OPEN_MS);
+    const timing = { duration: MENU_OPEN_MS, easing: 'linear' };
+    el.animate(frames.map((f) => ({ offset: f.offset, transform: f.transform, transformOrigin: '0 0' })), timing);
+    for (const layer of el.children) (layer as HTMLElement).animate(frames.map((f) => ({ offset: f.offset, clipPath: f.clipPath })), timing);
+    el.querySelector('.ios-menu-body')?.animate([{ filter: 'blur(6px)' }, { filter: 'blur(0px)', offset: 0.35 }, { filter: 'blur(0px)' }], timing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.anchor]);
 
@@ -231,10 +224,6 @@ export function PullDownMenu(props: {
     if (closing.current) return;
     closing.current = true;
     then?.();
-    // Back into the button: the reverse, quicker and without the bounce.
-    el?.querySelector('.ios-menu-body')?.animate([{ filter: 'blur(0px)', opacity: 1 }, { filter: 'blur(6px)', opacity: 0 }], { duration: 180, easing: 'ease-in', fill: 'forwards' });
-    let anim: Animation | undefined;
-    for (const layer of el?.children ?? []) anim = (layer as HTMLElement).animate([{ clipPath: to, opacity: 1 }, { clipPath: from, opacity: 0 }], { duration: MENU_CLOSE_MS, easing: 'cubic-bezier(0.4, 0, 0.7, 1)', fill: 'forwards' });
     const done = () => {
       if (source.current) source.current.style.visibility = '';
       source.current = null;
@@ -243,7 +232,33 @@ export function PullDownMenu(props: {
       closing.current = false;
       if (props.anchor) props.onClose();
     };
-    if (anim) anim.onfinish = done;
+    if (!el) return done();
+    // Close: the glass lifts a little and shrinks back into the button; the rows shrink toward
+    // the button and fade well before it gets there (UIKit's curves, appleMotion).
+    const frames = shapes([[0, 1, 1, 1, 1], ...MENU_CLOSE], el, MENU_CLOSE_MS);
+    const timing = { duration: MENU_CLOSE_MS, easing: 'linear', fill: 'forwards' as const };
+    el.animate(frames.map((f) => ({ offset: f.offset, transform: f.transform, transformOrigin: '0 0' })), timing);
+    let last: Animation | undefined;
+    for (const layer of el.children) {
+      const glass = !(layer as HTMLElement).classList.contains('ios-menu-body');
+      // The glass fades as it becomes the button again, which comes back under it.
+      last = (layer as HTMLElement).animate(
+        frames.map((f) => ({ offset: f.offset, clipPath: f.clipPath, ...(glass ? { opacity: f.offset < 0.55 ? 1 : Math.max(0, 1 - (f.offset - 0.55) / 0.45) } : {}) })),
+        timing,
+      );
+    }
+    const box = el.getBoundingClientRect();
+    const ox = a ? a.left + a.width / 2 - box.left : box.width;
+    const oy = a ? a.top + a.height / 2 - box.top : 0;
+    el.querySelector('.ios-menu-body')?.animate(
+      [{ offset: 0, opacity: 1, transform: 'scale(1)' }, ...MENU_CLOSE_CONTENT.map(([ms, o, sc]) => ({ offset: ms / MENU_CLOSE_MS, opacity: o, transform: `scale(${sc})` }))].map((f) => ({ ...f, transformOrigin: `${ox}px ${oy}px` })),
+      timing,
+    );
+    if (source.current) {
+      source.current.style.visibility = '';
+      source.current.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], { duration: MENU_CLOSE_MS, easing: 'linear' });
+    }
+    if (last) last.onfinish = done;
     else done();
   };
   // The parent closed it (say, the photo picker it opened was done): animate away too.
@@ -296,7 +311,6 @@ export function PullDownMenu(props: {
     document.body,
   );
 }
-const MENU_CLOSE_MS = 260;
 
 /** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
 export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {

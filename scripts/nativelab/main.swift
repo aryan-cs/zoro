@@ -101,11 +101,11 @@ func rgba(_ c: CGColor?) -> [Double]? {
     if comps.count == 2 { return [comps[0], comps[0], comps[0], comps[1]].map { (Double($0) * 1000).rounded() / 1000 } }
     return nil
 }
-func r(_ v: CGFloat) -> Double { (Double(v) * 100).rounded() / 100 }
+func r(_ v: CGFloat) -> Double { v.isFinite ? (Double(v) * 100).rounded() / 100 : -1 }
 func rect(_ f: CGRect) -> [Double] { [r(f.minX), r(f.minY), r(f.width), r(f.height)] }
 func describe(_ v: Any?) -> Any {
     guard let v else { return NSNull() }
-    if let n = v as? NSNumber { return n }
+    if let n = v as? NSNumber { return n.doubleValue.isFinite ? n : String(describing: n.doubleValue) }
     if let s = v as? String { return s }
     if CFGetTypeID(v as AnyObject) == CGColor.typeID { return ["color": rgba((v as! CGColor)) ?? []] }
     if let a = v as? [Any] { return a.prefix(24).map { describe($0) } }
@@ -182,6 +182,74 @@ func layerTree(_ l: CALayer, root: CALayer, depth: Int = 0) -> [String: Any] {
     return d
 }
 
+
+/// Every running Core Animation animation in the app's windows: what it animates, from/to, timing.
+func fin(_ x: Double) -> Any { x.isFinite ? x : String(describing: x) }
+func fin(_ x: CGFloat) -> Any { fin(Double(x)) }
+func fin(_ x: Float) -> Any { fin(Double(x)) }
+func animInfo(_ a: CAAnimation) -> [String: Any] {
+    var d: [String: Any] = ["class": String(describing: type(of: a)), "duration": fin(a.duration), "beginTime": fin(a.beginTime), "speed": fin(a.speed)]
+    if let tf = a.timingFunction { var c = [Float](repeating: 0, count: 2); var pts: [Any] = []; for i in 1...2 { tf.getControlPoint(at: i, values: &c); pts += c.map { fin($0) } }; d["timing"] = pts }
+    if let p = a as? CAPropertyAnimation { d["keyPath"] = p.keyPath ?? ""; d["additive"] = p.isAdditive }
+    if let b = a as? CABasicAnimation { d["from"] = describe(b.fromValue); d["to"] = describe(b.toValue); d["by"] = describe(b.byValue) }
+    if let sp = a as? CASpringAnimation { d["mass"] = fin(sp.mass); d["stiffness"] = fin(sp.stiffness); d["damping"] = fin(sp.damping); d["initialVelocity"] = fin(sp.initialVelocity); d["settling"] = fin(sp.settlingDuration); d["perceptualDuration"] = fin(sp.perceptualDuration); d["bounce"] = fin(sp.bounce) }
+    if let k = a as? CAKeyframeAnimation { d["values"] = describe(k.values); d["keyTimes"] = describe(k.keyTimes) }
+    if let g = a as? CAAnimationGroup { d["group"] = (g.animations ?? []).map(animInfo) }
+    return d
+}
+func collectAnims(_ l: CALayer, root: CALayer, into out: inout [[String: Any]], depth: Int = 0) {
+    if let keys = l.animationKeys() {
+        for k in keys { if let a = l.animation(forKey: k) { var d = animInfo(a); d["key"] = k; d["layer"] = String(describing: type(of: l)); d["delegateView"] = l.delegate.map { String(describing: type(of: $0)) } ?? ""; d["frame"] = rect(l.convert(l.bounds, to: root)); out.append(d) } }
+    }
+    if depth < 40 { for sub in l.sublayers ?? [] { collectAnims(sub, root: root, into: &out, depth: depth + 1) } }
+}
+func dumpAnims(label: String) {
+    var out: [[String: Any]] = []
+    for scene in UIApplication.shared.connectedScenes { for w in (scene as? UIWindowScene)?.windows ?? [] { collectAnims(w.layer, root: w.layer, into: &out) } }
+    let data = try! JSONSerialization.data(withJSONObject: ["label": label, "now": CACurrentMediaTime(), "anims": out], options: [.prettyPrinted, .sortedKeys])
+    try! data.write(to: docs().appendingPathComponent("anim-\(label).json"))
+}
+
+
+/// Every frame for a while: where the interesting layers actually are on screen (their presentation
+/// values), so an animation's curve can be read off even when UIKit drives it frame by frame.
+final class Tracer: NSObject {
+    static var current: Tracer?
+    let label: String; let until: CFTimeInterval; let start = CACurrentMediaTime()
+    var frames: [[String: Any]] = []
+    var link: CADisplayLink?
+    init(label: String, seconds: Double) { self.label = label; until = start + seconds; super.init() }
+    func begin() { link = CADisplayLink(target: self, selector: #selector(tick)); link?.preferredFrameRateRange = CAFrameRateRange(minimum: 120, maximum: 120, preferred: 120); link?.add(to: .main, forMode: .common); Tracer.current = self }
+    static let wanted = ["ContextMenu", "Alert", "Dimming", "Sheet", "Shadow", "Glass", "SDF", "Platter", "TabBar", "Button", "Backdrop", "Segment"]
+    @objc func tick() {
+        let now = CACurrentMediaTime()
+        var layers: [[String: Any]] = []
+        for scene in UIApplication.shared.connectedScenes { for w in (scene as? UIWindowScene)?.windows ?? [] {
+            let root = w.layer.presentation() ?? w.layer
+            func walk(_ l: CALayer, _ depth: Int) {
+                guard layers.count < 120, depth < 40 else { return }
+                let name = String(describing: type(of: l)) + "|" + (l.delegate.map { String(describing: type(of: $0)) } ?? "")
+                let p = l.presentation() ?? l
+                if Tracer.wanted.contains(where: { name.contains($0) }) && !p.isHidden {
+                    var d: [String: Any] = ["n": name, "f": rect(p.convert(p.bounds, to: root)), "o": r(CGFloat(p.opacity))]
+                    if p.cornerRadius > 0 { d["cr"] = r(p.cornerRadius) }
+                    let t = p.transform; if !CATransform3DIsIdentity(t) { d["t"] = [r(t.m11), r(t.m22), r(t.m41), r(t.m42)] }
+                    for f in p.filters ?? [] { if let o = f as? NSObject, (safeValue(o, "name") as? String)?.contains("lur") == true || String(describing: safeValue(o, "type") ?? "").contains("lur") { d["blur"] = describe(o.value(forKey: "inputRadius")) } }
+                    layers.append(d)
+                }
+                for sub in l.sublayers ?? [] { walk(sub, depth + 1) }
+            }
+            walk(w.layer, 0)
+        } }
+        frames.append(["t": (now - start) * 1000, "layers": layers])
+        if now > until {
+            link?.invalidate(); Tracer.current = nil
+            let data = try! JSONSerialization.data(withJSONObject: ["label": label, "frames": frames], options: [])
+            try! data.write(to: docs().appendingPathComponent("trace-\(label).json"))
+        }
+    }
+}
+
 func docs() -> URL { FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] }
 
 func dumpAll(label: String) {
@@ -207,6 +275,34 @@ final class Commands {
                 let p = line.split(separator: " ", maxSplits: 1).map(String.init)
                 switch p[0] {
                 case "dump": dumpAll(label: p.count > 1 ? p[1] : "now")
+                case "trace":
+                    // trace <label> <seconds> [action]: record every frame, then (optionally) start something.
+                    let parts = (p.count > 1 ? p[1] : "x 1").split(separator: " ").map(String.init)
+                    let label = parts[0], secs = Double(parts.count > 1 ? parts[1] : "1") ?? 1, action = parts.count > 2 ? parts[2...].joined(separator: " ") : ""
+                    Tracer(label: label, seconds: secs).begin()
+                    switch action {
+                    case "": break
+                    case "close": vc.top.presentingViewController?.dismiss(animated: true)
+                    case "menu": (vc.top.view.viewWithTag(77) as? UIButton)?.performPrimaryAction()
+                    case "press": if let b = vc.top.view.viewWithTag(78) as? UIButton { b.isHighlighted = true }
+                    case "release": if let b = vc.top.view.viewWithTag(78) as? UIButton { b.isHighlighted = false }
+                    case "tab0": (vc.top as? UITabBarController)?.selectedIndex = 0
+                    case "tab2": (vc.top as? UITabBarController)?.selectedIndex = 2
+                    default: vc.show(action)
+                    }
+                case "anim":
+                    // Start something, then read its animations a frame later (and again mid-way).
+                    let what = p.count > 1 ? p[1] : ""
+                    switch what {
+                    case "close": vc.top.presentingViewController?.dismiss(animated: true)
+                    case "menu": (vc.top.view.viewWithTag(77) as? UIButton)?.performPrimaryAction()
+                    case "press": if let b = vc.top.view.viewWithTag(78) as? UIButton { b.isHighlighted = true }
+                    case "release": if let b = vc.top.view.viewWithTag(78) as? UIButton { b.isHighlighted = false }
+                    default: vc.show(what)
+                    }
+                    let tag = what.replacingOccurrences(of: " ", with: "")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { dumpAnims(label: tag + "-a") }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { dumpAnims(label: tag + "-b") }
                 case "classes":
                     let data = try! JSONSerialization.data(withJSONObject: classesWithPrefix(p.count > 1 ? p[1] : "CASDF"), options: [.prettyPrinted, .sortedKeys])
                     try! data.write(to: docs().appendingPathComponent("prefix.json"))
@@ -223,12 +319,39 @@ final class Commands {
                     let data = try! JSONSerialization.data(withJSONObject: Dictionary(uniqueKeysWithValues: names.map { ($0, classInfo($0)) }), options: [.prettyPrinted, .sortedKeys])
                     try! data.write(to: docs().appendingPathComponent("classes.json"))
                 case "show": vc.show(p.count > 1 ? p[1] : "")
-                case "dismiss": vc.presentedViewController?.dismiss(animated: false) ?? vc.navigationController?.presentedViewController?.dismiss(animated: false)
+                case "dismiss": vc.top.presentingViewController?.dismiss(animated: false)
                 default: break
                 }
             }
             try? "ok \(s)".write(to: docs().appendingPathComponent("ack"), atomically: true, encoding: .utf8)
         }
+    }
+}
+
+
+/// Apple's glass controls over the test pattern: a tab bar, glass buttons, a segmented control.
+final class GlassDemo: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        for i in 0..<120 { let s = UIView(frame: CGRect(x: CGFloat(i) * 8, y: 0, width: 4, height: 2000)); s.backgroundColor = .white; view.addSubview(s) }
+        for (i, c) in [UIColor.systemRed, .systemGreen, .systemBlue, .systemYellow, .systemPurple].enumerated() {
+            let b = UIView(frame: CGRect(x: 0, y: 300 + CGFloat(i) * 60, width: 402, height: 26)); b.backgroundColor = c; view.addSubview(b)
+        }
+        func add(_ v: UIView, _ f: CGRect) { v.frame = f; view.addSubview(v) }
+        var glass = UIButton.Configuration.glass(); glass.title = "Add Food"
+        let big = UIButton(configuration: glass); big.tag = 78
+        add(big, CGRect(x: 16, y: 120, width: 370, height: 52))
+        var prom = UIButton.Configuration.prominentGlass(); prom.title = "Start Workout"
+        add(UIButton(configuration: prom), CGRect(x: 16, y: 190, width: 370, height: 52))
+        var round = UIButton.Configuration.glass(); round.image = UIImage(systemName: "plus")
+        let menuButton = UIButton(configuration: round)
+        menuButton.menu = (presentingViewController as? LabController)?.foodMenu() ?? UIMenu(children: [UIAction(title: "Search Foods", image: UIImage(systemName: "magnifyingglass")) { _ in }, UIAction(title: "Scan Barcode", image: UIImage(systemName: "barcode.viewfinder")) { _ in }, UIAction(title: "Quick Add Calories", image: UIImage(systemName: "bolt.fill")) { _ in }])
+        menuButton.showsMenuAsPrimaryAction = true
+        menuButton.tag = 77
+        add(menuButton, CGRect(x: 16, y: 600, width: 48, height: 48))
+        let seg = UISegmentedControl(items: ["Day", "Week", "Month"]); seg.selectedSegmentIndex = 1
+        add(seg, CGRect(x: 80, y: 604, width: 306, height: 40))
     }
 }
 
@@ -276,32 +399,46 @@ final class LabController: UITableViewController {
     }
     override func tableView(_ t: UITableView, didSelectRowAt i: IndexPath) { show(rows[i.row]); t.deselectRow(at: i, animated: true) }
 
+    /// Where to present from: the topmost presented controller.
+    var top: UIViewController { var v: UIViewController = self; while let p = v.presentedViewController { v = p }; return v }
+
     func show(_ what: String) {
         switch what {
+        case "Glass":
+            let tabs = UITabBarController()
+            tabs.viewControllers = [("drop.fill", "Water"), ("fork.knife", "Food"), ("calendar", "Today"), ("figure.run.circle.fill", "Lift"), ("text.book.closed.fill", "History")].enumerated().map { i, t in
+                let v: UIViewController = i == 2 ? GlassDemo() : { let v = UIViewController(); v.view.backgroundColor = .black; return v }()
+                v.tabBarItem = UITabBarItem(title: t.1, image: UIImage(systemName: t.0), tag: i)
+                return v
+            }
+            tabs.selectedIndex = 2
+            tabs.modalPresentationStyle = .fullScreen
+            present(tabs, animated: false)
+            return
         case "Alert":
             let a = UIAlertController(title: "Add Your Gemini Key", message: "Logging from a photo uses your own free Gemini key. Add it in Settings.", preferredStyle: .alert)
             a.addAction(UIAlertAction(title: "Cancel", style: .cancel))
             a.addAction(UIAlertAction(title: "Settings", style: .default))
             a.preferredAction = a.actions[1]
-            present(a, animated: true)
+            top.present(a, animated: true)
         case "AlertField":
             let a = UIAlertController(title: "Morning Weight", message: "In pounds.", preferredStyle: .alert)
             a.addTextField { $0.placeholder = "lb"; $0.text = "195.0" }
             a.addAction(UIAlertAction(title: "Cancel", style: .cancel))
             a.addAction(UIAlertAction(title: "Save", style: .default))
-            present(a, animated: true)
+            top.present(a, animated: true)
         case "Alert Three":
             let a = UIAlertController(title: "Delete Photo?", message: "Its foods stay logged.", preferredStyle: .alert)
             a.addAction(UIAlertAction(title: "Delete", style: .destructive))
             a.addAction(UIAlertAction(title: "Keep", style: .default))
             a.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-            present(a, animated: true)
+            top.present(a, animated: true)
         case "Action Sheet":
             let a = UIAlertController(title: nil, message: "What do you want to do with this photo?", preferredStyle: .actionSheet)
             a.addAction(UIAlertAction(title: "Try Again", style: .default))
             a.addAction(UIAlertAction(title: "Delete Photo", style: .destructive))
             a.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-            present(a, animated: true)
+            top.present(a, animated: true)
         case "Sheet":
             let v = UIViewController()
             v.view.backgroundColor = .systemGroupedBackground
@@ -310,13 +447,13 @@ final class LabController: UITableViewController {
             v.navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Cancel", style: .plain, target: nil, action: nil)
             n.sheetPresentationController?.detents = [.medium(), .large()]
             n.sheetPresentationController?.prefersGrabberVisible = true
-            present(n, animated: true)
+            top.present(n, animated: true)
         case "FullSheet":
             let v = UITableViewController(style: .insetGrouped)
             v.title = "Add Food"
             v.navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Cancel", style: .plain, target: nil, action: nil)
             let n = UINavigationController(rootViewController: v)
-            present(n, animated: true)
+            top.present(n, animated: true)
         default: break
         }
     }

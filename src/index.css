@@ -268,6 +268,20 @@ select {
 /* iOS push/pop (measured, see nav.tsx): the new screen slides in from the right over the old
  * one, which slides 30% left and dims to 10% black. The tab bar stays put above both. */
 :root {
+  /* UIKit's own motion, traced frame by frame in the iOS 27 simulator (scripts/nativelab, see
+   * ui/appleMotion.ts): each a duration and a linear() curve through the measured points.
+   * sheet-in/-out: a sheet rising and leaving; alert-in-scale/-fade: an alert settling from 120%
+   * as it fades in; alert-out: its fade away; tab: the tab bar's selection sliding; press and
+   * release: a glass button growing to 1.0432x under a finger and back. */
+  --ease-sheet-in: 520ms linear(0.000 0.0%, 0.035 3.2%, 0.339 12.8%, 0.445 16.0%, 0.541 19.2%, 0.625 22.4%, 0.696 25.6%, 0.756 28.9%, 0.805 32.1%, 0.846 35.3%, 0.878 38.5%, 0.904 41.7%, 0.925 44.9%, 0.941 48.1%, 0.954 51.3%, 0.965 54.5%, 0.973 57.7%, 0.979 60.9%, 0.984 64.1%, 0.987 67.3%, 0.990 70.5%, 0.993 73.7%, 0.994 76.9%, 0.996 80.1%, 0.997 83.3%, 0.997 86.5%, 0.998 89.7%, 0.999 93.0%, 0.999 96.2%, 1.000 99.4%, 1.000 100.0%);
+  --ease-sheet-out: 460ms linear(0.000 0.0%, 0.046 3.4%, 0.246 10.6%, 0.357 14.3%, 0.462 17.9%, 0.556 21.5%, 0.638 25.1%, 0.707 28.8%, 0.765 32.4%, 0.813 36.0%, 0.852 39.6%, 0.883 43.3%, 0.908 46.9%, 0.928 50.5%, 0.944 54.1%, 0.956 57.7%, 0.966 61.4%, 0.974 65.0%, 0.980 68.6%, 0.984 72.2%, 0.988 75.9%, 0.991 79.5%, 0.993 83.1%, 0.995 86.7%, 0.996 90.4%, 0.997 94.0%, 0.998 97.6%, 1.000 100.0%);
+  --ease-alert-in-scale: 420ms linear(0.000 0.0%, 0.050 4.0%, 0.307 11.9%, 0.442 15.9%, 0.564 20.0%, 0.659 23.8%, 0.740 27.8%, 0.804 31.8%, 0.854 35.7%, 0.892 39.8%, 0.921 43.8%, 0.941 47.6%, 0.957 51.7%, 0.969 55.6%, 0.977 59.5%, 0.984 63.6%, 0.988 67.6%, 0.992 71.6%, 0.994 75.5%, 0.996 79.5%, 0.997 83.5%, 0.998 87.3%, 0.998 91.3%, 0.999 95.4%, 1.000 99.2%, 1.000 100.0%);
+  --ease-alert-in-fade: 420ms linear(0.000 0.0%, 0.050 4.0%, 0.310 11.9%, 0.440 15.9%, 0.560 20.0%, 0.660 23.8%, 0.740 27.8%, 0.800 31.8%, 0.850 35.7%, 0.890 39.8%, 0.920 43.8%, 0.940 47.6%, 0.960 51.7%, 0.970 55.6%, 0.980 59.5%, 0.980 63.6%, 0.990 67.6%, 0.990 71.6%, 0.990 75.5%, 1.000 79.5%, 1.000 83.5%, 1.000 87.3%, 1.000 91.3%, 1.000 95.4%, 1.000 99.2%, 1.000 100.0%);
+  --ease-alert-out: 340ms linear(0.000 0.0%, 0.000 4.9%, 0.070 9.8%, 0.190 14.7%, 0.330 19.6%, 0.470 24.5%, 0.580 29.4%, 0.680 34.4%, 0.750 39.3%, 0.820 44.2%, 0.860 49.1%, 0.900 54.0%, 0.920 58.9%, 0.940 63.8%, 0.960 68.7%, 0.970 73.7%, 0.980 78.6%, 0.980 83.5%, 0.990 88.4%, 0.990 93.1%, 0.990 98.0%, 1.000 100.0%);
+  --ease-tab: 560ms linear(0.000 0.0%, -0.000 3.0%, 0.059 6.0%, 0.148 9.0%, 0.252 12.0%, 0.360 14.9%, 0.464 17.9%, 0.561 21.0%, 0.647 23.8%, 0.721 26.8%, 0.784 29.8%, 0.836 32.8%, 0.879 35.7%, 0.913 38.7%, 0.939 41.7%, 0.960 44.7%, 0.975 47.6%, 0.986 50.6%, 0.994 53.6%, 0.999 56.6%, 1.003 59.6%, 1.005 62.5%, 1.006 65.5%, 1.006 68.5%, 1.006 71.5%, 1.006 74.4%, 1.005 77.4%, 1.005 80.4%, 1.004 83.4%, 1.003 86.4%, 1.003 89.3%, 1.002 92.3%, 1.002 95.3%, 1.001 98.3%, 1.000 100.0%);
+  --ease-press: 330ms linear(0.000 0.0%, 0.102 5.1%, 0.236 9.7%, 0.387 14.8%, 0.538 19.8%, 0.675 24.9%, 0.789 29.9%, 0.879 35.0%, 0.944 40.0%, 0.988 45.1%, 1.013 50.1%, 1.024 55.2%, 1.024 60.2%, 1.017 65.3%, 1.007 70.3%, 0.994 75.4%, 0.983 80.4%, 0.971 85.5%, 0.962 90.5%, 0.954 95.6%, 1.000 100.0%);
+  --ease-release: 330ms linear(0.000 0.0%, 0.052 5.1%, 0.093 10.1%, 0.186 15.2%, 0.310 20.2%, 0.446 25.3%, 0.581 30.3%, 0.706 35.4%, 0.816 40.4%, 0.906 45.5%, 0.976 50.5%, 1.027 55.6%, 1.061 60.6%, 1.081 65.7%, 1.089 70.7%, 1.089 75.8%, 1.082 80.8%, 1.071 85.9%, 1.059 90.9%, 1.046 96.0%, 1.000 100.0%);
+  --press-scale: 1.0432;
   --push-ms: 420ms;
   --push-ease: linear(0, 0.079, 0.237, 0.404, 0.553, 0.673, 0.765, 0.834, 0.884, 0.92, 0.945, 0.963, 0.975, 0.983, 0.989, 0.992, 0.995, 0.997, 0.998, 0.999, 1);
   /* Apple's springs (SwiftUI's .smooth, .snappy, .bouncy, and two short ones), each as how long it
@@ -373,6 +387,47 @@ select {
 
 
 /*
+ * Alerts, as iOS 27 draws them (UIKit's _UIAlertControllerPhoneTVMacView): 320pt wide, 34pt
+ * corners, text left-aligned 30pt in with the title 22pt from the top, the message 15pt and 60%
+ * gray; 48pt capsule buttons 16pt in from the edges and 8pt apart. The glass is the menus' (fitted
+ * against UIKit's), a little denser because an alert sits over a dimmed page, with the same lit
+ * rim along the top and bottom.
+ */
+.k-dialog {
+  width: 320px !important;
+  border-radius: 34px !important;
+  background: rgba(120, 120, 122, 0.31) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(180%) contrast(0.9) brightness(0.9) !important;
+  backdrop-filter: blur(26px) saturate(180%) contrast(0.9) brightness(0.9) !important;
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0.5px rgba(255, 255, 255, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.2) !important;
+}
+.k-dialog > div:first-child {
+  align-items: stretch !important;
+  gap: 7px !important;
+  padding: 22px 30px 0 !important;
+  text-align: left;
+}
+.k-dialog > div:first-child > .text-sm {
+  font-size: 15px !important;
+  line-height: 20px !important;
+  color: rgba(235, 235, 245, 0.6) !important;
+}
+.k-dialog > div:last-child {
+  gap: 8px !important;
+  padding: 16px !important;
+}
+.k-dialog .k-button {
+  transition: transform var(--ease-release) !important;
+}
+.k-dialog .k-button:not(.pointer-events-none):active {
+  transform: scale(var(--press-scale));
+  transition: transform var(--ease-press) !important;
+}
+
+/*
  * Alerts: centered without a half-pixel translate (which jitters and blurs text in Safari),
  * and opened like iOS 26: a quick fade with a small spring up to full size. A keyframe
  * animation always starts from its first frame, so there's no flash at full size first.
@@ -395,8 +450,8 @@ select {
 }
 .k-dialog.invisible {
   scale: 1 !important;
-  /* Dismiss: a quick fade, like iOS. */
-  animation: alert-out var(--spring-quick) both;
+  /* Dismiss: UIKit's alert only fades (alert-out, traced), without shrinking. */
+  animation: alert-out var(--ease-alert-out) both;
 }
 @keyframes alert-out {
   from {
@@ -411,16 +466,19 @@ select {
     visibility 0s,
     top var(--spring-smooth),
     bottom var(--spring-smooth) !important;
-  animation: alert-in var(--spring-bouncy) both;
+  /* UIKit's alert arrives from 120% and settles to size with no bounce while it fades in (traced). */
+  animation:
+    alert-in-scale var(--ease-alert-in-scale) both,
+    alert-in-fade var(--ease-alert-in-fade) both;
 }
-@keyframes alert-in {
-  0% {
-    opacity: 0;
-    scale: 0.88;
+@keyframes alert-in-scale {
+  from {
+    scale: 1.2;
   }
-  100% {
-    opacity: 1;
-    scale: 1;
+}
+@keyframes alert-in-fade {
+  from {
+    opacity: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -434,9 +492,17 @@ select {
 .k-sheet,
 .k-popup,
 .k-actions {
+  /* Rising: UIKit's sheet curve (traced), quick and with no bounce. */
   transition:
-    translate var(--spring-smooth),
-    transform var(--spring-smooth);
+    translate var(--ease-sheet-in),
+    transform var(--ease-sheet-in);
+}
+.k-sheet.translate-y-full,
+.k-popup.translate-y-full,
+.k-actions.translate-y-full {
+  transition:
+    translate var(--ease-sheet-out),
+    transform var(--ease-sheet-out);
 }
 /* A closed full-height sheet waits just below the screen, as iOS's does. Konsta parks it a screen
  * and a half down (its centering shift plus its own height), so most of a close happened off
@@ -449,13 +515,18 @@ select {
 :has(+ .k-popup),
 :has(+ .k-actions) {
   transition:
-    opacity var(--spring-smooth),
-    visibility var(--spring-smooth);
+    opacity var(--ease-sheet-in),
+    visibility var(--ease-sheet-in);
 }
 :has(+ .k-dialog) {
   transition:
-    opacity var(--spring-quick),
-    visibility var(--spring-quick);
+    opacity var(--ease-alert-in-fade),
+    visibility var(--ease-alert-in-fade);
+}
+:has(+ .k-dialog.invisible) {
+  transition:
+    opacity var(--ease-alert-out),
+    visibility var(--ease-alert-out);
 }
 
 /* Vertical scrolling stays native; sideways drags are left to the swipe-back gesture. */
@@ -510,6 +581,8 @@ select {
   padding: 4px !important;
 }
 .zoro-tabbar .k-toolbar-pane > span:last-child {
+  /* Sliding to the tapped tab on UIKit's own curve (traced), not Konsta's 0.3s ease. */
+  transition: transform var(--ease-tab) !important;
   left: 4px !important;
   top: 4px !important;
   height: calc(100% - 8px) !important;

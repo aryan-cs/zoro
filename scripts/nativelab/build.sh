@@ -3,7 +3,9 @@
 #   D=$(xcrun simctl get_app_container booted dev.zoro.nativelab data)
 #   echo "show Alert" > "$D/Documents/cmd"; echo "dump alert" > "$D/Documents/cmd"
 # and read $D/Documents/dump-alert.json. Other commands: dismiss, stripes (a test pattern
-# behind everything, for measuring blur), class <Names…>, classes <Prefix>.
+# behind everything, for measuring blur), class <Names…>, classes <Prefix>, show Glass (Apple's
+# glass controls over the pattern), trace <label> <seconds> [Alert|Sheet|close|menu|tab0|tab2]
+# (every frame's on-screen layer geometry, to trace-<label>.json).
 set -e
 cd "$(dirname "$0")"
 rm -rf build/NativeLab.app && mkdir -p build/NativeLab.app && cp Info.plist build/NativeLab.app/

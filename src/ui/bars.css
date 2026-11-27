@@ -188,11 +188,13 @@
   border-radius: 999px;
   color: var(--ios-label);
   font-size: 17px;
-  transition: transform var(--spring-press);
+  /* Glass buttons grow under a finger and spring back, as UIKit's do (traced: press, release). */
+  transition: transform var(--ease-release);
   -webkit-tap-highlight-color: transparent;
 }
 .ios-navbtn:active {
-  transform: scale(0.94);
+  transform: scale(var(--press-scale));
+  transition: transform var(--ease-press);
 }
 .ios-navbtn:disabled {
   opacity: 0.3;
@@ -555,7 +557,7 @@ button.meal-row:not(:disabled):active {
   white-space: nowrap;
   color: var(--ios-label);
   transition:
-    transform var(--spring-press),
+    transform var(--ease-release),
     background-color var(--spring-quick);
   -webkit-tap-highlight-color: transparent;
 }
@@ -592,7 +594,10 @@ button.meal-row:not(:disabled):active {
   color: var(--ios-tint);
 }
 .ios-btn:not(:disabled):active {
-  transform: scale(0.96);
+  transform: scale(var(--press-scale));
+  transition:
+    transform var(--ease-press),
+    background-color var(--spring-quick);
 }
 .ios-btn.is-glass:not(:disabled):active,
 .ios-btn.is-danger:not(:disabled):active {
