@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { addDays } from '../core/calc';
-import { buildPlan, startSession, today } from '../core/store';
+import { buildPlan, openSession, startSession, today } from '../core/store';
 import type { TemplateId, WorkoutSession } from '../core/types';
 import type { SFName } from './sf';
 import { db } from './kit';
@@ -45,10 +44,9 @@ export function useRunningRest(sessionId: number | undefined): RunningRest | nul
   return rest;
 }
 
-/** The newest unfinished workout from today or yesterday, if any. */
-export async function activeSession(): Promise<WorkoutSession | undefined> {
-  const recent = await db.sessions.where('date').aboveOrEqual(addDays(today(), -1)).toArray();
-  return recent.filter((s) => !s.finishedAt).sort((a, b) => b.startedAt - a.startedAt)[0];
+/** Today's unfinished workout, if any (see openSession). */
+export function activeSession(): Promise<WorkoutSession | undefined> {
+  return openSession(db);
 }
 
 /**
@@ -60,10 +58,6 @@ export async function startWorkout(templateId: TemplateId, date: string = today(
     .filter((s) => s.templateId === templateId && !s.finishedAt)
     .sort((a, b) => b.startedAt - a.startedAt)[0];
   if (sameDay?.id !== undefined) return sameDay.id;
-  if (date === today()) {
-    const open = await activeSession();
-    if (open?.id !== undefined && open.templateId === templateId) return open.id;
-  }
   const plan = await buildPlan(templateId, date, db);
   return startSession(plan, date, db);
 }

@@ -172,6 +172,16 @@ export async function startSession(plan: WorkoutPlan, date: ISODate = today(), d
   return (await db.sessions.add(session)) as number;
 }
 
+/**
+ * The workout you're doing today, if any: the newest unfinished one dated today. A workout
+ * belongs to its day, so one left unfinished yesterday stays on yesterday (where it can still
+ * be picked up) and never shows as today's.
+ */
+export async function openSession(db: ZoroDB = getDB(), day: ISODate = today()): Promise<WorkoutSession | undefined> {
+  const sessions = await db.sessions.where('date').equals(day).toArray();
+  return sessions.filter((s) => !s.finishedAt).sort((a, b) => b.startedAt - a.startedAt)[0];
+}
+
 export async function logSet(set: Omit<SetLog, 'id' | 'completedAt'>, db: ZoroDB = getDB()): Promise<number> {
   const existing = await db.sets.where({ sessionId: set.sessionId }).filter((s) => s.exerciseId === set.exerciseId && s.setIndex === set.setIndex).first();
   if (existing?.id !== undefined) {

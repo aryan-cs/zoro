@@ -13,6 +13,7 @@ import {
   mergeBackup,
   saveHealthImport,
   logSet,
+  openSession,
   saveMetric,
   saveSleep,
   startSession,
@@ -153,5 +154,16 @@ describe('store', () => {
     expect(await applyInboxItem('c.json', { kind: 'unlog', inboxId: 'a.json' }, db)).toBe(false);
     await expect(applyInboxItem('d.json', { kind: 'unlog' }, db)).rejects.toThrow();
   });
-});
 
+  it('ties an unfinished workout to its own day', async () => {
+    const yesterday = new Date(Date.now() - 864e5);
+    const y = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const old = await startSession(await buildPlan('upperB', y), y);
+    expect(await openSession(db)).toBeUndefined();
+    expect((await openSession(db, y))?.id).toBe(old);
+    const now = await startSession(await buildPlan('lowerB'));
+    expect((await openSession(db))?.id).toBe(now);
+    await finishSession(now);
+    expect(await openSession(db)).toBeUndefined();
+  });
+});

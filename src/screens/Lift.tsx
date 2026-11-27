@@ -106,8 +106,9 @@ function WeekStrip(props: { date: string; sel: string; onSelect: (d: string) => 
 const ALL_SESSIONS: TemplateId[] = [...MAIN, ...SECONDARY];
 
 /**
- * Lift is the plan for one day: pick a day in the week strip, see its session(s), and the
- * exercises in it. Any other session can be started from + in the bar.
+ * Lift is the plan for one day: pick a day in the week strip and see its workout. A day has one
+ * lifting workout (+ in the bar or holding its card puts another in its place) and, at most,
+ * cardio alongside it. A workout belongs to its day: one left unfinished stays on that day.
  */
 export function LiftScreen() {
   const nav = useNav();
@@ -135,14 +136,13 @@ export function LiftScreen() {
   // and, for the arm day, in week 1 while you ease in.
   const week1 = programWeek(settings.programStart, sel, DELOAD_WEEKS).week === 1;
   const optional = optionalForWeekday(weekday, settings.daysPerWeek);
-  const secondId = optional && optional !== mainId && !deload && !(optional === 'arms' && week1) ? optional : undefined;
-  // Each workout's exercises (counted on its card; listed on the workout's own screen).
-  const reps = (sets: number, min: number, max: number | undefined, timed?: boolean) => `${sets} × ${min}${max && max > min ? `–${max}` : ''}${timed ? 's' : ''}`;
-  const fromTemplate = (id: TemplateId | undefined | null) =>
-    id ? templateFor(id, settings.daysPerWeek).exercises.map((e) => ({ id: e.exerciseId, name: EXERCISES[e.exerciseId].name, detail: reps(e.sets, e.repMin, e.repMax, EXERCISES[e.exerciseId].timed) })) : [];
+  const offered = optional && optional !== mainId && !deload && !(optional === 'arms' && week1) ? optional : undefined;
+  // One lifting workout a day. Anything second is cardio: the rest days' walk, or one started from
+  // + on a lifting day. An optional lift (Saturday's arm day) shows only on a day without one.
+  const cardioThatDay = history.find((h) => h.date === sel && SECONDARY.includes(h.templateId))?.templateId ?? (isToday && open && SECONDARY.includes(open.templateId) ? open.templateId : undefined);
+  const secondId = (offered && (SECONDARY.includes(offered) || !mainId) ? offered : undefined) ?? (cardioThatDay !== mainId ? cardioThatDay : undefined);
   // The unfinished workout: which of its exercises already have sets logged.
   const openSets = useLiveQuery(async () => (open?.id !== undefined ? new Set((await db.sets.where('sessionId').equals(open.id).toArray()).map((x) => x.exerciseId)) : new Set<string>()), [open?.id]) ?? new Set<string>();
-  const openList = fromTemplate(open?.templateId).map((e) => ({ ...e, done: openSets.has(e.id) }));
   // How far through each of the day's workouts you are: exercises with sets logged, of all of them.
   const dayProgress = (id: TemplateId) => {
     const total = templateFor(id, settings.daysPerWeek).exercises.length;
@@ -194,7 +194,15 @@ export function LiftScreen() {
     if (full) status.set(h.date, 'complete');
     else if (status.get(h.date) !== 'complete') status.set(h.date, 'partial');
   }
-  const allowed = ALL_SESSIONS;
+  // + › a lifting workout: the day's own picks it up; another one takes its place (as holding its
+  // card does), until the day's has been started. Cardio goes alongside.
+  const liftId = mainId && !SECONDARY.includes(mainId) ? mainId : secondId && !SECONDARY.includes(secondId) ? secondId : undefined;
+  const liftStarted = !!liftId && (doneOn(liftId) || dayProgress(liftId) > 0 || (isToday && open?.templateId === liftId));
+  const lifts = liftStarted ? [liftId] : MAIN;
+  const pickFromMenu = async (id: TemplateId) => {
+    if (id !== liftId && !SECONDARY.includes(id)) await swapWorkout(sel, id);
+    play(id)();
+  };
 
   return (
     <Page className="tab-safe">
@@ -214,17 +222,6 @@ export function LiftScreen() {
       <div ref={dayRef}>
       <div className="fit-stack lift-day-cards">
         <h2 className="lift-heading">{isToday ? 'Today’s Workout' : `${new Date(`${sel}T12:00`).toLocaleDateString(undefined, { weekday: 'long' })}’s Workout`}</h2>
-        {isToday && open?.id !== undefined && open.templateId !== mainId && open.templateId !== secondId && open.templateId !== 'extra' && (
-          <WorkoutCard
-            title={TEMPLATES[open.templateId].name}
-            glyph={TEMPLATE_GLYPH[open.templateId]}
-            color={FITNESS.exercise}
-            progress={openList.length ? openList.filter((e) => e.done).length / openList.length : 0}
-            onPlay={() => nav.push({ name: 'workout', sessionId: open.id! })}
-            onOpen={() => nav.push({ name: 'workout', sessionId: open.id! })}
-            rest={running}
-          />
-        )}
         {mainId ? (
           <WorkoutCard
             title={TEMPLATES[mainId].name}
@@ -289,7 +286,7 @@ export function LiftScreen() {
         anchor={menu}
         onClose={() => setMenu(null)}
         items={[
-          ...allowed.map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void start(id) })),
+          ...[...lifts, ...SECONDARY].map((id) => ({ label: TEMPLATES[id].name, icon: <Sym name={TEMPLATE_GLYPH[id]} size={15} />, onClick: () => void pickFromMenu(id) })),
           { label: 'Add Exercise', icon: <Sym name="plus" size={15} />, onClick: () => setPicking(true), group: true },
         ]}
       />
