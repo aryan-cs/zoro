@@ -3,7 +3,7 @@ import { Page } from 'konsta/react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { addDays, carbTarget, formatMinutes, roundTo, weightTrend } from '../core/calc';
 import { workoutDayPercent, workoutFor } from '../core/program';
-import { dayTotals, metricsOf, saveMetric, stepsOn, today, waterFor } from '../core/store';
+import { dayTotals, metricsOf, saveMetric, stepsOn, today, waterFor, waterGoalOn } from '../core/store';
 import type { Meal, Phase, TemplateId } from '../core/types';
 import { LineChart, type Series } from '../ui/LineChart';
 import { hrMin } from '../core/say';
@@ -78,6 +78,7 @@ export function TodayScreen() {
   const sleep = useLiveQuery(() => db.sleep.where('date').equals(date).first(), [date]);
   const water = useLiveQuery(() => waterFor(date, db), [date]) ?? [];
   const waterOz = water.reduce((n, e) => n + e.oz, 0);
+  const waterGoal = waterGoalOn(date, settings);
   // Apple Health's steps plus walks, runs and stairs added on Lift.
   const steps = useLiveQuery(async () => (await stepsOn(date, db)).total, [date]) ?? 0;
   // Today's workouts as one percentage: each planned workout counts the share of its exercises
@@ -149,12 +150,12 @@ export function TodayScreen() {
               {
                 label: 'Water',
                 value: waterOz,
-                target: settings.waterTargetOz,
+                target: waterGoal,
                 unit: 'OZ',
                 color: FITNESS.distance,
                 gradient: RING_GRADIENT.distance,
                 glyph: 'drop.fill',
-                info: `How much you’ve drunk today against your ${fmt(settings.waterTargetOz)} oz goal. The ring closes when you reach it. Tap to add water.`,
+                info: `How much you’ve drunk today against your ${fmt(waterGoal)} oz goal${waterGoal > settings.waterTargetOz ? ', more on a lifting day' : ''}. The ring closes when you reach it. Tap to add water.`,
                 onOpen: () => nav.push({ name: 'screen', tab: 'water' }),
               },
               {

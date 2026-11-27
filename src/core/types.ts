@@ -264,6 +264,8 @@ export interface Settings {
   /** Days whose workout you swapped for another (hold its card on Lift): the workout, or 'rest'. */
   workoutSwaps?: Record<ISODate, TemplateId | 'rest'>;
   /** Daily fiber target (History › Food); none until you set one. */
+  /** Extra drinks on a lifting day (oz), on top of waterTargetOz. */
+  waterTrainingOz?: number;
   fiberTarget?: number;
   /** Profile (Settings › first group), used to recommend the targets. */
   sex?: 'male' | 'female';

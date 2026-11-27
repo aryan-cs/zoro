@@ -58,6 +58,7 @@ export const VIDEO: Record<string, string> = {
   rdl: 'romanian-deadlift',
   walkingLunge: 'walking-lunges',
   ballLegCurl: 'swiss-ball-leg-curl',
+  cableLegCurl: 'seated-leg-curl',
   calfRaise: 'standing-dumbbell-calf-raise',
   bulgarian: 'smith-machine-bulgarian-split-squat',
   hipThrust: 'hip-thrust',
@@ -310,6 +311,11 @@ export const GUIDE: Record<string, Guide> = {
   ballLegCurl: {
     photo: 'ball-leg-curl',
     tips: ['Lie on your back with your heels on the ball and lift your hips.', 'Roll the ball in toward you with your hips up, then roll it out slowly.'],
+    effort: 'last',
+  },
+  cableLegCurl: {
+    photo: 'ball-leg-curl',
+    tips: ['Ankle strap on the low pulley. Sit on a bench facing it, leaning forward a little.', 'Curl your heel back under the bench, then let it out slowly to a full stretch.'],
     effort: 'last',
   },
   calfRaise: {

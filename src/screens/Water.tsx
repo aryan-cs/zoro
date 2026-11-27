@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Actions, ActionsButton, ActionsGroup, ActionsLabel, Page } from 'konsta/react';
 import { useRef, useState } from 'react';
-import { addWater, removeWater, today, waterFor } from '../core/store';
+import { addWater, removeWater, today, waterFor, waterGoalOn } from '../core/store';
 import type { WaterEntry } from '../core/types';
 import { BigRing, db, fmt, RING_GRADIENT, Header, NumberPrompt, RollingNumber, useSettings } from '../ui/kit';
 import { saveSettings } from '../core/db';
@@ -88,7 +88,10 @@ export function WaterScreen() {
   const [selected, setSelected] = useState<WaterEntry | null>(null);
   const total = entries.reduce((s, e) => s + e.oz, 0);
   const presets = settings.waterPresets?.length === 4 ? settings.waterPresets : DEFAULT_PRESETS;
-  const pct = settings.waterTargetOz > 0 ? Math.round((total / settings.waterTargetOz) * 100) : 0;
+  // More on a lifting day (Settings › Daily Targets).
+  const goalOz = waterGoalOn(date, settings);
+  const extra = goalOz - settings.waterTargetOz;
+  const pct = goalOz > 0 ? Math.round((total / goalOz) * 100) : 0;
   const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const add = async (oz: number) => {
@@ -108,14 +111,14 @@ export function WaterScreen() {
       <div className="water-body">
         <div className="water-hero">
           <div className="water-ring">
-            <BigRing value={total} target={settings.waterTargetOz} colors={RING_GRADIENT.distance} w={30} />
+            <BigRing value={total} target={goalOz} colors={RING_GRADIENT.distance} w={30} />
             <div className="water-pct">
               <RollingNumber value={pct} suffix="%" />
             </div>
           </div>
           {/* Tap to change the day's goal. */}
-          <button type="button" className="water-oz" onClick={() => setGoal(true)} aria-label={`${fmt(total)} of ${fmt(settings.waterTargetOz)} ounces. Change goal`}>
-            <RollingNumber value={total} /> of <RollingNumber value={settings.waterTargetOz} /> oz
+          <button type="button" className="water-oz" onClick={() => setGoal(true)} aria-label={`${fmt(total)} of ${fmt(goalOz)} ounces. Change goal`}>
+            <RollingNumber value={total} /> of <RollingNumber value={goalOz} /> oz
           </button>
         </div>
         <div className="water-presets">
@@ -130,12 +133,13 @@ export function WaterScreen() {
         opened={goal}
         title="Daily Water Goal"
         unit="oz"
-        initial={String(settings.waterTargetOz)}
+        initial={String(goalOz)}
         min={8}
         max={400}
         onCancel={() => setGoal(false)}
         onSave={(n) => {
-          void saveSettings({ waterTargetOz: Math.round(n) });
+          // Today's goal as typed; a lifting day's extra stays on top of the everyday goal.
+          void saveSettings({ waterTargetOz: Math.max(8, Math.round(n) - extra), autoTargets: false });
           setGoal(false);
         }}
       />

@@ -2,7 +2,7 @@ import { matchesWords, searchBuiltin } from './builtinFoods';
 import { addDays, scaleMacros, sumEntries, toISODate } from './calc';
 import { getDB, getSettings, saveSettings, TABLES, type ZoroDB } from './db';
 import { parseHealthImport, type DaySteps } from './sleep';
-import { templateFor, templateForWeekday, withExtras, workoutFor } from './program';
+import { TEMPLATES, templateFor, templateForWeekday, withExtras, workoutFor } from './program';
 import { activitySteps } from './activity';
 import { planWorkout, type HistorySession, type WorkoutPlan } from './progression';
 import type {
@@ -423,6 +423,12 @@ export async function metricsOf(type: MetricType, sinceDays = 365, db: ZoroDB = 
 }
 
 // ---------- Water ----------
+
+/** A day's water goal: the daily target, plus the lifting-day extra on a day with a lifting workout. */
+export function waterGoalOn(date: ISODate, settings: Pick<Settings, 'waterTargetOz' | 'waterTrainingOz' | 'daysPerWeek' | 'workoutSwaps'>): number {
+  const id = workoutFor(date, settings);
+  return settings.waterTargetOz + (id && !TEMPLATES[id].secondary ? (settings.waterTrainingOz ?? 0) : 0);
+}
 
 export async function addWater(oz: number, date: ISODate = today(), db: ZoroDB = getDB()): Promise<number> {
   return (await db.water.add({ date, oz, at: Date.now() })) as number;

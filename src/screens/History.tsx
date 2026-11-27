@@ -6,7 +6,7 @@ import { addDays, averageSleep, carbTarget, e1rm, estimateEnergy, formatMinutes,
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchState } from '../core/progression';
-import { dailyIntake, dailyWater, deleteLiftEntry, liftEntries, loadHistory, metricsOf, saveLiftEntry, saveMetric, today } from '../core/store';
+import { dailyIntake, dailyWater, deleteLiftEntry, liftEntries, loadHistory, metricsOf, saveLiftEntry, saveMetric, today, waterGoalOn } from '../core/store';
 import { bestSetsByDay } from '../core/lifts';
 import type { LiftEntry, Settings } from '../core/types';
 import { hrMin } from '../core/say';
@@ -733,7 +733,7 @@ function Sleep() {
 
   // How the day before goes with the night: training, hitting the water goal, eating over target.
   const trained = new Set(sessions.map((x) => x.date));
-  const watered = new Set(water.filter((w) => w.oz >= settings.waterTargetOz).map((w) => w.date));
+  const watered = new Set(water.filter((w) => w.oz >= waterGoalOn(w.date, settings)).map((w) => w.date));
   const over = new Set(intake.filter((d) => d.kcal > settings.kcalTarget).map((d) => d.date));
   const insights = [
     { short: 'Workouts', phrase: 'after days you train', minutes: sleepAfter(entries, (d) => trained.has(d)) },

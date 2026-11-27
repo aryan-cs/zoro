@@ -6,8 +6,8 @@ import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { exportAll, importAll, metricsOf, saveMetric, today } from '../core/store';
 import { GOAL_METRICS, goalMetric, goalOf, progressTo, setGoal, type GoalMetric } from '../core/goals';
-import { amount, num, rough, sentences, span } from '../core/say';
-import { ACTIVITY, defaultRate, weeksToGoal, type Activity } from '../core/targets';
+import { amount, hrMin, num, rough, sentences, span } from '../core/say';
+import { ACTIVITY, defaultRate, timeInBedFor, weeksToGoal, type Activity } from '../core/targets';
 import { useLatestWeight, useRecommendation } from '../ui/autoTargets';
 import { Sym } from '../ui/Sym';
 import type { Phase, Settings } from '../core/types';
@@ -19,7 +19,7 @@ import { checkKey } from '../core/gemini';
 import { setAiKey, useAiKey } from '../ui/aiKey';
 
 type NumKey = 'benchMax' | 'benchGoal' | 'dumbbellMax' | 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'targetRate' | 'waterTargetOz';
-type TargetKey = 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'fiberTarget' | 'waterTargetOz' | 'sleepTargetMin';
+type TargetKey = 'kcalTarget' | 'proteinTarget' | 'fatTarget' | 'fiberTarget' | 'waterTargetOz' | 'waterTrainingOz' | 'sleepTargetMin';
 
 /** 70 → 5′10″ */
 const feetInches = (inches: number) => `${Math.floor(inches / 12)}′${fmt(inches % 12, inches % 1 ? 1 : 0)}″`;
@@ -361,7 +361,7 @@ export function SettingsScreen() {
   const [activityMenu, setActivityMenu] = useState<DOMRect | null>(null);
   const [goalMenu, setGoalMenu] = useState<DOMRect | null>(null);
   const weight = useLatestWeight();
-  const { profile, rec } = useRecommendation();
+  const { profile, rec, measured: burnMeasured } = useRecommendation();
 
   // Footnotes, like the ones under Apple's Settings groups.
   // Footnotes, like the ones under Apple's Settings groups, written from your numbers.
@@ -406,7 +406,7 @@ export function SettingsScreen() {
     ? 'Fill in your profile above and these will be set for you.'
     : settings.autoTargets === false
       ? `You set these yourself. For your profile, we’d suggest ${num(rec!.kcal, 0)} kcal with ${amount(rec!.protein, 'g')} of protein.`
-      : `You burn about ${num(Math.round(rec!.tdee / 10) * 10, 0)} kcal a day, so these are set to help you ${plan}. Change any of them to set your own.`;
+      : `${burnMeasured ? 'Your last four weeks of food and weigh-ins show you burn' : 'You burn'} about ${num(Math.round(rec!.tdee / 10) * 10, 0)} kcal a day, so these are set to help you ${plan}. Sleeping ${hrMin(settings.sleepTargetMin)} takes about ${hrMin(timeInBedFor(settings.sleepTargetMin))} in bed. Change any of them to set your own.`;
 
   return (
     <Page className="tab-safe">
@@ -487,6 +487,7 @@ export function SettingsScreen() {
         <Row title="Carbs (g)" right={fmt(carbs)} />
         <TargetSetting label="Fiber (g)" k="fiberTarget" settings={settings} />
         <TargetSetting label="Water (oz)" k="waterTargetOz" settings={settings} />
+        <TargetSetting label="Lifting Days, Extra (oz)" k="waterTrainingOz" settings={settings} />
         <TargetSetting label="Sleep (hr)" k="sleepTargetMin" settings={settings} scale={60} />
         {settings.autoTargets === false && rec && <Row accent title="Use Recommended" onClick={() => void saveSettings({ autoTargets: true })} />}
       </Section>

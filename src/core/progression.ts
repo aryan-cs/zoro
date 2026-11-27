@@ -221,8 +221,12 @@ export function planBenchHeavy(step: number, max: number, deload: boolean): { se
   }
   const notes = [`Bench week ${step + 1} of ${BENCH_STEPS.length}.`];
   if (def.note) notes.push(def.note);
+  // Singles are worked up to, never past your max until a test day (RPE caps, Helms 2018): one
+  // planned above it would have you leave a rep in the tank on a weight you've never lifted.
+  const sets = loadSets(def.heavy, max).map((x) => (x.reps === 1 && /single/i.test(x.label ?? '') && !def.test ? { ...x, weight: Math.min(x.weight ?? 0, Math.floor(max / 5) * 5) } : x));
+  if (!def.test && sets.some((x) => x.reps === 1 && /single/i.test(x.label ?? ''))) notes.push('Work up to the single in small jumps. If it moves slowly, stop there and log that weight.');
   if (!def.easy && !def.test && !def.calibrate) notes.push('Miss reps on two or more sets and this week repeats.');
-  return { sets: loadSets(def.heavy, max), notes, countsAsStep: true };
+  return { sets, notes, countsAsStep: true };
 }
 
 /** The volume day: more reps at a moderate weight, the same week as the last heavy day. */
