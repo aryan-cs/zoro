@@ -31,6 +31,7 @@ const audioSession = () => (navigator as Navigator & { audioSession?: AudioSessi
 let ctx: AudioContext | null = null;
 let unlocked = false;
 let clip: AudioBuffer | null = null;
+let loading: Promise<unknown> = Promise.resolve();
 export const CLIP_URL = `${import.meta.env.BASE_URL}sounds/pacer-start.mp3`;
 
 function context(): AudioContext | null {
@@ -42,7 +43,7 @@ function context(): AudioContext | null {
     }
     // The recording, decoded ahead so it plays the moment the rest ends (it's precached offline).
     const c = ctx;
-    void fetch(CLIP_URL)
+    loading = fetch(CLIP_URL)
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
       .then((b) => c.decodeAudioData(b))
       .then((b) => (clip = b))
@@ -126,6 +127,9 @@ export function playRestSound() {
   const giveUp = window.setTimeout(done, 5000);
   void c
     .resume()
+    // The first time (Settings, before any workout), the recording may still be loading: give it
+    // a moment rather than playing the stand-in.
+    .then(() => Promise.race([loading, new Promise((r) => window.setTimeout(r, 1500))]))
     .then(() => {
       window.clearTimeout(giveUp);
       if (session) session.type = 'playback';
