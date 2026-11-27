@@ -1238,8 +1238,13 @@ button.meal-row:not(:disabled):active {
 /* Three stats across a card (History). */
 .fit-grid3 {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Equal columns, except that a label never wraps: a long one ("Estimated Max" on a 375pt
+   * phone) takes a little room from the others so the three values stay on one line. */
+  grid-template-columns: repeat(3, minmax(max-content, 1fr));
   gap: 12px;
+}
+.fit-grid3 .fit-stat-label {
+  white-space: nowrap;
 }
 /* Sleep stages under the hypnogram: four across. */
 /* A sentence inside a card, under its stats (what shaped a score, a trend). */

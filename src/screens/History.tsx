@@ -60,9 +60,9 @@ function StatGrid({ items, color, info }: { items: [string, string | null, strin
 
 /** What each stat means, in plain words, for touch and hold. */
 const LIFT_INFO: Record<string, string> = {
-  'Training Max': 'The weight your bench sessions are worked out from, a little under your true one-rep max. It goes up as you complete the program.',
-  Best: 'Your heaviest set recently, as an estimated one-rep max: the most you could lift once, worked out from the weight and reps you did.',
-  Change: 'How much your best has gone up or down over the last 30 days.',
+  'Program Max': 'The max your bench workouts are planned from: every set’s weight is a share of it. It only goes up on the program’s test days, so one good set doesn’t change your plan.',
+  'Estimated Max': 'The most you could likely lift once, worked out from your strongest set in this range (185 × 5 is about 216). It changes with every set you log.',
+  Change: 'How much your estimated max has gone up or down over the last 30 days.',
   Goal: 'The weight you’re working toward for this lift. Tap it to change it.',
 };
 const SIZE_INFO: Record<string, string> = {
@@ -175,12 +175,12 @@ function Lifts() {
             items={
               isBench
                 ? [
-                    ['Training Max', fmt(trainingMax), 'LB'],
-                    ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
+                    ['Program Max', fmt(trainingMax), 'LB'],
+                    ['Estimated Max', top ? fmt(top) : null, top ? 'LB' : undefined],
                     ['Goal', goal ? fmt(goal) : null, goal ? 'LB' : undefined, () => setEditingGoal(true)],
                   ]
                 : [
-                    ['Best', top ? fmt(top) : null, top ? 'LB' : undefined],
+                    ['Estimated Max', top ? fmt(top) : null, top ? 'LB' : undefined],
                     ['Change', change === null ? null : `${change > 0 ? '+' : ''}${change}`, change === null ? undefined : 'LB'],
                     ['Goal', goal ? fmt(goal) : null, goal ? 'LB' : undefined, () => setEditingGoal(true)],
                   ]
