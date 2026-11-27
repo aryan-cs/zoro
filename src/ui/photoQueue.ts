@@ -68,6 +68,14 @@ export function startPhotoQueue(): void {
   window.addEventListener('pageshow', () => void photoQueue.pump());
   window.addEventListener('online', () => void photoQueue.pump());
   void photoQueue.pump();
+  // Photos that failed over a bad request ("Unknown name id": a saved photo's id went to Gemini
+  // with it, fixed 27 Nov 2026) are read again rather than left for you to retry.
+  void photoDB.jobs
+    .where('status')
+    .equals('failed')
+    .toArray()
+    .then((jobs) => Promise.all(jobs.filter((j) => j.error?.message?.includes('Unknown name')).map((j) => photoQueue.retry(j.id!))))
+    .catch(() => undefined);
 }
 
 /** Save picked photos to the queue: each is made small first, then read in the background. */

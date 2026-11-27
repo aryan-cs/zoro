@@ -65,6 +65,24 @@ describe('photo log helpers', () => {
 });
 
 describe('logFromPhoto', () => {
+  it('sends Gemini only the photo itself, not the id it was saved under', async () => {
+    const calls: Omit<GenerateArgs, 'key'>[] = [];
+    const deps: PhotoDeps = {
+      now: at('2026-11-26T18:30:00'),
+      generate: async (a) => {
+        calls.push(a);
+        return reply(calls.length === 1 ? XIAN_READ : XIAN_CHECK);
+      },
+      readPage: async (url) => (url.endsWith('/menu') ? XIAN_MENU : XIAN_HOME),
+      fetchFile: async () => ({ id: 3, mimeType: 'application/pdf', data: 'TUlMRA==' }) as { mimeType: string; data: string },
+      search: async () => ({ text: '', sources: [] }) as never,
+    };
+    await logFromPhoto({ id: 7, mimeType: 'image/jpeg', data: 'AAAA' } as { mimeType: string; data: string }, deps).catch(() => undefined);
+    const files = calls.flatMap((c) => c.parts).filter((p) => 'inlineData' in p);
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) expect(Object.keys((f as { inlineData: object }).inlineData).sort()).toEqual(['data', 'mimeType']);
+  });
+
   it('copies official numbers from the restaurant’s nutrition PDF (Xi’an receipt)', async () => {
     const calls: Omit<GenerateArgs, 'key'>[] = [];
     let searchAborted = false;

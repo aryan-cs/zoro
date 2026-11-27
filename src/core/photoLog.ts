@@ -447,6 +447,12 @@ function describe(args: unknown, read: PhotoRead): string {
 }
 
 /**
+ * Just the two fields Gemini takes for a file. A photo saved for later comes back from storage with
+ * its id too, and Gemini rejects the request over any field it doesn't know ("Unknown name id").
+ */
+const inline = (f: { mimeType: string; data: string }) => ({ mimeType: f.mimeType, data: f.data });
+
+/**
  * Read a photo and look up what's in it. `image` is base64 (JPEG, already made smaller).
  * Throws AiError (no key, no quota, no connection) or returns a log with no foods if it found none.
  * `resume` is a read from an earlier run (onRead): it skips step 1.
@@ -456,7 +462,7 @@ export async function logFromPhoto(image: { mimeType: string; data: string }, de
   let read = resume;
   if (!read) {
     deps.onStep?.('read');
-    const first = await deps.generate({ model: READ_MODELS, parts: [{ text: readPrompt(now) }, { inlineData: image }], system: READ_SYSTEM, schema: READ_SCHEMA, signal });
+    const first = await deps.generate({ model: READ_MODELS, parts: [{ text: readPrompt(now) }, { inlineData: inline(image) }], system: READ_SYSTEM, schema: READ_SCHEMA, signal });
     read = normalizeRead(parseJson(first.text));
     deps.onRead?.(read);
   }
@@ -528,7 +534,7 @@ export async function logFromPhoto(image: { mimeType: string; data: string }, de
   const parts: Part[] = [{ text: checkPrompt(read, docs, pages, notes) }];
   list.forEach((s, i) => {
     const f = files[i];
-    if (f) parts.push({ text: `Document: ${s.url}` }, { inlineData: f });
+    if (f) parts.push({ text: `Document: ${s.url}` }, { inlineData: inline(f) });
   });
   let checked: GenerateResult;
   try {
