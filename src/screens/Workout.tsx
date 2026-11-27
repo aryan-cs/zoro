@@ -14,6 +14,7 @@ import { Bar, Btn, db, FitText, fmtLb, Header, IconBtn, NumberPrompt, NumField, 
 import { useNav } from '../ui/nav';
 import { useListen } from '../ui/listen';
 import { restKey } from '../ui/workouts';
+import { cancelRestPush, scheduleRestPush } from '../ui/restPush';
 import { SNAPPY, project, rubberBand, springEasing } from '../ui/motion';
 
 function useWakeLock(active: boolean) {
@@ -416,17 +417,22 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   // The rest running now: which set it follows, and when it ends. Saved for the session, so
   // leaving the workout and coming back picks the countdown up where it should be.
   const restStore = restKey(sessionId);
-  const [rest, setRestState] = useState<{ after: string; endsAt: number; startedAt?: number } | null>(() => {
+  // `next`: the set after it ("Bench Press, set 3 of 4"), for its notification.
+  const [rest, setRestState] = useState<{ after: string; endsAt: number; startedAt?: number; next?: string } | null>(() => {
     try {
       return JSON.parse(localStorage.getItem(restStore) ?? 'null');
     } catch {
       return null;
     }
   });
-  const setRest = (r: { after: string; endsAt: number; startedAt?: number } | null) => {
+  const setRest = (r: { after: string; endsAt: number; startedAt?: number; next?: string } | null) => {
     // A rest started or skipped here is the one that counts: don't bring back a skipped one from
     // the last set's time (that's only for rests from before this screen opened).
     restChecked.current = true;
+    // Its notification, for when you're in another app as it ends: sent for the new end, or
+    // cancelled when the rest is skipped or over early.
+    if (r) scheduleRestPush(r.endsAt, r.next);
+    else if (rest) cancelRestPush();
     setRestState(r);
     try {
       if (r) localStorage.setItem(restStore, JSON.stringify(r));
@@ -710,7 +716,14 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
               onLog={(weight, reps) => {
                 if (clock?.key === key) setClock(null);
                 void logSet({ sessionId, date: session.date, exerciseId: ex.exerciseId, setIndex: i, weight, reps, targetWeight: t.weight, targetReps: t.reps }, db);
-                if (step.restAfter && !byKey.get(key)) setRest({ after: key, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000 });
+                if (step.restAfter && !byKey.get(key)) {
+                  // The set after this rest, to name in its notification.
+                  const done = new Set([...byKey.keys(), key]);
+                  const nk = nextSet(setSteps.map((x) => `${x.ex.exerciseId}:${x.i}`), done, key);
+                  const ns = setSteps.find((x) => `${x.ex.exerciseId}:${x.i}` === nk);
+                  const next = ns ? `${ns.ex.name}, set ${ns.i + 1} of ${ns.ex.sets.length}` : undefined;
+                  setRest({ after: key, startedAt: Date.now(), endsAt: Date.now() + step.restAfter * 1000, next });
+                }
               }}
               onUnlog={() => void unlogSet(sessionId, ex.exerciseId, i, db)}
             />

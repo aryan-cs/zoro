@@ -9,3 +9,5 @@ output
 
 # Agent worktrees
 .claude/worktrees/
+server/node_modules
+server/.wrangler

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Dialog, DialogButton, Page } from 'konsta/react';
+import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
+import { disableRestPush, enableRestPush, restPushOn, restPushSupported } from '../ui/restPush';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
@@ -315,6 +316,8 @@ export function SettingsScreen() {
   const [photoSheet, setPhotoSheet] = useState(false);
   const [usdaSheet, setUsdaSheet] = useState(false);
   const [githubSheet, setGithubSheet] = useState(false);
+  // Rest notifications, on this phone (a tap turns them on: iOS asks for permission then).
+  const [restPush, setRestPush] = useState(() => restPushOn());
   const backup = useSync();
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted);
@@ -519,6 +522,37 @@ export function SettingsScreen() {
       <UsdaSheet opened={usdaSheet} onClose={() => setUsdaSheet(false)} saved={settings.usdaApiKey} />
       <PhotoLoggingSheet opened={photoSheet} onClose={() => setPhotoSheet(false)} />
       <GitHubSheet opened={githubSheet} onClose={() => setGithubSheet(false)} />
+
+      <Section
+        title="Notifications"
+        footer={
+          restPushSupported()
+            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over, let’s start the next set!”'
+            : 'Open Zoro from your Home Screen to get a notification when a rest ends.'
+        }
+      >
+        <Row
+          title="Rest Timer"
+          right={
+            <Toggle
+              checked={restPush}
+              onChange={() => {
+                if (restPush) {
+                  disableRestPush();
+                  setRestPush(false);
+                  return;
+                }
+                void enableRestPush().then((r) => {
+                  setRestPush(r === 'on');
+                  if (r === 'denied') toast('Allow notifications for Zoro in Settings › Notifications');
+                  else if (r === 'unsupported') toast('Open Zoro from your Home Screen first');
+                  else if (r === 'failed') toast('Couldn’t turn on notifications');
+                });
+              }}
+            />
+          }
+        />
+      </Section>
 
       <Section title="This Phone" footer={<>Food data: USDA FoodData Central · Open Food Facts (ODbL). Build {__BUILD__}</>}>
         <Row title="Storage" right={persisted === null ? '…' : persisted ? 'Protected' : 'May be cleared'} />

@@ -38,11 +38,13 @@ export default defineConfig({
         // Let the sleep shortcut file download instead of opening the app.
         navigateFallbackDenylist: [/\.shortcut$/],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // Rest notifications (src/ui/restPush.ts): showing them, and opening the app from one.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/src/**/*.test.js'],
   },
 });
