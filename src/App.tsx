@@ -20,7 +20,8 @@ import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { project, springEasing, velocityTracker } from './ui/motion';
 import { restingSession } from './ui/workouts';
-import { DIM, InStack, NavProvider, PARALLAX, RELEASE_SPRING, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
+import { latestRestSession, openedForWorkout } from './ui/restStore';
+import { DIM, InStack, NavProvider, PARALLAX, RELEASE_SPRING, takeJump, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
   { id: 'water', label: 'Water', icon: 'drop.fill' },
@@ -454,6 +455,14 @@ function useTabPager(root: RefObject<HTMLDivElement | null>, panes: RefObject<(H
   // A tab picked any way (the tab bar, a swipe, a card that opens another tab): go there.
   useLayoutEffect(() => {
     const s = st.current;
+    if (takeJump()) {
+      // Opened from a link: straight there, no slide past the tabs in between.
+      halt();
+      s.target = current;
+      s.p = current;
+      place(current, false);
+      return;
+    }
     if (s.target !== current || (!s.run && Math.abs(s.p - current) > 1e-4)) animateTo(current);
   }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -569,21 +578,26 @@ function useOpenLinks() {
   const now = useRef(state);
   now.current = state;
   useEffect(() => {
-    const open = async (search: string) => {
-      if (new URLSearchParams(search).get('open') !== 'workout') return;
-      const sessionId = await restingSession();
-      if (sessionId === undefined) return;
+    const show = (sessionId: number) => {
       const { tab, stacks } = now.current;
       const top = stacks[tab].findLast((e) => !e.leaving)?.route;
       if (top?.name === 'workout' && top.sessionId === sessionId) return;
       go('lift', { name: 'workout', sessionId }, true);
     };
+    const open = (search: string) => {
+      if (!openedForWorkout(search)) return;
+      // Straight away when the rest is in storage (the usual case), so it's there as Zoro comes
+      // forward; otherwise once today's workout is looked up.
+      const id = latestRestSession();
+      if (id !== undefined) show(id);
+      else void restingSession().then((s) => s !== undefined && show(s));
+    };
     if (location.search) {
-      void open(location.search);
+      open(location.search);
       history.replaceState(null, '', location.pathname + location.hash);
     }
     const onMessage = (e: MessageEvent) => {
-      if (typeof e.data?.open === 'string') void open(new URL(e.data.open, location.href).search);
+      if (typeof e.data?.open === 'string') open(new URL(e.data.open, location.href).search);
     };
     navigator.serviceWorker?.addEventListener('message', onMessage);
     return () => navigator.serviceWorker?.removeEventListener('message', onMessage);

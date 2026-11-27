@@ -11,8 +11,9 @@ export interface RunningRest {
   endsAt: number;
 }
 
-/** Where a workout keeps its running rest, so leaving and coming back (or the Lift tab) can see it. */
-export const restKey = (sessionId: number) => `zoro.rest.${sessionId}`;
+// Where a workout keeps its running rest, so leaving and coming back (or the Lift tab) can see it.
+import { latestRestSession, restKey } from './restStore';
+export { restKey };
 
 export function readRest(sessionId: number): RunningRest | null {
   try {
@@ -80,24 +81,14 @@ export const TEMPLATE_GLYPH: Record<TemplateId, SFName> = {
 export { optionalForWeekday } from '../core/program';
 
 /**
- * The workout whose rest ended last (its rest is kept until the next set starts), else today's
- * unfinished one: what a "Your rest is over" notification opens.
+ * The workout whose rest ended last, if it's still going, else today's unfinished one: what a
+ * "Your rest is over" notification opens.
  */
 export async function restingSession(): Promise<number | undefined> {
-  let best: { id: number; endsAt: number } | undefined;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const m = /^zoro\.rest\.(\d+)$/.exec(localStorage.key(i) ?? '');
-      if (!m) continue;
-      const endsAt = Number((JSON.parse(localStorage.getItem(m[0]) ?? 'null') as RunningRest | null)?.endsAt);
-      if (Number.isFinite(endsAt) && (!best || endsAt > best.endsAt)) best = { id: Number(m[1]), endsAt };
-    }
-  } catch {
-    /* none readable */
-  }
-  if (best) {
-    const s = await db.sessions.get(best.id);
-    if (s && !s.finishedAt) return best.id;
+  const id = latestRestSession();
+  if (id !== undefined) {
+    const s = await db.sessions.get(id);
+    if (s && !s.finishedAt) return id;
   }
   return (await activeSession())?.id;
 }

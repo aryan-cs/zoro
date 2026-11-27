@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { getDB } from '../core/db';
+import { latestRestSession, openedForWorkout } from './restStore';
 import type { ISODate, Meal, TemplateId } from '../core/types';
 import { springEasing, type Spring } from './motion';
 
@@ -91,10 +92,29 @@ function savedPlace(): { tab: Tab; stacks: Record<Tab, Entry[]>; next: number } 
       const routes = Array.isArray(p.stacks?.[t]) ? p.stacks[t]! : [];
       stacks[t] = routes.filter((r) => r && ROUTES.has(r.name)).map((route) => ({ id: id++, route, still: true }));
     }
-    return { tab: p.tab, stacks, next: id };
+    return withRestLink({ tab: p.tab, stacks, next: id });
   } catch {
-    return { tab: 'today', stacks: EMPTY, next: id };
+    return withRestLink({ tab: 'today', stacks: EMPTY, next: id });
   }
+}
+
+/** Opened from "Your rest is over": that workout, on the first frame (nothing else shows first). */
+function withRestLink(place: { tab: Tab; stacks: Record<Tab, Entry[]>; next: number }) {
+  const sessionId = typeof location !== 'undefined' && openedForWorkout(location.search) ? latestRestSession() : undefined;
+  if (sessionId === undefined) return place;
+  const route: Route = { name: 'workout', sessionId };
+  return { tab: 'lift' as Tab, stacks: { ...place.stacks, lift: [{ id: place.next, route, still: true }] }, next: place.next + 1 };
+}
+
+/**
+ * A tab switch that should happen at once rather than slide (opening a link): set by go(…, still)
+ * and taken by the tab pager as it moves to the new tab.
+ */
+let jump = false;
+export function takeJump(): boolean {
+  const j = jump;
+  jump = false;
+  return j;
 }
 
 export function NavProvider({ children }: { children: ReactNode }) {
@@ -173,9 +193,15 @@ export function NavProvider({ children }: { children: ReactNode }) {
         if (!instant) setTimeout(() => setStacks((s) => ({ ...s, [t]: s[t].filter((e) => !e.leaving) })), SLIDE_MS);
       },
       go: (t, r, still) => {
+        if (still && t !== tabRef.current) jump = true;
         tabRef.current = t;
         setTabState(t);
-        setStacks((s) => ({ ...s, [t]: r ? [{ ...entry(r), still }] : [] }));
+        setStacks((s) => {
+          // Already open there (a workout left on Lift): keep it as it is rather than open it again.
+          const top = s[t].findLast((e) => !e.leaving);
+          if (still && r && top && JSON.stringify(top.route) === JSON.stringify(r)) return { ...s, [t]: s[t].filter((e) => !e.leaving && s[t].indexOf(e) <= s[t].indexOf(top)) };
+          return { ...s, [t]: r ? [{ ...entry(r), still }] : [] };
+        });
       },
     };
   }, []);
