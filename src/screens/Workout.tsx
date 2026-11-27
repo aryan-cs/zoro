@@ -6,6 +6,7 @@ import { warmVideos } from '../core/guide';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import type { WorkoutPlan } from '../core/progression';
 import { nextSet } from '../core/nextSet';
+import { rounds } from '../core/workoutTime';
 import { parseSaid } from '../core/sayParse';
 import { addExerciseToSession, buildPlan, deleteSession, finishSession, logSet, removeExtraExercise, unlogSet } from '../core/store';
 import { ExercisePicker } from '../ui/ExercisePicker';
@@ -413,6 +414,7 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   const plannedSession = useMemo(() => (planned ? ({ templateId: planned.templateId, date: planned.date, startedAt: 0 } as WorkoutSession) : undefined), [planned?.templateId, planned?.date]);
   const session = plannedSession ?? stored;
   const logged = useLiveQuery(() => db.sets.where({ sessionId }).toArray(), [sessionId]) ?? [];
+  const loggedIds = useMemo(() => [...new Set(logged.map((x) => x.exerciseId))].sort(), [logged]);
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   // The rest running now: which set it follows, and when it ends. Saved for the session, so
   // leaving the workout and coming back picks the countdown up where it should be.
@@ -469,8 +471,14 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   useEffect(() => {
     if (!session) return;
     // Targets come from history before this session, so logging sets here doesn't move them.
-    void buildPlan(session.templateId, session.date, db, sessionId, session.extras).then(setPlan);
-  }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek, session?.extras?.join()]);
+    // Anything logged that the plan no longer has (the program changed since) still shows, at the end.
+    void buildPlan(session.templateId, session.date, db, sessionId, session.extras)
+      .then((p) => {
+        const gone = loggedIds.filter((id) => !p.exercises.some((e) => e.exerciseId === id));
+        return gone.length ? buildPlan(session.templateId, session.date, db, sessionId, [...(session.extras ?? []), ...gone]) : p;
+      })
+      .then(setPlan);
+  }, [session?.templateId, session?.date, sessionId, settings.daysPerWeek, session?.extras?.join(), loggedIds.join()]);
   // Its exercises' animations, fetched now so swiping to one shows it straight away.
   useEffect(() => {
     if (plan) warmVideos(plan.exercises.map((e) => e.exerciseId));
@@ -501,22 +509,20 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
 
   const totalSets = plan.exercises.reduce((n, e) => n + e.sets.length, 0);
 
-  // The steps in order: one exercise at a time, all its sets (each followed by its rest) before the
-  // next exercise. Superset labels in the program don't interleave them. No rest after the last set.
+  // The steps in order: one exercise at a time, all its sets (each followed by its rest), except
+  // supersets (exercises sharing a label), done in rounds: a set of each back to back, then the
+  // rest (core/workoutTime.ts). No rest after the last set.
   type SetStepT = { kind: 'set'; ex: ExercisePlan; i: number; restAfter?: number };
   type RestStepT = { kind: 'rest'; sec: number; after: string; next?: string };
   const steps: (SetStepT | RestStepT)[] = [];
-  for (const ex of plan.exercises) {
-    for (let i = 0; i < ex.sets.length; i++) {
-      const set: SetStepT = { kind: 'set', ex, i };
-      steps.push(set);
-      if (ex.restSec > 0) {
-        set.restAfter = ex.restSec;
-        steps.push({ kind: 'rest', sec: ex.restSec, after: `${ex.exerciseId}:${i}` });
-      }
+  for (const { ex, i, restAfter } of rounds(plan.exercises, (e) => e.sets.length)) {
+    const set: SetStepT = { kind: 'set', ex, i };
+    steps.push(set);
+    if (restAfter > 0) {
+      set.restAfter = restAfter;
+      steps.push({ kind: 'rest', sec: restAfter, after: `${ex.exerciseId}:${i}` });
     }
   }
-  while (steps.length && steps[steps.length - 1].kind === 'rest') steps.pop();
   // Each rest knows the set after it (it reads as done once that set is logged).
   steps.forEach((st, k) => {
     if (st.kind !== 'rest') return;

@@ -295,5 +295,11 @@ export function planWorkout(args: {
     exercises.push({ exerciseId, name: def.name, sets, restSec: rx.restSec, superset: rx.superset, notes, last: lastSummary(sessions) });
   }
 
+  // Paired exercises say what they alternate with.
+  for (const ex of exercises) {
+    if (!ex.superset) continue;
+    const others = exercises.filter((o) => o !== ex && o.superset === ex.superset).map((o) => o.name);
+    if (others.length) ex.notes.unshift(`Alternate with ${others.join(' and ')}: a set of each, then rest.`);
+  }
   return { templateId: template.id, name: template.name, week, deload, benchStep, benchMax: bench.max, exercises };
 }
