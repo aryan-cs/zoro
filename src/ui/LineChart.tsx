@@ -274,6 +274,12 @@ export function LineChart({ labels, series, height = 180, unit = '' }: { labels:
     return () => {
       window.clearTimeout(hide);
       window.clearTimeout(fade);
+      // New data (another lift, another range): the old reading goes with the old chart, rather
+      // than staying up with its timer cancelled.
+      setSel(null);
+      shownIndex.current = -1;
+      release();
+      wrap.current?.classList.remove('is-fading');
       node.removeEventListener('touchstart', touched);
       node.removeEventListener('touchmove', touched);
       node.removeEventListener('touchend', lifted);
