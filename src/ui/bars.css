@@ -1544,11 +1544,6 @@ button.water-oz:active {
 .ios-menu-body {
   position: relative;
 }
-/* Something opened from it is on top (iOS's photo picker): it waits behind, dimmed. */
-.ios-menu.is-held .ios-menu-body {
-  opacity: 0.45;
-  transition: opacity 200ms ease;
-}
 .ios-menu-body {
   transform-origin: inherit;
 }

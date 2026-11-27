@@ -169,14 +169,16 @@ export function PullDownMenu(props: {
 }) {
   // The last anchor stays while the menu animates away (also when the parent closes it).
   const [shown, setShown] = useState<DOMRect | null>(props.anchor);
-  const [held, setHeld] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const closing = useRef(false);
   // The glass button it grows out of, hidden while it's open: in iOS the button becomes the menu.
   const source = useRef<HTMLElement | null>(null);
-  if (props.anchor && props.anchor !== shown) {
+  // The tap this menu last opened for. It opens again only for a new one: a render in between
+  // closing and the parent letting go (same anchor) must not bring it back for a frame.
+  const opened = useRef<DOMRect | null>(props.anchor);
+  if (props.anchor && props.anchor !== opened.current) {
+    opened.current = props.anchor;
     setShown(props.anchor);
-    setHeld(false);
     closing.current = false;
   }
 
@@ -195,7 +197,12 @@ export function PullDownMenu(props: {
     const cx = a ? a.left + a.width / 2 : box.right - 22;
     const cy = a ? a.top + a.height / 2 : box.top + 22;
     const from = { left: cx - 12, top: cy - 12, right: cx + 12, bottom: cy + 12 };
-    return rows.map((row) => ({ offset: Math.min(1, row[0] / total), ...menuFrame(row, from, to, near, MENU.radius) }));
+    const frames = rows.map((row) => ({ offset: Math.min(1, row[0] / total), ...menuFrame(row, from, to, near, MENU.radius) }));
+    // Hold the last measured frame to the end: keyframes that stop short of 100% would let the
+    // browser animate back to the resting menu in the gap, flashing it as it goes.
+    const last = frames[frames.length - 1];
+    if (last.offset < 1) frames.push({ ...last, offset: 1 });
+    return frames;
   };
 
   // Open: the glass grows out of the button along UIKit's own curves (far edge shooting past, near
@@ -228,7 +235,6 @@ export function PullDownMenu(props: {
       if (source.current) source.current.style.visibility = '';
       source.current = null;
       setShown(null);
-      setHeld(false);
       closing.current = false;
       if (props.anchor) props.onClose();
     };
@@ -251,7 +257,12 @@ export function PullDownMenu(props: {
     const ox = a ? a.left + a.width / 2 - box.left : box.width;
     const oy = a ? a.top + a.height / 2 - box.top : 0;
     el.querySelector('.ios-menu-body')?.animate(
-      [{ offset: 0, opacity: 1, transform: 'scale(1)' }, ...MENU_CLOSE_CONTENT.map(([ms, o, sc]) => ({ offset: ms / MENU_CLOSE_MS, opacity: o, transform: `scale(${sc})` }))].map((f) => ({ ...f, transformOrigin: `${ox}px ${oy}px` })),
+      [
+        { offset: 0, opacity: 1, transform: 'scale(1)' },
+        ...MENU_CLOSE_CONTENT.map(([ms, o, sc]) => ({ offset: ms / MENU_CLOSE_MS, opacity: o, transform: `scale(${sc})` })),
+        // Gone for the rest of the close (UIKit's rows are out well before the glass).
+        { offset: 1, opacity: 0, transform: `scale(${MENU_CLOSE_CONTENT[MENU_CLOSE_CONTENT.length - 1][2]})` },
+      ].map((f) => ({ ...f, transformOrigin: `${ox}px ${oy}px` })),
       timing,
     );
     if (source.current) {
@@ -281,7 +292,7 @@ export function PullDownMenu(props: {
   // relative to that box and clipped by it.
   return createPortal(
     <div className="ios-menu-scrim" onClick={() => close()}>
-      <div ref={panel} className={`ios-menu ${held ? 'is-held' : ''}`} role="menu" style={place} onClick={(e) => e.stopPropagation()}>
+      <div ref={panel} className="ios-menu" role="menu" style={place} onClick={(e) => e.stopPropagation()}>
         <GlassLayers />
         <div className="ios-menu-body">
           {props.title && <div className="ios-menu-title">{props.title}</div>}
@@ -292,12 +303,9 @@ export function PullDownMenu(props: {
                 type="button"
                 role="menuitem"
                 className={`ios-menu-item ${i.danger ? 'is-danger' : ''}`}
-                onClick={() => {
-                  if (i.keepOpen) {
-                    setHeld(true);
-                    i.onClick();
-                  } else close(i.onClick);
-                }}
+                // Kept open under what it opens (iOS's photo picker), at full strength: Safari
+                // never says when that picker is dismissed, so a dimmed menu would stay dimmed.
+                onClick={() => (i.keepOpen ? i.onClick() : close(i.onClick))}
               >
                 <span className="ios-menu-icon">{i.icon}</span>
                 <span className="ios-menu-label">{i.label}</span>
