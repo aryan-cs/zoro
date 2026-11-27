@@ -1,6 +1,7 @@
 /**
- * The rest timer's sound: the tone that starts the FitnessGram PACER test, cut from the original
- * recording (public/sounds/pacer-start.mp3). If that can't load, a "bo-de-boop" made here with
+ * The rest timer's sound: the tone that starts the FitnessGram PACER test and the beat that
+ * follows, cut from the original recording with music, the Cooper Institute's 20-meter CD
+ * (public/sounds/pacer-start.mp3). If that can't load, a "bo-de-boop" made here with
  * Web Audio plays instead. It plays when a rest ends while Zoro is open, through headphones when
  * they're in, and with the ringer off too: for that, iOS needs the page's audio session set to
  * playback, which pauses other apps' music (Safari doesn't tell them to carry on after). Once Zoro

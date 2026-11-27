@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 import { CLIP_URL, LENGTH, NOTES } from './restSound';
 
 describe('the rest sound', () => {
-  it("is the PACER test's start tone, shipped with the app", () => {
+  it("is the PACER test's start tone and beat, shipped with the app", () => {
     expect(CLIP_URL.endsWith('sounds/pacer-start.mp3')).toBe(true);
     const mp3: Uint8Array = readFileSync(new URL('../../public/sounds/pacer-start.mp3', import.meta.url));
     expect(mp3.length).toBeGreaterThan(10_000);
-    expect(mp3.length).toBeLessThan(60_000);
+    expect(mp3.length).toBeLessThan(100_000);
   });
   it('falls back to a bo-de-boop: two short beeps and a longer one, under a second', () => {
     expect(NOTES).toHaveLength(3);

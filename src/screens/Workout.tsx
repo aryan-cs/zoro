@@ -149,10 +149,13 @@ function SetStep(props: {
   // A hold done on each side (a side plank, a stretch) runs once per side, back to back.
   const sides = def.timed && def.perSide ? 2 : 1;
   const sideLen = props.clock ? (props.clock.endsAt - props.clock.startedAt) / sides : 0;
-  const side = running && props.clock && sides === 2 && now - props.clock.startedAt >= sideLen ? 2 : 1;
+  // The time as it renders, not the last tick's: a clock that has just started would otherwise
+  // count from whenever this card last ticked (minutes off, for a frame).
+  const at = running ? Date.now() : now;
+  const side = running && props.clock && sides === 2 && at - props.clock.startedAt >= sideLen ? 2 : 1;
   const sideEnd = props.clock ? props.clock.startedAt + sideLen * side : 0;
-  const clockLeft = running && props.clock ? Math.max(0, Math.ceil((sideEnd - now) / 1000)) : reps;
-  const clockPassed = running && props.clock ? Math.min(1, Math.max(0, (now - props.clock.startedAt) / Math.max(1, props.clock.endsAt - props.clock.startedAt))) : 0;
+  const clockLeft = running && props.clock ? Math.max(0, Math.ceil((sideEnd - at) / 1000)) : reps;
+  const clockPassed = running && props.clock ? Math.min(1, Math.max(0, (at - props.clock.startedAt) / Math.max(1, props.clock.endsAt - props.clock.startedAt))) : 0;
   const toggle = () => {
     if (done) return props.onUnlog();
     if (props.onStartClock) {
@@ -393,10 +396,13 @@ function RestStep({ sec, state, endsAt, startedAt, onAdd, onSkip, stepId }: { se
     const t = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(t);
   }, [state]);
-  const left = endsAt ? Math.max(0, Math.round((endsAt - now) / 1000)) : sec;
+  // The time as it renders: `now` only ticks while the rest runs, so the moment it starts it's
+  // still when this step first showed (which read as 10 or 16 minutes left, for a moment).
+  const at = state === 'running' ? Date.now() : now;
+  const left = endsAt ? Math.max(0, Math.round((endsAt - at) / 1000)) : sec;
   // How much of the rest has passed, for the fill behind it (+30s stretches it back a little).
-  const from = startedAt ?? (endsAt ? endsAt - sec * 1000 : now);
-  const passed = endsAt ? Math.min(1, Math.max(0, (now - from) / Math.max(1, endsAt - from))) : 0;
+  const from = startedAt ?? (endsAt ? endsAt - sec * 1000 : at);
+  const passed = endsAt ? Math.min(1, Math.max(0, (at - from) / Math.max(1, endsAt - from))) : 0;
   const label = sec >= 60 ? `${Math.round((sec / 60) * 2) / 2} min` : `${sec} sec`;
   return (
     <section data-step={stepId} className={`step-card is-rest ${state === 'done' ? 'is-done' : ''} ${state === 'running' ? 'is-current' : ''}`}>
