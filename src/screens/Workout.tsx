@@ -16,7 +16,22 @@ import { useNav } from '../ui/nav';
 import { useListen } from '../ui/listen';
 import { restKey } from '../ui/workouts';
 import { cancelRestPush, scheduleRestPush } from '../ui/restPush';
+import { playRestSound, primeRestSound, restSoundOn } from '../ui/restSound';
 import { SNAPPY, project, rubberBand, springEasing } from '../ui/motion';
+
+/** While a workout's on: each tap readies the rest's sound (iOS only starts audio from a tap). */
+function useRestSoundPrimer(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const prime = () => primeRestSound();
+    window.addEventListener('touchend', prime, { capture: true, passive: true });
+    window.addEventListener('click', prime, { capture: true });
+    return () => {
+      window.removeEventListener('touchend', prime, { capture: true });
+      window.removeEventListener('click', prime, { capture: true });
+    };
+  }, [active]);
+}
 
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -498,6 +513,18 @@ export function WorkoutScreen({ sessionId, planned }: { sessionId: number; plann
   const scrolledOnce = useRef(false);
   const restChecked = useRef(false);
   useWakeLock(!!session && !finished && !planned);
+  useRestSoundPrimer(!!session && !finished && !planned);
+  // The rest's sound as it ends, if Zoro is on screen then (in another app, the notification
+  // tells you). Not late: a rest that ended while the phone was locked stays quiet.
+  useEffect(() => {
+    if (!rest || !restSoundOn()) return;
+    const wait = rest.endsAt - Date.now();
+    if (wait < 0) return;
+    const t = window.setTimeout(() => {
+      if (document.visibilityState === 'visible' && Date.now() - rest.endsAt < 2000) playRestSound();
+    }, wait);
+    return () => window.clearTimeout(t);
+  }, [rest?.endsAt]);
 
   const byKey = useMemo(() => {
     const m = new Map<string, SetLog>();

@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page, Toggle } from 'konsta/react';
 import { disableRestPush, enableRestPush, restPushError, restPushOn, restPushSupported } from '../ui/restPush';
+import { playRestSound, restSoundOn, setRestSound } from '../ui/restSound';
 import { useEffect, useRef, useState } from 'react';
 import { carbTarget, nextMonday } from '../core/calc';
 import { saveSettings } from '../core/db';
@@ -318,6 +319,7 @@ export function SettingsScreen() {
   const [githubSheet, setGithubSheet] = useState(false);
   // Rest notifications, on this phone (a tap turns them on: iOS asks for permission then).
   const [restPush, setRestPush] = useState(() => restPushOn());
+  const [restSound, setRestSoundState] = useState(() => restSoundOn());
   const backup = useSync();
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted);
@@ -528,7 +530,7 @@ export function SettingsScreen() {
         title="Notifications"
         footer={
           restPushSupported()
-            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started the next set.'
+            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started the next set. Rest Sound beeps when a rest ends with Zoro open, even with the ringer off.'
             : 'Open Zoro from your Home Screen to get a notification when a rest ends.'
         }
       >
@@ -549,6 +551,20 @@ export function SettingsScreen() {
                   else if (r === 'unsupported') toast('Open Zoro from your Home Screen first');
                   else if (r === 'failed') toast(`Couldn’t turn on notifications (${restPushError})`);
                 });
+              }}
+            />
+          }
+        />
+        <Row
+          title="Rest Sound"
+          right={
+            <Toggle
+              checked={restSound}
+              onChange={() => {
+                setRestSound(!restSound);
+                setRestSoundState(!restSound);
+                // Turned on: hear it.
+                if (!restSound) playRestSound();
               }}
             />
           }
