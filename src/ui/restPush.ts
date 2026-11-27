@@ -3,8 +3,9 @@ import { REST_PUSH_URL, VAPID_PUBLIC_KEY } from '../core/pushConfig';
 /**
  * Rest notifications: when a rest starts, its end time goes to zoro-server, which pushes "Your
  * rest is over, let's start the next set!" to this phone at that moment (a Home Screen web app
- * is paused once you switch apps, so it can't tell you itself). Skipping or finishing the rest
- * early cancels it; +30s moves it. On for this phone only (Settings › Notifications).
+ * is paused once you switch apps, so it can't tell you itself), then reminds it 30 seconds, a
+ * minute and two minutes later until the next set starts. Starting it or skipping the rest
+ * cancels them; +30s moves them. On for this phone only (Settings › Notifications).
  */
 const ON_KEY = 'zoro.restPush';
 const DEVICE_KEY = 'zoro.device';
@@ -99,8 +100,15 @@ export function scheduleRestPush(endsAt: number) {
   })();
 }
 
-/** The rest is over or gone: no notification. */
+/**
+ * The rest is over or gone (the next set started, or it was skipped): no more reminders, and the
+ * ones already showing are cleared away.
+ */
 export function cancelRestPush() {
   if (read(ON_KEY) !== '1') return;
   void post({ action: 'cancel', device: device() });
+  void registration
+    ?.getNotifications()
+    .then((shown) => shown.forEach((n) => n.tag.startsWith('rest') && n.close()))
+    .catch(() => undefined);
 }

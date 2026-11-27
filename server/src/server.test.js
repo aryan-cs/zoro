@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRequest, restMessage, stillDue } from './rules.js';
+import { dueAt, parseRequest, REMINDERS, restMessage, stillDue } from './rules.js';
 import { b64u, encrypt, newVapidKeys, unb64u, vapidAuth } from './webpush.js';
 
 const enc = new TextEncoder();
@@ -71,12 +71,23 @@ describe('what the server accepts', () => {
     expect(parseRequest({ ...base, subscription: { ...sub, endpoint: 'http://web.push.apple.com/x' } }, now).error).toBe('endpoint');
     expect(parseRequest({ ...base, subscription: { ...sub, keys: { p256dh: 'x', auth: 'y' } } }, now).error).toBe('keys');
   });
-  it('says exactly the user’s words, titled Zoro, and drops a retry that comes long after the rest', () => {
+  it('says the user’s words as the rest ends, titled Zoro', () => {
     const m = JSON.parse(restMessage('https://aryan-cs.github.io/zoro/'));
-    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Zoro', navigate: 'https://aryan-cs.github.io/zoro/' } });
+    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Zoro', navigate: 'https://aryan-cs.github.io/zoro/', tag: 'rest-0' } });
     expect(m.notification.body).toBe("Your rest is over, let's start the next set!");
+  });
+  it('then reminds 30 seconds, a minute and two minutes later, each alerting on its own', () => {
+    expect(REMINDERS.map((r) => r.after)).toEqual([0, 30_000, 60_000, 120_000]);
+    expect(JSON.parse(restMessage('https://x.test/', 1)).notification).toMatchObject({ body: 'Your rest finished 30 seconds ago! Let\'s start your next set.', tag: 'rest-1' });
+    expect(new Set(REMINDERS.map((_, i) => JSON.parse(restMessage('https://x.test/', i)).notification.tag)).size).toBe(4);
+    expect(dueAt({ endsAt: now, stage: 0 })).toBe(now);
+    expect(dueAt({ endsAt: now, stage: 3 })).toBe(now + 120_000);
+    expect(dueAt({ endsAt: now, stage: 4 })).toBeNull();
+  });
+  it('drops a retry that comes long after its reminder was due', () => {
     expect(stillDue({ endsAt: now }, now + 2000)).toBe(true);
     expect(stillDue({ endsAt: now }, now + 120_000)).toBe(false);
+    expect(stillDue({ endsAt: now, stage: 2 }, now + 62_000)).toBe(true);
     expect(stillDue(undefined, now)).toBe(false);
   });
 });

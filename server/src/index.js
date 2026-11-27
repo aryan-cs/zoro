@@ -1,14 +1,15 @@
-// zoro-server: the rest timer's notification. When a rest starts, the Zoro app sends when it
+// zoro-server: the rest timer's notifications. When a rest starts, the Zoro app sends when it
 // ends; a Durable Object for that phone sets an alarm for then and, when it goes off, pushes
-// "Your rest is over" to the phone (even while you're in another app). Skipping or stretching
-// the rest replaces or cancels the alarm. One rest per phone.
+// "Your rest is over" to the phone (even while you're in another app), then reminds it 30
+// seconds, a minute and two minutes later. Starting the next set, skipping or stretching the
+// rest cancels or replaces them. One rest per phone.
 import { DurableObject } from 'cloudflare:workers';
-import { parseRequest, restMessage, stillDue } from './rules.js';
+import { dueAt, parseRequest, restMessage, stillDue } from './rules.js';
 import { sendPush } from './webpush.js';
 
 export class Rest extends DurableObject {
   async schedule(rest) {
-    await this.ctx.storage.put('rest', rest);
+    await this.ctx.storage.put('rest', { ...rest, stage: 0 });
     await this.ctx.storage.setAlarm(rest.endsAt);
   }
 
@@ -19,13 +20,24 @@ export class Rest extends DurableObject {
 
   async alarm() {
     const rest = await this.ctx.storage.get('rest');
-    // Gone first, so a retried alarm can't send it twice.
-    await this.ctx.storage.delete('rest');
-    if (!stillDue(rest)) return;
+    if (!rest) return;
+    const send = stillDue(rest);
+    const stage = rest.stage ?? 0;
+    // The next reminder set up first, so a retried alarm can't send this one twice.
+    const next = { ...rest, stage: stage + 1 };
+    const at = dueAt(next);
+    if (at === null) await this.ctx.storage.delete('rest');
+    else {
+      await this.ctx.storage.put('rest', next);
+      await this.ctx.storage.setAlarm(at);
+    }
+    if (!send) return;
     const vapid = { publicKey: this.env.VAPID_PUBLIC, privateKey: this.env.VAPID_PRIVATE, subject: this.env.APP_URL };
     try {
-      const status = await sendPush(rest.subscription, restMessage(this.env.APP_URL), vapid);
-      console.log('push', status);
+      const status = await sendPush(rest.subscription, restMessage(this.env.APP_URL, stage), vapid);
+      console.log('push', stage, status);
+      // The phone's subscription is gone: no more reminders for it.
+      if (status === 404 || status === 410) await this.cancel();
     } catch (e) {
       console.log('push failed', String(e));
     }

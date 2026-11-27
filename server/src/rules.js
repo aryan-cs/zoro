@@ -43,15 +43,33 @@ export function parseRequest(body, now = Date.now()) {
 }
 
 /**
- * The notification, as a Declarative Web Push message: iOS 18.4+ shows it by itself, and the
- * app's service worker shows the same for anything older. Titled with the app's name, so iOS
- * shows it on one line (another title gets "from Zoro" under it).
+ * What the phone is told, and when: as the rest ends, then again 30 seconds, a minute and two
+ * minutes after it if the next set still hasn't started (starting it cancels the rest).
  */
-export function restMessage(url) {
-  return JSON.stringify({ web_push: 8030, notification: { title: 'Zoro', body: "Your rest is over, let's start the next set!", navigate: url, tag: 'rest', silent: false } });
+export const REMINDERS = [
+  { after: 0, body: "Your rest is over, let's start the next set!" },
+  { after: 30_000, body: "Your rest finished 30 seconds ago! Let's start your next set." },
+  { after: 60_000, body: "Your rest finished 1 minute ago! Let's start your next set." },
+  { after: 120_000, body: "Your rest finished 2 minutes ago! Let's start your next set." },
+];
+
+/**
+ * One of them as a Declarative Web Push message: iOS 18.4+ shows it by itself, and the app's
+ * service worker shows the same for anything older. Titled with the app's name, so iOS shows it
+ * on one line (another title gets "from Zoro" under it). Each has its own tag, so each one alerts.
+ */
+export function restMessage(url, stage = 0) {
+  return JSON.stringify({ web_push: 8030, notification: { title: 'Zoro', body: REMINDERS[stage].body, navigate: url, tag: `rest-${stage}`, silent: false } });
 }
 
-/** Whether a rest whose alarm just went off should still notify: not long past (a late retry). */
+/** When a rest's next reminder is due, or null once they've all gone. */
+export function dueAt(rest) {
+  const r = REMINDERS[rest?.stage ?? 0];
+  return rest && r ? rest.endsAt + r.after : null;
+}
+
+/** Whether a reminder whose alarm just went off should still be sent: not long past (a late retry). */
 export function stillDue(rest, now = Date.now()) {
-  return !!rest && now - rest.endsAt < 60_000;
+  const at = dueAt(rest);
+  return at !== null && now - at < 60_000;
 }
