@@ -527,7 +527,7 @@ export function SettingsScreen() {
         title="Notifications"
         footer={
           restPushSupported()
-            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over, let’s start the next set!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started it.'
+            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started the next set.'
             : 'Open Zoro from your Home Screen to get a notification when a rest ends.'
         }
       >

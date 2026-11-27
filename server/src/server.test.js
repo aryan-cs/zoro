@@ -73,12 +73,12 @@ describe('what the server accepts', () => {
   });
   it('says the user’s words as the rest ends, as the title with nothing under it', () => {
     const m = JSON.parse(restMessage('https://aryan-cs.github.io/zoro/'));
-    expect(m).toMatchObject({ web_push: 8030, notification: { title: "Your rest is over, let's start the next set!", navigate: 'https://aryan-cs.github.io/zoro/', tag: 'rest-0' } });
+    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Your rest is over!', navigate: 'https://aryan-cs.github.io/zoro/', tag: 'rest-0' } });
     expect(m.notification.body).toBeUndefined();
   });
   it('then reminds 30 seconds, a minute and two minutes later, each alerting on its own', () => {
     expect(REMINDERS.map((r) => r.after)).toEqual([0, 30_000, 60_000, 120_000]);
-    expect(JSON.parse(restMessage('https://x.test/', 1)).notification).toMatchObject({ title: 'Your rest finished 30 seconds ago! Let\'s start your next set.', tag: 'rest-1' });
+    expect(JSON.parse(restMessage('https://x.test/', 1)).notification).toMatchObject({ title: 'Your rest ended 30 seconds ago!', tag: 'rest-1' });
     expect(new Set(REMINDERS.map((_, i) => JSON.parse(restMessage('https://x.test/', i)).notification.tag)).size).toBe(4);
     expect(dueAt({ endsAt: now, stage: 0 })).toBe(now);
     expect(dueAt({ endsAt: now, stage: 3 })).toBe(now + 120_000);

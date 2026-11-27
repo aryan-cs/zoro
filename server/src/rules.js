@@ -47,10 +47,10 @@ export function parseRequest(body, now = Date.now()) {
  * minutes after it if the next set still hasn't started (starting it cancels the rest).
  */
 export const REMINDERS = [
-  { after: 0, body: "Your rest is over, let's start the next set!" },
-  { after: 30_000, body: "Your rest finished 30 seconds ago! Let's start your next set." },
-  { after: 60_000, body: "Your rest finished 1 minute ago! Let's start your next set." },
-  { after: 120_000, body: "Your rest finished 2 minutes ago! Let's start your next set." },
+  { after: 0, body: 'Your rest is over!' },
+  { after: 30_000, body: 'Your rest ended 30 seconds ago!' },
+  { after: 60_000, body: 'Your rest ended 1 minute ago!' },
+  { after: 120_000, body: 'Your rest ended 2 minutes ago!' },
 ];
 
 /**
