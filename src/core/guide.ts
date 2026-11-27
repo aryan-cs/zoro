@@ -310,7 +310,7 @@ export const GUIDE: Record<string, Guide> = {
   },
   ballLegCurl: {
     photo: 'ball-leg-curl',
-    tips: ['Lie on your back with your heels on the ball and lift your hips.', 'Roll the ball in toward you with your hips up, then roll it out slowly.'],
+    tips: ['On your back, heels on the ball (no ball: on a towel on a smooth floor), hips lifted.', 'Pull your heels in toward you with your hips up, then let them out slowly.'],
     effort: 'last',
   },
   cableLegCurl: {

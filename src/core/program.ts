@@ -61,7 +61,7 @@ export const EXERCISES: Record<string, ExerciseDef> = Object.fromEntries(
     ex('rdl', 'Barbell Romanian Deadlift', 'barbell', 10, ['hamstrings', 'glutes']),
     ex('walkingLunge', 'Walking Lunges', 'dumbbell', 5, ['quads', 'glutes'], { perSide: true }),
     ex('ballLegCurl', 'Stability-Ball Leg Curl', 'bodyweight', 0, ['hamstrings'], {
-      cue: 'Or cable leg curl with an ankle strap.',
+      cue: 'No ball? Slide your heels on a towel on a smooth floor.',
     }),
     ex('cableLegCurl', 'Seated Cable Leg Curl', 'cable', 5, ['hamstrings'], {
       perSide: true,
@@ -208,7 +208,10 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
       p('barbellRow', 3, 8, 12, 120),
       p('bulgarian', 3, 8, 12, 75, { superset: 'dumbbells' }),
       p('hammerCurl', 3, 8, 12, 75, { superset: 'dumbbells' }),
-      p('cableLegCurl', 2, 10, 15, 60),
+      // Knee-bending hamstring work, which RDLs don't cover. The seated leg curl (Maeo 2021: grows
+      // them more, at a long length) isn't at his gym and an ankle strap on the cables slides up
+      // his leg, so the ball (or towel) curl for now; back to the seated one at the university gym.
+      p('ballLegCurl', 2, 8, 15, 60),
       p('leaningOhExt', 3, 10, 15, 60), // one arm at a time: each rests while the other works
     ],
   },
