@@ -33,7 +33,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,wasm}'], // webp: the exercise photos, so they show offline
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,wasm,mp3}'], // webp: the exercise photos, so they show offline; mp3: the rest sound
         navigateFallback: '/zoro/index.html',
         // Let the sleep shortcut file download instead of opening the app.
         navigateFallbackDenylist: [/\.shortcut$/],

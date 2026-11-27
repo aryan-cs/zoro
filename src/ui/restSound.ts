@@ -1,10 +1,11 @@
 /**
- * The rest timer's sound: a "bo-de-boop" in the style of the PACER test's signal (two short beeps
- * and a longer one), made here with Web Audio rather than copied from the recording. It plays when
- * a rest ends while Zoro is open, through headphones when they're in, and with the ringer off too:
- * for that, iOS needs the page's audio session set to playback, which pauses other apps' music
- * (Safari doesn't tell them to carry on after). Once Zoro is in another app or the phone is locked
- * it can't play anything; the rest notification (restPush.ts) covers that, with the system sound.
+ * The rest timer's sound: the tone that starts the FitnessGram PACER test, cut from the original
+ * recording (public/sounds/pacer-start.mp3). If that can't load, a "bo-de-boop" made here with
+ * Web Audio plays instead. It plays when a rest ends while Zoro is open, through headphones when
+ * they're in, and with the ringer off too: for that, iOS needs the page's audio session set to
+ * playback, which pauses other apps' music (Safari doesn't tell them to carry on after). Once Zoro
+ * is in another app or the phone is locked it can't play anything; the rest notification
+ * (restPush.ts) covers that, with the system sound.
  */
 const KEY = 'zoro.restSound';
 
@@ -28,6 +29,8 @@ const audioSession = () => (navigator as Navigator & { audioSession?: AudioSessi
 
 let ctx: AudioContext | null = null;
 let unlocked = false;
+let clip: AudioBuffer | null = null;
+export const CLIP_URL = `${import.meta.env.BASE_URL}sounds/pacer-start.mp3`;
 
 function context(): AudioContext | null {
   if (!ctx) {
@@ -36,6 +39,13 @@ function context(): AudioContext | null {
     } catch {
       return null;
     }
+    // The recording, decoded ahead so it plays the moment the rest ends (it's precached offline).
+    const c = ctx;
+    void fetch(CLIP_URL)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => c.decodeAudioData(b))
+      .then((b) => (clip = b))
+      .catch(() => undefined);
   }
   return ctx;
 }
@@ -66,7 +76,7 @@ export function primeRestSound() {
     .catch(() => undefined);
 }
 
-/** Its notes: [start, length] in seconds. */
+/** The made-up stand-in's notes, if the recording can't load: [start, length] in seconds. */
 export const NOTES: [number, number][] = [
   [0, 0.09],
   [0.14, 0.09],
@@ -112,17 +122,25 @@ export function playRestSound() {
   const done = () => {
     if (session && play === plays) session.type = 'auto';
   };
-  const giveUp = window.setTimeout(done, 2000);
+  const giveUp = window.setTimeout(done, 5000);
   void c
     .resume()
     .then(() => {
       window.clearTimeout(giveUp);
+      if (session) session.type = 'playback';
       unlocked = true;
-      beeps(c, c.currentTime + 0.03);
+      let length = LENGTH;
+      if (clip) {
+        const src = c.createBufferSource();
+        src.buffer = clip;
+        src.connect(c.destination);
+        src.start(c.currentTime + 0.03);
+        length = clip.duration;
+      } else beeps(c, c.currentTime + 0.03);
       window.setTimeout(() => {
         // Paused again unless another one started meanwhile.
         if (play === plays) void c.suspend().catch(() => undefined).finally(done);
-      }, (LENGTH + 0.25) * 1000);
+      }, (length + 0.25) * 1000);
     })
     .catch(done);
 }
