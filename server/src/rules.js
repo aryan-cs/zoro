@@ -55,11 +55,12 @@ export const REMINDERS = [
 
 /**
  * One of them as a Declarative Web Push message: iOS 18.4+ shows it by itself, and the app's
- * service worker shows the same for anything older. Titled with the app's name, so iOS shows it
- * on one line (another title gets "from Zoro" under it). Each has its own tag, so each one alerts.
+ * service worker shows the same for anything older. The words are the title, with nothing under
+ * them: iOS always adds "from Zoro" under a web app's title, so titling it "Zoro" read twice.
+ * Each has its own tag, so each one alerts.
  */
 export function restMessage(url, stage = 0) {
-  return JSON.stringify({ web_push: 8030, notification: { title: 'Zoro', body: REMINDERS[stage].body, navigate: url, tag: `rest-${stage}`, silent: false } });
+  return JSON.stringify({ web_push: 8030, notification: { title: REMINDERS[stage].body, navigate: url, tag: `rest-${stage}`, silent: false } });
 }
 
 /** When a rest's next reminder is due, or null once they've all gone. */

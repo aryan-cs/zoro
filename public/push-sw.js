@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
     msg = { notification: { title: 'Zoro', body: event.data ? event.data.text() : '' } };
   }
   const n = msg.notification || {};
-  event.waitUntil(self.registration.showNotification(n.title || 'Zoro', { body: n.body, tag: n.tag, data: { url: n.navigate }, icon: 'icon-192.png' }));
+  event.waitUntil(self.registration.showNotification(n.title || 'Zoro', { body: n.body || undefined, tag: n.tag, data: { url: n.navigate }, icon: 'icon-192.png' }));
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
