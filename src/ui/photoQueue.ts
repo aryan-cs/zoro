@@ -38,7 +38,8 @@ async function notify(job: PhotoJob) {
   try {
     if (!document.hidden || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const reg = await navigator.serviceWorker?.ready;
-    await reg?.showNotification(doneMessage(job), { body: jobSummary(job), tag: `photo-${job.id}`, icon: 'icon-192.png' });
+    // iOS adds "from Zoro" under the title, so the title just says what finished.
+    await reg?.showNotification(`Finished analyzing ${jobName(job)}`, { body: jobSummary(job), tag: `photo-${job.id}`, icon: 'icon-192.png' });
   } catch {
     /* no notifications here: the row and the badge still show it */
   }
