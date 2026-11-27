@@ -7,7 +7,7 @@ const PUSH_HOSTS = [/(^|\.)push\.apple\.com$/, /^fcm\.googleapis\.com$/, /^updat
 const isB64u = (s, min, max) => typeof s === 'string' && s.length >= min && s.length <= max && /^[A-Za-z0-9_-]+$/.test(s);
 
 /**
- * A request from the app: { action: 'schedule', device, endsAt, subscription, next? } or
+ * A request from the app: { action: 'schedule', device, endsAt, subscription } or
  * { action: 'cancel', device }. Returns what to do, or { error }.
  */
 export function parseRequest(body, now = Date.now()) {
@@ -39,17 +39,16 @@ export function parseRequest(body, now = Date.now()) {
     device: r.device,
     endsAt: Math.round(endsAt),
     subscription: { endpoint: s.endpoint, keys: { p256dh: s.keys.p256dh, auth: s.keys.auth } },
-    next: typeof r.next === 'string' ? r.next.slice(0, 80) : '',
   };
 }
 
 /**
  * The notification, as a Declarative Web Push message: iOS 18.4+ shows it by itself, and the
- * app's service worker shows the same for anything older.
+ * app's service worker shows the same for anything older. Titled with the app's name, so iOS
+ * shows it on one line (another title gets "from Zoro" under it).
  */
-export function restMessage(next, url) {
-  const body = `Your rest is over, let's start the next set!${next ? ` Up next: ${next}.` : ''}`;
-  return JSON.stringify({ web_push: 8030, notification: { title: 'Rest Over', body, navigate: url, tag: 'rest', silent: false } });
+export function restMessage(url) {
+  return JSON.stringify({ web_push: 8030, notification: { title: 'Zoro', body: "Your rest is over, let's start the next set!", navigate: url, tag: 'rest', silent: false } });
 }
 
 /** Whether a rest whose alarm just went off should still notify: not long past (a late retry). */

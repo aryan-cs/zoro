@@ -24,7 +24,7 @@ export class Rest extends DurableObject {
     if (!stillDue(rest)) return;
     const vapid = { publicKey: this.env.VAPID_PUBLIC, privateKey: this.env.VAPID_PRIVATE, subject: this.env.APP_URL };
     try {
-      const status = await sendPush(rest.subscription, restMessage(rest.next, this.env.APP_URL), vapid);
+      const status = await sendPush(rest.subscription, restMessage(this.env.APP_URL), vapid);
       console.log('push', status);
     } catch (e) {
       console.log('push failed', String(e));
@@ -50,7 +50,7 @@ export default {
     if (r.error) return Response.json({ error: r.error }, { status: 400, headers });
     const rest = env.RESTS.get(env.RESTS.idFromName(r.device));
     if (r.action === 'cancel') await rest.cancel();
-    else await rest.schedule({ endsAt: r.endsAt, subscription: r.subscription, next: r.next });
+    else await rest.schedule({ endsAt: r.endsAt, subscription: r.subscription });
     return Response.json({ ok: true }, { headers });
   },
 };

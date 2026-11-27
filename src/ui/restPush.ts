@@ -90,12 +90,12 @@ const post = (body: object) =>
   // Plain text, so it's a simple request; keepalive, so it still goes if the app is closing.
   fetch(REST_PUSH_URL, { method: 'POST', body: JSON.stringify(body), keepalive: true, headers: { 'content-type': 'text/plain' } }).catch(() => undefined);
 
-/** A rest that ends at `endsAt`: notify then, saying what's next ("Bench Press, set 3 of 4"). */
-export function scheduleRestPush(endsAt: number, next?: string) {
+/** A rest that ends at `endsAt`: notify then. */
+export function scheduleRestPush(endsAt: number) {
   if (!restPushOn() || endsAt < Date.now() + 1500) return;
   void (async () => {
     const sub = await subscription().catch(() => null);
-    if (sub) await post({ action: 'schedule', device: device(), endsAt, subscription: sub.toJSON(), next });
+    if (sub) await post({ action: 'schedule', device: device(), endsAt, subscription: sub.toJSON() });
   })();
 }
 

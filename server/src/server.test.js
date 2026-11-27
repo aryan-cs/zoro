@@ -32,7 +32,7 @@ describe('web push', () => {
     const ua = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
     const auth = crypto.getRandomValues(new Uint8Array(16));
     const keys = { p256dh: b64u(await crypto.subtle.exportKey('raw', ua.publicKey)), auth: b64u(auth) };
-    const msg = restMessage('Bench Press, set 3 of 4', 'https://aryan-cs.github.io/zoro/');
+    const msg = restMessage('https://aryan-cs.github.io/zoro/');
     const body = await encrypt(msg, keys);
     expect(new DataView(body.buffer).getUint32(16)).toBe(4096);
     expect(body[20]).toBe(65);
@@ -59,7 +59,7 @@ describe('what the server accepts', () => {
   const now = 1_800_000_000_000;
   const sub = { endpoint: 'https://web.push.apple.com/QGuQyavXutnMH4', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } };
   it('schedules a rest for a push service, and cancels', () => {
-    expect(parseRequest(JSON.stringify({ action: 'schedule', device: 'abcd-1234-ef', endsAt: now + 90_000, subscription: sub, next: 'Bench' }), now)).toMatchObject({ action: 'schedule', endsAt: now + 90_000, next: 'Bench' });
+    expect(parseRequest(JSON.stringify({ action: 'schedule', device: 'abcd-1234-ef', endsAt: now + 90_000, subscription: sub }), now)).toMatchObject({ action: 'schedule', endsAt: now + 90_000 });
     expect(parseRequest({ action: 'cancel', device: 'abcd-1234-ef' }, now)).toEqual({ action: 'cancel', device: 'abcd-1234-ef' });
   });
   it('refuses anything else', () => {
@@ -71,10 +71,10 @@ describe('what the server accepts', () => {
     expect(parseRequest({ ...base, subscription: { ...sub, endpoint: 'http://web.push.apple.com/x' } }, now).error).toBe('endpoint');
     expect(parseRequest({ ...base, subscription: { ...sub, keys: { p256dh: 'x', auth: 'y' } } }, now).error).toBe('keys');
   });
-  it('says the user’s words, and drops a retry that comes long after the rest', () => {
-    const m = JSON.parse(restMessage('Squat, set 2 of 3', 'https://aryan-cs.github.io/zoro/'));
-    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Rest Over', navigate: 'https://aryan-cs.github.io/zoro/' } });
-    expect(m.notification.body).toBe("Your rest is over, let's start the next set! Up next: Squat, set 2 of 3.");
+  it('says exactly the user’s words, titled Zoro, and drops a retry that comes long after the rest', () => {
+    const m = JSON.parse(restMessage('https://aryan-cs.github.io/zoro/'));
+    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Zoro', navigate: 'https://aryan-cs.github.io/zoro/' } });
+    expect(m.notification.body).toBe("Your rest is over, let's start the next set!");
     expect(stillDue({ endsAt: now }, now + 2000)).toBe(true);
     expect(stillDue({ endsAt: now }, now + 120_000)).toBe(false);
     expect(stillDue(undefined, now)).toBe(false);
