@@ -73,7 +73,7 @@ describe('what the server accepts', () => {
   });
   it('says the user’s words as the rest ends, as the title with nothing under it', () => {
     const m = JSON.parse(restMessage('https://aryan-cs.github.io/zoro/'));
-    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Your rest is over!', navigate: 'https://aryan-cs.github.io/zoro/', tag: 'rest-0' } });
+    expect(m).toMatchObject({ web_push: 8030, notification: { title: 'Your rest is over!', navigate: 'https://aryan-cs.github.io/zoro/?open=workout', tag: 'rest-0' } });
     expect(m.notification.body).toBeUndefined();
   });
   it('then reminds 30 seconds, a minute and two minutes later, each alerting on its own', () => {

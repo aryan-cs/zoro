@@ -60,7 +60,9 @@ export const REMINDERS = [
  * Each has its own tag, so each one alerts.
  */
 export function restMessage(url, stage = 0) {
-  return JSON.stringify({ web_push: 8030, notification: { title: REMINDERS[stage].body, navigate: url, tag: `rest-${stage}`, silent: false } });
+  // Opens the workout itself (where the rest says Go), not the app's first screen.
+  const navigate = new URL('?open=workout', url).href;
+  return JSON.stringify({ web_push: 8030, notification: { title: REMINDERS[stage].body, navigate, tag: `rest-${stage}`, silent: false } });
 }
 
 /** When a rest's next reminder is due, or null once they've all gone. */

@@ -78,3 +78,26 @@ export const TEMPLATE_GLYPH: Record<TemplateId, SFName> = {
 
 /** The optional workout offered by weekday (0 = Sunday): see optionalForWeekday. */
 export { optionalForWeekday } from '../core/program';
+
+/**
+ * The workout whose rest ended last (its rest is kept until the next set starts), else today's
+ * unfinished one: what a "Your rest is over" notification opens.
+ */
+export async function restingSession(): Promise<number | undefined> {
+  let best: { id: number; endsAt: number } | undefined;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const m = /^zoro\.rest\.(\d+)$/.exec(localStorage.key(i) ?? '');
+      if (!m) continue;
+      const endsAt = Number((JSON.parse(localStorage.getItem(m[0]) ?? 'null') as RunningRest | null)?.endsAt);
+      if (Number.isFinite(endsAt) && (!best || endsAt > best.endsAt)) best = { id: Number(m[1]), endsAt };
+    }
+  } catch {
+    /* none readable */
+  }
+  if (best) {
+    const s = await db.sessions.get(best.id);
+    if (s && !s.finishedAt) return best.id;
+  }
+  return (await activeSession())?.id;
+}

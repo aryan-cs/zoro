@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getDB } from '../core/db';
 import type { ISODate, Meal, TemplateId } from '../core/types';
 import { springEasing, type Spring } from './motion';
 
@@ -17,11 +18,12 @@ export type Route =
   /** A tab's screen opened from a card (Today's Water, This Week…), pushed with a Back button. */
   | { name: 'screen'; tab: Tab; section?: string };
 
-/** A pushed screen. `leaving` is set while it slides out. */
+/** A pushed screen. `leaving` is set while it slides out; `still` ones appear without sliding in. */
 export interface Entry {
   id: number;
   route: Route;
   leaving?: boolean;
+  still?: boolean;
 }
 
 /**
@@ -56,8 +58,8 @@ interface NavActions {
   push: (r: Route) => void;
   /** Slide the top screen away. `instant` skips the animation (after a swipe-back already moved it). */
   pop: (instant?: boolean | unknown) => void;
-  /** Switch tabs and open a screen there. */
-  go: (t: Tab, r?: Route) => void;
+  /** Switch tabs and open a screen there (`still`: already there, without sliding in). */
+  go: (t: Tab, r?: Route, still?: boolean) => void;
 }
 
 /** What the shell and tab bar use. */
@@ -69,13 +71,65 @@ interface NavState {
 const ActionsContext = createContext<NavActions | null>(null);
 const StateContext = createContext<NavState | null>(null);
 const EMPTY: Record<Tab, Entry[]> = { water: [], food: [], today: [], lift: [], history: [] };
+const TAB_IDS = Object.keys(EMPTY) as Tab[];
+const ROUTES = new Set<Route['name']>(['workout', 'plannedWorkout', 'exercise', 'addFood', 'logSleep', 'healthSetup', 'settings', 'screen']);
+
+/**
+ * Where you were (the tab and the screens open on each), kept so opening Zoro again (after iOS
+ * closed it, or an update) comes back to the same screen, as iPhone apps do.
+ */
+const PLACE_KEY = 'zoro.place';
+type Place = { tab: Tab; stacks: Partial<Record<Tab, Route[]>> };
+
+function savedPlace(): { tab: Tab; stacks: Record<Tab, Entry[]>; next: number } {
+  let id = 1;
+  try {
+    const p = JSON.parse(localStorage.getItem(PLACE_KEY) ?? 'null') as Place | null;
+    if (!p || !TAB_IDS.includes(p.tab)) throw new Error('none');
+    const stacks = { ...EMPTY };
+    for (const t of TAB_IDS) {
+      const routes = Array.isArray(p.stacks?.[t]) ? p.stacks[t]! : [];
+      stacks[t] = routes.filter((r) => r && ROUTES.has(r.name)).map((route) => ({ id: id++, route, still: true }));
+    }
+    return { tab: p.tab, stacks, next: id };
+  } catch {
+    return { tab: 'today', stacks: EMPTY, next: id };
+  }
+}
 
 export function NavProvider({ children }: { children: ReactNode }) {
-  const [tab, setTabState] = useState<Tab>('today');
-  const [stacks, setStacks] = useState<Record<Tab, Entry[]>>(EMPTY);
+  const [start] = useState(savedPlace);
+  const [tab, setTabState] = useState<Tab>(start.tab);
+  const [stacks, setStacks] = useState<Record<Tab, Entry[]>>(start.stacks);
   const tabRef = useRef(tab);
   tabRef.current = tab;
-  const nextId = useRef(1);
+  const nextId = useRef(start.next);
+
+  // Kept as you go.
+  useEffect(() => {
+    const place: Place = { tab, stacks: {} };
+    for (const t of TAB_IDS) {
+      const routes = stacks[t].filter((e) => !e.leaving).map((e) => e.route);
+      if (routes.length) place.stacks[t] = routes;
+    }
+    try {
+      localStorage.setItem(PLACE_KEY, JSON.stringify(place));
+    } catch {
+      /* the next launch starts on Today */
+    }
+  }, [tab, stacks]);
+  // A workout deleted since (on another screen, or by a restore) isn't brought back.
+  useEffect(() => {
+    const ids = TAB_IDS.flatMap((t) => start.stacks[t]).flatMap((e) => (e.route.name === 'workout' ? [e.route.sessionId] : []));
+    if (!ids.length) return;
+    void getDB()
+      .sessions.bulkGet(ids)
+      .then((found) => {
+        const gone = new Set(ids.filter((_, i) => !found[i]));
+        if (gone.size) setStacks((s) => Object.fromEntries(TAB_IDS.map((t) => [t, s[t].filter((e) => !(e.route.name === 'workout' && gone.has(e.route.sessionId)))])) as Record<Tab, Entry[]>);
+      })
+      .catch(() => undefined);
+  }, [start]);
 
   const actions = useMemo<NavActions>(() => {
     const entry = (route: Route): Entry => ({ id: nextId.current++, route });
@@ -118,10 +172,10 @@ export function NavProvider({ children }: { children: ReactNode }) {
         });
         if (!instant) setTimeout(() => setStacks((s) => ({ ...s, [t]: s[t].filter((e) => !e.leaving) })), SLIDE_MS);
       },
-      go: (t, r) => {
+      go: (t, r, still) => {
         tabRef.current = t;
         setTabState(t);
-        setStacks((s) => ({ ...s, [t]: r ? [entry(r)] : [] }));
+        setStacks((s) => ({ ...s, [t]: r ? [{ ...entry(r), still }] : [] }));
       },
     };
   }, []);

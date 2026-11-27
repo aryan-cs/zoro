@@ -19,6 +19,7 @@ import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { project, springEasing, velocityTracker } from './ui/motion';
+import { restingSession } from './ui/workouts';
 import { DIM, InStack, NavProvider, PARALLAX, RELEASE_SPRING, useNav, useNavState, type Entry, type Route, type Tab } from './ui/nav';
 
 const TABS: { id: Tab; label: string; icon: SFName }[] = [
@@ -168,7 +169,7 @@ const NO_SWIPE = 'input, textarea, select, [contenteditable], .k-stepper, .k-ran
 const StackPage = memo(function StackPage({ entry, covered }: { entry: Entry; covered: boolean }) {
   const { pop } = useNav();
   // Slide in once: hidden tabs are display:none, which would replay the animation on return.
-  const [landed, setLanded] = useState(false);
+  const [landed, setLanded] = useState(!!entry.still);
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; active: boolean; dead: boolean; speed: ReturnType<typeof velocityTracker> } | null>(null);
   const under = () => el.current?.previousElementSibling as HTMLElement | null;
@@ -557,8 +558,41 @@ function useKeyboardInset() {
   }, []);
 }
 
+/**
+ * Links into the app: "Your rest is over" opens with ?open=workout (or, when Zoro is already open,
+ * its service worker passes the link on), which goes straight to that workout's screen, where the
+ * rest says Go.
+ */
+function useOpenLinks() {
+  const { go } = useNav();
+  const state = useNavState();
+  const now = useRef(state);
+  now.current = state;
+  useEffect(() => {
+    const open = async (search: string) => {
+      if (new URLSearchParams(search).get('open') !== 'workout') return;
+      const sessionId = await restingSession();
+      if (sessionId === undefined) return;
+      const { tab, stacks } = now.current;
+      const top = stacks[tab].findLast((e) => !e.leaving)?.route;
+      if (top?.name === 'workout' && top.sessionId === sessionId) return;
+      go('lift', { name: 'workout', sessionId }, true);
+    };
+    if (location.search) {
+      void open(location.search);
+      history.replaceState(null, '', location.pathname + location.hash);
+    }
+    const onMessage = (e: MessageEvent) => {
+      if (typeof e.data?.open === 'string') void open(new URL(e.data.open, location.href).search);
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
+  }, [go]);
+}
+
 function Shell() {
   const { tab, stacks } = useNavState();
+  useOpenLinks();
   useAutoTargets(); // keep the daily targets on the profile's recommendation
   useKeyboardInset();
   const current = TABS.findIndex((t) => t.id === tab);

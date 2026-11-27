@@ -17,7 +17,10 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((all) => {
       const open = all.find((c) => c.url.startsWith(self.registration.scope));
-      return open ? open.focus() : self.clients.openWindow(url);
+      if (!open) return self.clients.openWindow(url);
+      // Already open: it goes where the link says (a rest's workout) without reloading.
+      open.postMessage({ open: url });
+      return open.focus();
     }),
   );
 });
