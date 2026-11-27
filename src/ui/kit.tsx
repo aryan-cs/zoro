@@ -1088,10 +1088,10 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
       let next = card.nextElementSibling ?? card.parentElement?.nextElementSibling ?? null;
       while (next && !(next as HTMLElement).offsetHeight) next = next.nextElementSibling;
       below = next ? next.getBoundingClientRect().top - (heroBox.top + plan.bigH) : 0;
-      // Fully collapsed, the content comes to rest clear of the soft edge under the small hero
-      // (its 24pt and 4pt more), so the card's top isn't darkened, even though at the top of the
-      // page it sits closer under the big hero: the collapse ends that much sooner.
-      const clear = 28;
+      // Fully collapsed, the content comes to rest 21pt under the small hero's stats (22.5pt to the
+      // text), clear of where its soft edge would shade it; at the top of the page it sits a
+      // little closer under the big hero, so the collapse ends that much sooner.
+      const clear = 21;
       plan = { ...plan, span: Math.max(1, plan.bigH - plan.smallH - Math.max(0, clear - below)) };
       rest = Math.max(0, plan.frame(0).height + 4 + 24 - (plan.bigH + below));
       // Snap points at the top and at fully collapsed, and past that one snap area as tall as the
