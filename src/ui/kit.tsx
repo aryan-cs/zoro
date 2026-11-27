@@ -1006,6 +1006,7 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
     let plan: HeroPlan | null = null;
     let width = 0;
     let below = 0; // from the hero's bottom (big) to the content under it
+    let rest = 0; // how far the edge reaches into the content at the top of the page, before any scroll
     let anims: Animation[] = [];
 
     /** Every part's transform (and the edge's opacity) at progress p. */
@@ -1017,7 +1018,8 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
         items: f.items.map((it) => `translate(${it.x}px, ${it.y}px)`),
         backdrop: `scaleY(${(f.height + 4) / plan!.bigH})`,
         edge: `translateY(${f.height + 4}px)`,
-        edgeOpacity: Math.min(1, Math.max(0, (f.height + 4 + 24 - contentTop) / 24)),
+        // The soft edge shows only as the content starts going under the hero, never on it at rest.
+        edgeOpacity: Math.min(1, Math.max(0, (f.height + 4 + 24 - contentTop - rest) / 24)),
       };
     };
     const paint = () => {
@@ -1086,6 +1088,12 @@ function RingHero({ art, legend }: { art: ReactNode; legend: ReactNode[] }) {
       let next = card.nextElementSibling ?? card.parentElement?.nextElementSibling ?? null;
       while (next && !(next as HTMLElement).offsetHeight) next = next.nextElementSibling;
       below = next ? next.getBoundingClientRect().top - (heroBox.top + plan.bigH) : 0;
+      // Fully collapsed, the content comes to rest clear of the soft edge under the small hero
+      // (its 24pt and 4pt more), so the card's top isn't darkened, even though at the top of the
+      // page it sits closer under the big hero: the collapse ends that much sooner.
+      const clear = 28;
+      plan = { ...plan, span: Math.max(1, plan.bigH - plan.smallH - Math.max(0, clear - below)) };
+      rest = Math.max(0, plan.frame(0).height + 4 + 24 - (plan.bigH + below));
       // Snap points at the top and at fully collapsed, and past that one snap area as tall as the
       // rest of the page, so a flick into the content isn't pulled back (WebKit doesn't snap
       // inside an area taller than the screen).
