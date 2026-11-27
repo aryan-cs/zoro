@@ -29,9 +29,11 @@ describe('ring hero motion', () => {
             expect(Math.hypot(cx - nx, cy - ny), `line ${i} vs rings at p=${p}`).toBeGreaterThan(ring.size / 2 + 4);
             // Inside the hero's backdrop.
             expect(ra.b, `line ${i} vs backdrop at p=${p}`).toBeLessThanOrEqual(plan.frame(p).height + 0.01);
-            // Nearly clear of the content below (which starts about 28pt under the big hero and rises
-            // a point per point scrolled): at most its top few points go under the hero's soft edge.
-            expect(ra.b, `line ${i} vs content at p=${p}`).toBeLessThanOrEqual(plan.bigH - p * plan.span + 32);
+            // The content below starts 12pt under the big hero (the gap between cards) and rises a
+            // point per point scrolled. At rest it sits as close under the stats as they sit under the
+            // rings, so early in a collapse its top slides under the hero's backdrop, like content
+            // under a bar, by no more than the backdrop's soft 24pt edge plus a little.
+            expect(ra.b, `line ${i} vs content at p=${p}`).toBeLessThanOrEqual(plan.bigH - p * plan.span + 12 + 28);
             // Clear of every other line.
             items.forEach((b, j) => {
               if (j <= i) return;

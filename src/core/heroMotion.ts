@@ -28,8 +28,9 @@ export const HERO = {
   ROWGAP: 12,
   /** Between lines of the small legend. */
   LINE: 3,
-  /** Extra room under the big legend, so the legend can unfold before the content below arrives. */
-  SLACK: 24,
+  /** Extra room under the big legend, so the legend can unfold before the content below arrives.
+   * Small enough that, at rest, the stats sit as far above the card below as below the rings. */
+  SLACK: 9,
   /** Each part's stretch of the scroll (0 to 1), eased. The rings take the first half, gently: */
   RINGS: [0, 0.5],
   SPREAD: [0, 0.4],
