@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AiError, type GenerateResult } from './gemini';
 import type { PhotoDeps, PhotoLog } from './photoLog';
-import { jobName, MAX_TRIES, PhotoDB, PhotoQueue, type PhotoJob, type QueueEnv } from './photoQueue';
+import { canWait, jobName, LATER_MIN, MAX_TRIES, PhotoDB, PhotoQueue, type PhotoJob, type QueueEnv } from './photoQueue';
 
 const reply = (o: unknown): GenerateResult => ({ text: JSON.stringify(o), urls: [], sources: [], model: 'test' });
 const image = { mimeType: 'image/jpeg', data: 'AAAA' };
@@ -126,6 +126,40 @@ describe('photo queue', () => {
     await q.retry(id);
     await until(db, id, gone);
     expect(env.added).toHaveLength(1);
+  });
+
+  it('queues a photo for later, waiting out the quota until it goes through', async () => {
+    const q = makeQueue();
+    generate = async () => {
+      throw new AiError('quota', 'quota');
+    };
+    const id = await q.add(image, 'data:thumb', '2026-11-20');
+    const failed = await until(db, id, (j) => j?.status === 'failed');
+    expect(canWait(failed!)).toBe(true);
+    await q.later(id);
+    const queued = await db.jobs.get(id);
+    expect(queued).toMatchObject({ status: 'waiting', laterTries: 0 });
+    expect(queued!.retryAt! - Date.now()).toBeGreaterThan(LATER_MIN[0] * 60_000 - 5_000);
+    await q.pump();
+    expect(generated).toBe(1); // not before its time
+    // Its time comes, and the quota is still out: it waits longer instead of failing.
+    await db.jobs.update(id, { retryAt: Date.now() - 1 });
+    await q.pump();
+    const again = await until(db, id, (j) => j?.laterTries === 1);
+    expect(again).toMatchObject({ status: 'waiting' });
+    expect(again!.retryAt! - Date.now()).toBeGreaterThan(LATER_MIN[1] * 60_000 - 5_000);
+    // Then the quota resets.
+    generate = async () => reply(HOMEMADE);
+    await db.jobs.update(id, { retryAt: Date.now() - 1 });
+    await q.pump();
+    await until(db, id, gone);
+    expect(env.added).toHaveLength(1);
+  });
+
+  it('doesn’t offer to wait out a bad key or a photo with no food', () => {
+    expect(canWait({ error: { kind: 'key', title: '', message: '' } })).toBe(false);
+    expect(canWait({ error: { kind: 'empty', title: '', message: '' } })).toBe(false);
+    expect(canWait({ error: { kind: 'network', title: '', message: '' } })).toBe(true);
   });
 
   it('calls a photo with no food a failure', async () => {

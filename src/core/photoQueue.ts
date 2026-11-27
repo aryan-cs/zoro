@@ -34,6 +34,9 @@ export interface PhotoJob {
   error?: { title: string; message: string; kind: AiErrorKind | 'empty' };
   /** Runs cut short so far (by iOS pausing the app, say); it gives up after MAX_TRIES. */
   tries: number;
+  /** Queued for later (after running out of free quota, say): when it next tries, and how many times it has. */
+  retryAt?: number;
+  laterTries?: number;
 }
 
 /** The photo itself (base64 JPEG), kept apart from its row so lists stay light. */
@@ -57,6 +60,11 @@ export const CONCURRENCY = 2;
 export const MAX_TRIES = 5;
 /** A run that's still going after this long is stuck (a connection iOS dropped): start it again. */
 export const STUCK_MS = 4 * 60_000;
+/** Queued for later, a photo tries again after 2, 10 and 30 minutes, then every hour until it works. */
+export const LATER_MIN = [2, 10, 30, 60];
+/** Failures worth waiting out: the free quota, a busy or unreachable Gemini, a hiccup. */
+const LATER_KINDS: (AiErrorKind | 'empty')[] = ['quota', 'busy', 'network', 'other'];
+export const canWait = (job: Pick<PhotoJob, 'error'>) => !!job.error && LATER_KINDS.includes(job.error.kind);
 
 /** What the queue needs from the app; tests pass fakes. */
 export interface QueueEnv {
@@ -96,6 +104,7 @@ export function jobName(job: Pick<PhotoJob, 'log' | 'brand' | 'read'>): string {
 
 export class PhotoQueue {
   private running = new Map<number, { abort: AbortController; hidden: boolean }>();
+  private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(private env: QueueEnv) {}
 
   get db() {
@@ -124,9 +133,15 @@ export class PhotoQueue {
     });
   }
 
-  /** Try a failed photo again, from the last step that finished. */
+  /** Try a photo again now, from the last step that finished (also one queued for later). */
   async retry(id: number): Promise<void> {
-    await this.env.db.jobs.update(id, { status: 'waiting', error: undefined, tries: 0, offline: false });
+    await this.env.db.jobs.update(id, { status: 'waiting', error: undefined, tries: 0, offline: false, retryAt: undefined, laterTries: undefined });
+    void this.pump();
+  }
+
+  /** Queue a photo for later: it waits, then tries again on its own (LATER_MIN) until it works. */
+  async later(id: number): Promise<void> {
+    await this.env.db.jobs.update(id, { status: 'waiting', error: undefined, tries: 0, offline: false, retryAt: Date.now() + LATER_MIN[0] * 60_000, laterTries: 0 });
     void this.pump();
   }
 
@@ -139,7 +154,13 @@ export class PhotoQueue {
   async pump(): Promise<void> {
     if (this.env.hidden()) return;
     const { db } = this.env;
-    const todo = (await db.jobs.where('status').anyOf('waiting', 'working').sortBy('createdAt')).filter((j) => !this.running.has(j.id!));
+    const now = Date.now();
+    const pending = (await db.jobs.where('status').anyOf('waiting', 'working').sortBy('createdAt')).filter((j) => !this.running.has(j.id!));
+    // Photos queued for later wait for their time; the next one due wakes the queue.
+    const next = Math.min(...pending.map((j) => (j.retryAt && j.retryAt > now ? j.retryAt : Infinity)));
+    clearTimeout(this.timer);
+    if (Number.isFinite(next)) this.timer = setTimeout(() => void this.pump(), next - now + 50);
+    const todo = pending.filter((j) => !j.retryAt || j.retryAt <= now);
     // Checked and claimed with no await in between, so two pumps never start the same photo.
     for (const job of todo) {
       if (this.running.size >= CONCURRENCY) break;
@@ -202,6 +223,10 @@ export class PhotoQueue {
       if (cut && tries < MAX_TRIES) {
         // iOS paused the app (or a connection hung): go again when it's back.
         await db.jobs.update(id, { status: 'waiting', tries });
+      } else if (now.retryAt !== undefined && canWait({ error: explain(err) })) {
+        // Queued for later and still not through (the quota hasn't reset yet): wait longer.
+        const n = (now.laterTries ?? 0) + 1;
+        await db.jobs.update(id, { status: 'waiting', tries: 0, laterTries: n, retryAt: Date.now() + LATER_MIN[Math.min(n, LATER_MIN.length - 1)] * 60_000 });
       } else if (kind === 'network' && !this.env.online()) {
         await db.jobs.update(id, { status: 'waiting', offline: true });
       } else {

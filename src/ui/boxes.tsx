@@ -1,3 +1,4 @@
+import { GlassLayers } from './bars';
 import { Children, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { saveSettings } from '../core/db';
@@ -232,7 +233,7 @@ function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void;
     window.setTimeout(props.onClose, CLOSE_MS);
   };
 
-  const MENU_H = 2 * 44 + 12;
+  const MENU_H = 2 * 42 + 20;
   const below = r.bottom + 10;
   const room = window.innerHeight - 110; // keep clear of the tab bar
   const top = below + MENU_H <= room ? below : r.top - 10 - MENU_H >= 60 ? r.top - 10 - MENU_H : room - MENU_H;
@@ -243,18 +244,21 @@ function BoxMenu(props: { el: HTMLElement; pinned: boolean; onClose: () => void;
       <div className={`ctx-blur ${closing ? 'is-closing' : ''}`} />
       <div ref={lift} className={`ctx-lift ${closing ? 'is-closing' : ''}`} style={{ top: r.top, left: r.left, width: r.width, height: r.height }} />
       <div className={`ios-menu ctx-menu ${closing ? 'is-closing' : ''}`} role="menu" style={{ top, left: r.left, transformOrigin: top >= r.bottom ? 'top left' : 'bottom left' }} onClick={(e) => e.stopPropagation()}>
-        <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onPin)}>
-          <span>{props.pinned ? 'Unpin' : 'Pin to Top'}</span>
-          <span className="ios-menu-icon">
-            <MaskSym name={props.pinned ? 'pin.slash' : 'pin'} size={17} />
-          </span>
-        </button>
-        <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onHide)}>
-          <span>Hide</span>
-          <span className="ios-menu-icon">
-            <MaskSym name="eye.slash" size={17} />
-          </span>
-        </button>
+        <GlassLayers />
+        <div className="ios-menu-body">
+          <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onPin)}>
+            <span className="ios-menu-icon">
+              <MaskSym name={props.pinned ? 'pin.slash' : 'pin'} size={17} />
+            </span>
+            <span className="ios-menu-label">{props.pinned ? 'Unpin' : 'Pin to Top'}</span>
+          </button>
+          <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(props.onHide)}>
+            <span className="ios-menu-icon">
+              <MaskSym name="eye.slash" size={17} />
+            </span>
+            <span className="ios-menu-label">Hide</span>
+          </button>
+        </div>
       </div>
     </div>,
     document.body,

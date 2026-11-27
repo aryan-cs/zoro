@@ -14,6 +14,7 @@ import { useScanner } from '../ui/Scanner';
 import { MEALS } from './Food';
 import { aiKey } from '../ui/aiKey';
 import { queuePhotos } from '../ui/photoQueue';
+import { useFileCancel } from '../ui/photo';
 const num = (s: string) => {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
@@ -332,6 +333,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   // Log from Photo: the picker (camera or library, iOS asks); the photos are then read in the
   // background, under Photos on Food, so this goes back there.
   const photoInput = useRef<HTMLInputElement>(null);
+  useFileCancel(photoInput, useCallback(() => setMenu(null), []));
   const [needKey, setNeedKey] = useState(false);
   // Arrived from a scan that found nothing: go straight to entering it from the label.
   useEffect(() => {
@@ -448,6 +450,9 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
             icon: <Sym name="camera" size={16} />,
             // Opened right in the tap, as Safari only shows the picker for one.
             onClick: () => (aiKey() ? photoInput.current?.click() : setNeedKey(true)),
+            // iOS's picker opens over this menu, which waits behind it.
+            submenu: true,
+            keepOpen: !!aiKey(),
           },
           { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
           { label: 'New Food', icon: <Sym name="square.and.pencil" size={16} />, onClick: () => setCustom({}) },
@@ -474,6 +479,7 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = '';
+          setMenu(null);
           if (!files.length) return;
           queuePhotos(files, date, meal).catch(() => toast('Couldn’t open that photo'));
           nav.pop();

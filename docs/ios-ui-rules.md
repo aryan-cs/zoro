@@ -42,6 +42,11 @@ screens were re-measured the same way in iOS Safari. When in doubt, measure agai
 | Text case | Title Case for titles, headers, rows, buttons, labels and workout/exercise names (small words like "to", "per", "or" lowercase mid-title); sentence case only for footnotes and messages |
 | Empty values | A gray em dash (—) in the value's place, everywhere; list placeholders ("No Items") are separate |
 | Cards | No decorative info tiles that look like buttons; a tile must do something |
+| Menus (iOS 27, read from UIKit's `_UIContextMenuView` in the simulator) | 250pt min wide, 34pt corners, 10pt top/bottom padding, 42pt rows; symbol on the left centered 40pt in (body size: `Sym` 14.4), label 17pt regular 96% white at 64pt; submenu chevron 26pt from the right; group line 1pt white 8% inset 24pt with 10pt above and below; destructive #FF4245. Opens over its button (sharing the button's corner) and grows out of it on the bouncy spring; opened upward, the items run bottom-up |
+| Menu glass (fitted to UIKit's `glassBackground` filter over a test pattern) | `backdrop-filter: blur(26px) saturate(180%) contrast(0.9) brightness(0.8)` over `rgba(120,120,122,0.2)`: black reads #202020, mid gray 106; rim = UIKit's CASDFKeyFillHighlightEffect (key light along the top, fill along the bottom, half strength, ~1pt, none at the sides) |
+| Glass buttons (iOS 27) | #1F1F1F over black, #202020→#232323 top to bottom; lit line along top and bottom only (#565656 fading over ~1.3pt); backdrop shows through faintly (contrast ~20%), not blurred away; no visible shadow over black |
+| Alerts (iOS 27) | 320pt wide, 34pt corners, 30pt side padding, title 17pt semibold at 22pt from the top, message 15pt 60% gray 7.7pt under it; buttons 48pt capsules inset 16pt, 8pt apart, 16pt below the text and from the bottom; card #2D2D2E over a 46% black dim; action sheets use the same card |
+| Measuring Apple's UI | `scripts/nativelab/`: a small UIKit app that shows Apple's own menus, alerts, sheets and glass in the simulator and dumps their view and layer trees (frames, corner radii, filters, fonts, colors, private glass effect values) to JSON |
 | Tint / destructive / success | `#0A84FF` / `#FF453A` / `#30D158` |
 
 ## Components

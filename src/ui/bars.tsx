@@ -1,5 +1,5 @@
 import { Sym } from './Sym';
-import { Fragment, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { InStack, useNav } from './nav';
 import './bars.css';
@@ -119,66 +119,184 @@ export function NavButtonGroup({ items }: { items: { label: string; icon: ReactN
   );
 }
 
+/** One of Apple's springs from index.css ("820ms linear(…)"), split for the Web Animations API. */
+function spring(name: string, fallbackMs: number): { duration: number; easing: string } {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const m = v.match(/^([\d.]+)ms\s+(.+)$/);
+  return m ? { duration: Number(m[1]), easing: m[2] } : { duration: fallbackMs, easing: 'ease-out' };
+}
+
+export type MenuItem = {
+  label: string;
+  icon?: ReactNode;
+  onClick: () => void;
+  /** Starts a new group (a line above it). */
+  group?: boolean;
+  /** Red, for deleting. */
+  danger?: boolean;
+  /** Opens more choices (a chevron, as for a submenu). */
+  submenu?: boolean;
+  /** Leaves the menu up under what this opens (iOS's photo picker), until the parent closes it. */
+  keepOpen?: boolean;
+};
+
 /**
- * iOS 26 pull-down menu: a glass panel that grows out of the button that opened it, with
- * white 17pt items and their symbols on the right. Tapping outside closes it.
+ * Liquid Glass in layers, fitted in iOS Safari against UIKit's own glass over a test pattern
+ * (bars.css, "Glass"): the blurred base, a sharper lens band along the edges, and the lit rim. They
+ * are siblings of the content, never its parents: in Safari anything that clips, fades or filters
+ * an element cuts the glass inside it off from the page behind.
+ */
+export function GlassLayers() {
+  return (
+    <>
+      <span className="glass-base" aria-hidden />
+      <span className="glass-lens" aria-hidden />
+      <span className="glass-rim" aria-hidden />
+    </>
+  );
+}
+
+/** iOS 27 menu metrics, read from UIKit's own menu (_UIContextMenuView) in the iPhone 17 simulator. */
+const MENU = { row: 42, pad: 10, sep: 21, title: 30, radius: 34, width: 250 };
+
+/**
+ * iOS 27 pull-down menu, measured from UIKit's: a Liquid Glass panel that grows out of the button
+ * that opened it (covering it, corner to corner) as a blurred blob that sharpens into the list.
+ * Rows are 42pt with the symbol on the left (centered 40pt in) and the label 64pt in; groups are
+ * split by a thin line. Opened upward, the items run bottom-up so the first stays nearest the
+ * button, as iOS does. Tapping outside closes it.
  */
 export function PullDownMenu(props: {
   anchor: DOMRect | null;
   onClose: () => void;
   /** A small gray line at the top saying what the menu is for, as iOS context menus have. */
   title?: string;
-  items: { label: string; icon?: ReactNode; onClick: () => void; /** Starts a new group (a gap above it). */ group?: boolean }[];
+  items: MenuItem[];
 }) {
-  // Closing plays the open animation in reverse (back into the button), then tells the parent.
-  const [closing, setClosing] = useState(false);
-  if (!props.anchor) return null;
-  const a = props.anchor;
+  // The last anchor stays while the menu animates away (also when the parent closes it).
+  const [shown, setShown] = useState<DOMRect | null>(props.anchor);
+  const [held, setHeld] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const closing = useRef(false);
+  // The glass button it grows out of, hidden while it's open: in iOS the button becomes the menu.
+  const source = useRef<HTMLElement | null>(null);
+  if (props.anchor && props.anchor !== shown) {
+    setShown(props.anchor);
+    setHeld(false);
+    closing.current = false;
+  }
+
+  const a = shown;
+  const seps = props.items.filter((i, k) => i.group && k > 0).length;
+  const h = MENU.pad * 2 + props.items.length * MENU.row + seps * MENU.sep + (props.title ? MENU.title : 0);
+  const up = !!a && a.top + h > window.innerHeight - 96 && a.bottom - h > 56;
+  const right = !!a && a.left + a.width / 2 >= window.innerWidth / 2;
+  // Where the button sits inside the menu, so the glass can grow out of exactly it.
+  const bw = a ? Math.min(a.width, MENU.width) : 44;
+  const bh = a ? Math.min(a.height, 48) : 44;
+  const from = `inset(${up ? `calc(100% - ${bh}px)` : '0px'} ${right ? '0px' : `calc(100% - ${bw}px)`} ${up ? '0px' : `calc(100% - ${bh}px)`} ${right ? `calc(100% - ${bw}px)` : '0px'} round ${Math.min(bw, bh) / 2}px)`;
+  // Its full size, plus room for the shadow (the clip's corners stay outside the glass's own).
+  const to = `inset(-40px round ${MENU.radius + 40}px)`;
+  const origin = `${up ? 'bottom' : 'top'} ${right ? 'right' : 'left'}`;
+
+  // Open: the glass grows from the button on Apple's bouncy spring; the rows start blurred and
+  // small and come into focus a little behind it.
+  useLayoutEffect(() => {
+    const el = panel.current;
+    if (!el || !props.anchor) return;
+    const x = props.anchor.left + props.anchor.width / 2;
+    const y = props.anchor.top + props.anchor.height / 2;
+    const btn = document.elementsFromPoint(x, y).find((e) => !e.closest('.ios-menu-scrim'))?.closest<HTMLElement>('.ios-navbtn');
+    if (btn) {
+      btn.style.visibility = 'hidden';
+      source.current = btn;
+    }
+    const s = spring('--spring-bouncy', 820);
+    const grow = { ...s, duration: s.duration * 0.75 };
+    // Each layer is clipped on its own (a clip on the menu would cut its glass off from the page).
+    for (const layer of el.children) (layer as HTMLElement).animate([{ clipPath: from }, { clipPath: to }], grow);
+    el.animate([{ transform: 'scale(0.96)' }, { transform: 'scale(1)' }], grow);
+    el.querySelector('.ios-menu-body')?.animate(
+      [
+        { filter: 'blur(8px)', opacity: 0, transform: 'scale(0.85)' },
+        { filter: 'blur(0px)', opacity: 1, transform: 'scale(1)' },
+      ],
+      { duration: 380, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'backwards' },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.anchor]);
+
   const close = (then?: () => void) => {
-    if (closing) return;
-    setClosing(true);
+    const el = panel.current;
+    if (closing.current) return;
+    closing.current = true;
     then?.();
-    window.setTimeout(() => {
-      setClosing(false);
-      props.onClose();
-    }, MENU_CLOSE_MS);
+    // Back into the button: the reverse, quicker and without the bounce.
+    el?.querySelector('.ios-menu-body')?.animate([{ filter: 'blur(0px)', opacity: 1 }, { filter: 'blur(6px)', opacity: 0 }], { duration: 180, easing: 'ease-in', fill: 'forwards' });
+    let anim: Animation | undefined;
+    for (const layer of el?.children ?? []) anim = (layer as HTMLElement).animate([{ clipPath: to, opacity: 1 }, { clipPath: from, opacity: 0 }], { duration: MENU_CLOSE_MS, easing: 'cubic-bezier(0.4, 0, 0.7, 1)', fill: 'forwards' });
+    const done = () => {
+      if (source.current) source.current.style.visibility = '';
+      source.current = null;
+      setShown(null);
+      setHeld(false);
+      closing.current = false;
+      if (props.anchor) props.onClose();
+    };
+    if (anim) anim.onfinish = done;
+    else done();
   };
+  // The parent closed it (say, the photo picker it opened was done): animate away too.
+  useEffect(() => {
+    if (!props.anchor && shown && !closing.current) close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.anchor]);
+
+  if (!a) return null;
+  const items = up ? [...props.items].reverse() : props.items;
+  // Reversed, a group's line belongs above the item after the one that started it.
+  const lineAbove = (k: number) => (up ? k > 0 && !!items[k - 1].group : k > 0 && !!items[k].group);
+  const place: CSSProperties = {
+    ...(up ? { bottom: window.innerHeight - a.bottom } : { top: a.top }),
+    ...(right ? { right: Math.max(16, window.innerWidth - a.right) } : { left: Math.max(16, a.left) }),
+    transformOrigin: origin,
+  };
+
   // Portaled to <body>: inside a dialog (or any transformed box) a fixed menu would be placed
   // relative to that box and clipped by it.
   return createPortal(
-    <div className={`ios-menu-scrim ${closing ? 'is-closing' : ''}`} onClick={() => close()}>
-      <div
-        className={`ios-menu ${closing ? 'is-closing' : ''}`}
-        role="menu"
-        // Opens down from its button, on the button's side of the screen (as iOS does), or up from
-        // it when there isn't room below (above the tab bar).
-        style={(() => {
-          const h = props.items.length * 44 + 12 + props.items.filter((i) => i.group).length * 16 + (props.title ? 32 : 0);
-          const up = a.bottom + 8 + h > window.innerHeight - 96 && a.top - 8 - h > 56;
-          const y = up ? { top: a.top - 8 - h } : { top: a.bottom + 8 };
-          const left = a.left + a.width / 2 < window.innerWidth / 2;
-          return left
-            ? { ...y, left: Math.max(16, a.left), transformOrigin: up ? 'bottom left' : 'top left' }
-            : { ...y, right: Math.max(16, window.innerWidth - a.right), transformOrigin: up ? 'bottom right' : 'top right' };
-        })()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {props.title && <div className="ios-menu-title">{props.title}</div>}
-        {props.items.map((i) => (
-          <Fragment key={i.label}>
-            {i.group && <div className="ios-menu-sep" role="separator" />}
-            <button type="button" role="menuitem" className="ios-menu-item" onClick={() => close(i.onClick)}>
-              <span>{i.label}</span>
-              {i.icon && <span className="ios-menu-icon">{i.icon}</span>}
-            </button>
-          </Fragment>
-        ))}
+    <div className="ios-menu-scrim" onClick={() => close()}>
+      <div ref={panel} className={`ios-menu ${held ? 'is-held' : ''}`} role="menu" style={place} onClick={(e) => e.stopPropagation()}>
+        <GlassLayers />
+        <div className="ios-menu-body">
+          {props.title && <div className="ios-menu-title">{props.title}</div>}
+          {items.map((i, k) => (
+            <Fragment key={i.label}>
+              {lineAbove(k) && <div className="ios-menu-sep" role="separator" />}
+              <button
+                type="button"
+                role="menuitem"
+                className={`ios-menu-item ${i.danger ? 'is-danger' : ''}`}
+                onClick={() => {
+                  if (i.keepOpen) {
+                    setHeld(true);
+                    i.onClick();
+                  } else close(i.onClick);
+                }}
+              >
+                <span className="ios-menu-icon">{i.icon}</span>
+                <span className="ios-menu-label">{i.label}</span>
+                {i.submenu && <Sym name="chevron.right" size={11.5} className="ios-menu-chevron" />}
+              </button>
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>,
     document.body,
   );
 }
-const MENU_CLOSE_MS = 300;
+const MENU_CLOSE_MS = 260;
 
 /** Text button in a glass capsule (Done, Cancel, Finish). `strong` makes it the blue prominent one. */
 export function NavTextButton(props: { onClick?: () => void; children: ReactNode; strong?: boolean }) {

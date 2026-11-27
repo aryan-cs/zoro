@@ -11,3 +11,4 @@ output
 .claude/worktrees/
 server/node_modules
 server/.wrangler
+scripts/nativelab/build/

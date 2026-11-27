@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Preloader } from 'konsta/react';
 import { useEffect, useState } from 'react';
 import type { PhotoStep } from '../core/photoLog';
-import type { PhotoJob } from '../core/photoQueue';
+import { canWait, type PhotoJob } from '../core/photoQueue';
 import { Row, Section, SheetPage } from '../ui/kit';
 import { useNav } from '../ui/nav';
 import { photoDB, photoQueue } from '../ui/photoQueue';
@@ -36,6 +36,10 @@ function stepTitle(job: PhotoJob): string {
   return 'Reading Photo';
 }
 
+/** "1:05 PM": when a photo queued for later tries again. */
+const at = (t: number) => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const isLater = (job: PhotoJob) => job.status === 'waiting' && !!job.retryAt && job.retryAt > Date.now();
+
 /**
  * Photos being read, on Food between the rings and Breakfast: each its own capsule (a one-row
  * card, like a Settings toggle row) with the step it's on and Apple's spinner. You can keep using
@@ -47,14 +51,15 @@ export function PhotoQueue({ onOpen }: { onOpen: (id: number) => void }) {
   return (
     <>
       {jobs.map((job) => {
-        const title = job.status === 'failed' ? (job.error?.title ?? 'Couldn’t Read Photo') : job.status === 'working' ? stepTitle(job) : (job.brand ?? 'Photo');
+        const later = isLater(job);
+        const title = job.status === 'failed' ? (job.error?.title ?? 'Couldn’t Read Photo') : job.status === 'working' ? stepTitle(job) : later ? 'Queued for Later' : (job.brand ?? 'Photo');
         return (
           <div key={job.id} className="meal-gap">
             <button type="button" className={`meal-row pq-row is-${job.status}`} onClick={() => onOpen(job.id!)} aria-label={title}>
               <img className="pq-thumb" src={job.thumb} alt="" />
               <span className="pq-title">{title}</span>
               {job.status === 'working' && <Preloader className="pq-spinner" />}
-              {job.status === 'waiting' && <span className="meal-row-value">{job.offline ? 'Offline' : 'Waiting'}</span>}
+              {job.status === 'waiting' && <span className="meal-row-value tabular">{later ? at(job.retryAt!) : job.offline ? 'Offline' : 'Waiting'}</span>}
               {job.status === 'failed' && <Sym name="exclamationmark.circle.fill" size={20} className="pq-failed" />}
             </button>
           </div>
@@ -107,9 +112,11 @@ export function PhotoJobSheet({ id, onClose }: { id: number | null; onClose: () 
             title="Progress"
             footer={
               job.status === 'waiting'
-                ? job.offline
-                  ? 'Waiting for a connection. Zoro picks up where it left off.'
-                  : 'Waiting for the photos before it.'
+                ? isLater(job)
+                  ? `Queued for later: Zoro tries again at ${at(job.retryAt!)}, and keeps trying until it works. The foods then go into Other.`
+                  : job.offline
+                    ? 'Waiting for a connection. Zoro picks up where it left off.'
+                    : 'Waiting for the photos before it.'
                 : 'You can close this and keep using Zoro. When it’s done, the foods go into Other.'
             }
           >
@@ -117,6 +124,7 @@ export function PhotoJobSheet({ id, onClose }: { id: number | null; onClose: () 
           </Section>
           <div className="mt-6">
             <Section>
+              {isLater(job) && <Row accent title="Try Now" onClick={() => void photoQueue.retry(job.id!)} />}
               <Row danger title="Stop and Delete Photo" onClick={() => void remove()} />
             </Section>
           </div>
@@ -135,7 +143,11 @@ export function PhotoJobSheet({ id, onClose }: { id: number | null; onClose: () 
               }}
             />
           ) : (
-            <Row accent title="Try Again" onClick={() => void photoQueue.retry(job.id!)} />
+            <>
+              {/* Out of free quota (or Gemini can't be reached): let it wait and try again by itself. */}
+              {canWait(job) && <Row accent title="Queue for Later" onClick={() => void photoQueue.later(job.id!)} />}
+              <Row accent title="Try Again" onClick={() => void photoQueue.retry(job.id!)} />
+            </>
           )}
           <Row danger title="Delete Photo" onClick={() => void remove()} />
         </Section>

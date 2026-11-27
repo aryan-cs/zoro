@@ -11,6 +11,7 @@ import type { FoodEntry, FoodItem, Meal } from '../core/types';
 import { db, fmt, Header, IconBtn, MacroSummary, Menu, useSettings, useToast } from '../ui/kit';
 import { aiKey } from '../ui/aiKey';
 import { queuePhotos } from '../ui/photoQueue';
+import { useFileCancel } from '../ui/photo';
 import { AmountSheet, QuickAddSheet } from './AddFood';
 import { PhotoJobSheet, PhotoQueue } from './PhotoLog';
 import { useNav } from '../ui/nav';
@@ -334,6 +335,7 @@ export function FoodScreen() {
   const [quick, setQuick] = useState(false);
   const [quickMeal, setQuickMeal] = useState<Meal>('unsorted');
   const photoInput = useRef<HTMLInputElement>(null);
+  useFileCancel(photoInput, useCallback(() => setAddMenu(null), []));
   // Photos are read in the background (ui/photoQueue): the one opened from its row, if any.
   const [job, setJob] = useState<number | null>(null);
   const closeJob = useCallback(() => setJob(null), []);
@@ -465,7 +467,9 @@ export function FoodScreen() {
           { label: 'Search Foods', icon: <Sym name="magnifyingglass" size={16} />, onClick: () => nav.push({ name: 'addFood', date }) },
           // Both open right in the tap, as Safari only shows the camera or photo picker for one.
           { label: 'Scan Barcode', icon: <Sym name="barcode.viewfinder" size={16} />, onClick: scan },
-          { label: 'Log from Photo', icon: <Sym name="camera" size={16} />, onClick: pickPhoto },
+          // iOS's own picker (Photo Library, Take Photo, Choose File) opens over this menu, which
+          // waits behind it until a photo is picked or the picker is dismissed.
+          { label: 'Log from Photo', icon: <Sym name="camera" size={16} />, onClick: pickPhoto, submenu: true, keepOpen: !!aiKey() },
           { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
         ]}
       />
@@ -492,7 +496,8 @@ export function FoodScreen() {
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          // Saved and read in the background: each shows up under Photos straight away.
+          setAddMenu(null);
+          // Saved and read in the background: each shows up as its own capsule straight away.
           if (files.length) queuePhotos(files, date).catch(() => toast('Couldn’t open that photo'));
         }}
       />

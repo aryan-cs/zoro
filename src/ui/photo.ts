@@ -1,3 +1,5 @@
+import { useEffect, type RefObject } from 'react';
+
 /**
  * A photo made small enough to send quickly: at most `max` pixels on its long side, re-encoded
  * as JPEG (which also turns an iPhone's HEIC into something Gemini reads). The browser applies the
@@ -30,4 +32,14 @@ export async function shrinkPhoto(file: Blob, max = 1600): Promise<{ mimeType: '
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/** Run `fn` when the photo picker opened from this file input is dismissed without a pick. */
+export function useFileCancel(ref: RefObject<HTMLInputElement | null>, fn: () => void): void {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener('cancel', fn);
+    return () => el.removeEventListener('cancel', fn);
+  }, [ref, fn]);
 }

@@ -24,16 +24,17 @@
 
 /* Liquid Glass surface for bars and their buttons. No press highlight: iOS doesn't flash the bar. */
 .ios-glass {
-  background: rgba(36, 36, 38, 0.72);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  /* The tab bar's rim: whole-point lines, so the edge is the same thickness on every side.
-   * (Half-point lines land on uneven pixels at 3x and look shaved off along the bottom/right.) */
+  /* iOS 27 glass buttons, measured in the simulator: #1F1F1F over black (#202020 to #232323 top to
+   * bottom), the backdrop showing through faintly rather than blurred away. The rim is UIKit's key
+   * and fill lights (CASDFKeyFillHighlightEffect, half strength each): a lit line along the top
+   * and one along the bottom, fading out toward the sides, which stay unlit. */
+  background: linear-gradient(rgba(44, 44, 46, 0.72), rgba(50, 50, 52, 0.72));
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  backdrop-filter: blur(8px) saturate(180%);
   box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0.5px rgba(255, 255, 255, 0.32),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
-    0 6px 20px rgba(0, 0, 0, 0.45);
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0.5px rgba(255, 255, 255, 0.22),
+    0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 /* ---------- Tab bar ---------- */
@@ -1459,7 +1460,22 @@ button.water-oz:active {
   transform: scale(0.9);
 }
 
-/* ---------- Pull-down menu (iOS 26) ---------- */
+/* ---------- Menus (iOS 27, measured from UIKit's _UIContextMenuView in the simulator) ---------- */
+/*
+ * Liquid Glass, fitted in iOS Safari: our menu drawn over a test pattern (stripes and color bars)
+ * exactly where iOS draws its own photo-picker menu, compared pixel by pixel and tuned until the
+ * glass is within about 5 levels (of 255) of UIKit's. Safari can't bend the backdrop the way
+ * UIKit's glass refracts it (it ignores SVG filters in backdrop-filter), so the depth is layered:
+ * - .glass-base: the heavy blur, colors kept vivid, shadows lifted (black reads #202020), and a
+ *   soft shadow under it;
+ * - .glass-lens: a 16pt band along the edges, blurred less, standing in for the lens: the page
+ *   just behind the rim shows through sharper, as refraction makes it;
+ * - .glass-rim: the lit edge. UIKit's CASDFKeyFillHighlightEffect is a key light along the top and
+ *   a fill light along the bottom, fading out toward the sides; the falloff (strong at the edge,
+ *   about a third 8% of the way in) is the one the speak project tuned against the macOS Dock.
+ * They sit side by side under the content, never around it: in Safari a parent that clips, fades
+ * or filters cuts the glass inside it off from the page behind.
+ */
 .ios-menu-scrim {
   position: fixed;
   inset: 0;
@@ -1467,75 +1483,134 @@ button.water-oz:active {
 }
 .ios-menu {
   position: fixed;
-  min-width: 240px;
-  padding: 6px;
-  border-radius: 24px;
-  background: rgba(38, 38, 40, 0.82);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-  box-shadow:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.08),
-    0 12px 40px rgba(0, 0, 0, 0.5);
-  transform-origin: top right;
-  animation: ios-menu-in var(--spring-bouncy) both;
+  min-width: 250px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 0;
+  border-radius: 34px;
 }
-@keyframes ios-menu-in {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-}
-/* Closing: shrinks and fades back into the button it came from. */
-.ios-menu.is-closing {
-  animation: ios-menu-out var(--spring-quick) both;
-}
-.ios-menu-scrim.is-closing {
+.glass-base,
+.glass-lens,
+.glass-rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   pointer-events: none;
 }
-@keyframes ios-menu-out {
-  to {
-    opacity: 0;
-    transform: scale(0.4);
-  }
+.glass-base {
+  background: rgba(120, 120, 122, 0.2);
+  -webkit-backdrop-filter: blur(26px) saturate(180%) contrast(0.9) brightness(0.9);
+  backdrop-filter: blur(26px) saturate(180%) contrast(0.9) brightness(0.9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.glass-lens {
+  background: rgba(120, 120, 122, 0.2);
+  -webkit-backdrop-filter: blur(6px) saturate(180%) contrast(0.9);
+  backdrop-filter: blur(6px) saturate(180%) contrast(0.9);
+  -webkit-mask-image:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 16px, transparent calc(100% - 16px), rgba(0, 0, 0, 0.6)),
+    linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent 16px, transparent calc(100% - 16px), rgba(0, 0, 0, 0.6));
+  mask-image:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 16px, transparent calc(100% - 16px), rgba(0, 0, 0, 0.6)),
+    linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent 16px, transparent calc(100% - 16px), rgba(0, 0, 0, 0.6));
+}
+.glass-rim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.086) 8%,
+    rgba(255, 255, 255, 0.03) 28%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.03) 72%,
+    rgba(255, 255, 255, 0.062) 92%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  -webkit-mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+}
+.ios-menu-body {
+  position: relative;
+}
+/* Something opened from it is on top (iOS's photo picker): it waits behind, dimmed. */
+.ios-menu.is-held .ios-menu-body {
+  opacity: 0.45;
+  transition: opacity 200ms ease;
+}
+.ios-menu-body {
+  transform-origin: inherit;
 }
 .ios-menu-item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   width: 100%;
-  height: 44px;
-  padding: 0 14px;
-  border-radius: 18px;
+  height: 42px;
+  padding: 0 26px 0 24px;
   font-size: 17px;
-  color: var(--ios-label);
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.96);
   text-align: left;
+  white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
-.ios-menu-item:active {
-  background: rgba(255, 255, 255, 0.12);
+/* Pressed: a capsule of lighter glass behind the row. */
+.ios-menu-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 10px;
+  border-radius: 21px;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 120ms ease;
 }
-/* What a context menu is for, in small gray text over its items. */
-.ios-menu-title {
-  padding: 8px 14px 6px;
-  font-size: 13px;
-  line-height: 18px;
-  color: rgba(235, 235, 245, 0.6);
+.ios-menu-item:active::before {
+  opacity: 1;
+  transition: none;
 }
-/* A gap between groups of items, as iOS menus have (a band of the darker glass behind). */
-.ios-menu-sep {
-  height: 8px;
-  margin: 4px -6px;
-  background: rgba(0, 0, 0, 0.18);
+.ios-menu-item.is-danger {
+  color: #ff4245;
 }
-/* Menu icons sit in a fixed column, each centered in it, so different symbols line up. */
+/* Symbols sit in a fixed column, each centered 40pt in, so different symbols line up; labels start
+ * 64pt in. UIKit draws them at the body size, which is 0.9 of the size the menus pass. */
 .ios-menu-icon {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 32px;
+  margin-right: 8px;
+  zoom: 0.9;
+}
+.ios-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ios-menu-chevron {
+  margin-left: 12px;
+  color: rgba(255, 255, 255, 0.96);
+}
+/* What a context menu is for, in small gray text over its items. */
+.ios-menu-title {
+  padding: 4px 24px 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(235, 235, 245, 0.6);
+}
+/* Between groups: a thin line 24pt in from each side, 10pt clear above and below. */
+.ios-menu-sep {
+  height: 1px;
+  margin: 10px 24px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* ---------- Today: a grid of squares ---------- */
@@ -2298,8 +2373,40 @@ button.water-oz:active {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
+/* A context menu (touch and hold) has no button to grow out of: it springs up from the box. */
 .ctx-menu {
-  min-width: 220px;
+  animation: ctx-menu-in var(--spring-bouncy) both;
+}
+.ctx-menu > * {
+  animation: ctx-layer-in var(--spring-quick) both;
+}
+.ctx-menu.is-closing,
+.ctx-menu.is-closing > * {
+  animation: ctx-menu-out var(--spring-quick) both;
+}
+@keyframes ctx-menu-in {
+  from {
+    transform: scale(0.6);
+  }
+}
+/* Faded layer by layer: a fading parent would cut the glass off from the page behind. */
+@keyframes ctx-layer-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ctx-menu-out {
+  to {
+    opacity: 0;
+  }
+}
+.ctx-menu.is-closing {
+  animation-name: ctx-menu-shrink;
+}
+@keyframes ctx-menu-shrink {
+  to {
+    transform: scale(0.6);
+  }
 }
 /* The held box's copy fades out with the blur as the real one returns. */
 .ctx-lift.is-closing {
