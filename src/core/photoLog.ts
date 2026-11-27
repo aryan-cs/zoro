@@ -66,6 +66,8 @@ export interface PhotoDeps {
   fetchFile?: (url: string) => Promise<{ mimeType: string; data: string } | null>;
   now?: () => Date;
   onStep?: (step: PhotoStep, detail?: string) => void;
+  /** What step 1 read, so a run cut short can pick up from step 2 (see `resume`). */
+  onRead?: (read: PhotoRead) => void;
   /** Diagnostics for the test harness. */
   trace?: (what: string, data: unknown) => void;
 }
@@ -447,12 +449,17 @@ function describe(args: unknown, read: PhotoRead): string {
 /**
  * Read a photo and look up what's in it. `image` is base64 (JPEG, already made smaller).
  * Throws AiError (no key, no quota, no connection) or returns a log with no foods if it found none.
+ * `resume` is a read from an earlier run (onRead): it skips step 1.
  */
-export async function logFromPhoto(image: { mimeType: string; data: string }, deps: PhotoDeps, signal?: AbortSignal): Promise<PhotoLog> {
+export async function logFromPhoto(image: { mimeType: string; data: string }, deps: PhotoDeps, signal?: AbortSignal, resume?: PhotoRead): Promise<PhotoLog> {
   const now = deps.now?.() ?? new Date();
-  deps.onStep?.('read');
-  const first = await deps.generate({ model: READ_MODELS, parts: [{ text: readPrompt(now) }, { inlineData: image }], system: READ_SYSTEM, schema: READ_SCHEMA, signal });
-  const read = normalizeRead(parseJson(first.text));
+  let read = resume;
+  if (!read) {
+    deps.onStep?.('read');
+    const first = await deps.generate({ model: READ_MODELS, parts: [{ text: readPrompt(now) }, { inlineData: image }], system: READ_SYSTEM, schema: READ_SCHEMA, signal });
+    read = normalizeRead(parseJson(first.text));
+    deps.onRead?.(read);
+  }
   deps.trace?.('read', read);
   const { date, dated } = pickDate(read, now);
   const { meal, timed } = pickMeal(read, now);

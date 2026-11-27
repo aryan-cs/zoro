@@ -2897,8 +2897,7 @@ button.water-oz:active {
   line-height: 22px;
   color: var(--ios-label);
 }
-.pl-step + .pl-step::before,
-.pl-food + .pl-food::before {
+.pl-step + .pl-step::before {
   content: '';
   position: absolute;
   top: 0;
@@ -2927,132 +2926,6 @@ button.water-oz:active {
   height: 20px !important;
   color: #8d8d93;
 }
-/* One food: name and what it is, − n +, its numbers, its source. Everything wraps. */
-.pl-food {
-  position: relative;
-  padding: 12px 16px 14px;
-  list-style: none;
-}
-.pl-food-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.pl-food-name {
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 22px;
-  overflow-wrap: anywhere;
-  color: var(--ios-label);
-}
-.pl-food-about {
-  margin-top: 2px;
-  font-size: 15px;
-  line-height: 20px;
-  overflow-wrap: anywhere;
-  color: #98989f;
-}
-.pl-food.is-off .pl-food-name,
-.pl-food.is-off .pl-food-about,
-.pl-food.is-off .pl-rings,
-.pl-food.is-off .pl-source {
-  opacity: 0.4;
-}
-.pl-qty {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 2px;
-}
-/* 32pt to see, 44pt to touch. */
-.pl-qty-btn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-  color: var(--ios-label);
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--spring-press);
-}
-.pl-qty-btn::after {
-  content: '';
-  position: absolute;
-  inset: -6px;
-}
-.pl-qty-btn:not(:disabled):active {
-  transform: scale(0.92);
-  background: rgba(255, 255, 255, 0.18);
-}
-.pl-qty-btn:disabled {
-  opacity: 0.35;
-}
-.pl-qty-value {
-  min-width: 28px;
-  text-align: center;
-  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 24px;
-  color: var(--ios-label);
-}
-/* A food's four rings, like Today's: each a small Fitness ring with its amount under it. */
-.pl-rings {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-.pl-ring {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-.pl-ring svg {
-  width: 58px;
-  height: 58px;
-}
-.pl-ring-value {
-  margin-top: 6px;
-  font-family: ui-rounded, -apple-system, system-ui, sans-serif;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 22px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.pl-ring-value small {
-  margin-left: 2px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.pl-source {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  font-size: 15px;
-  line-height: 20px;
-  overflow-wrap: anywhere;
-  color: var(--ios-tint);
-  -webkit-tap-highlight-color: transparent;
-}
-.pl-source:active {
-  opacity: 0.4;
-}
-.pl-source.is-estimate {
-  display: block;
-  color: #8d8d93;
-}
-
 /* ---------- Adding a walk, run or stairs to the day's steps (ActivitySheet) ---------- */
 .act-rows > .amt-row + .amt-row {
   box-shadow: inset 0 0.5px 0 rgba(84, 84, 88, 0.65);
@@ -3145,4 +3018,65 @@ button.water-oz:active {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* ---------- Photos being read (PhotoQueue on Food) ---------- */
+/* Each photo is its own capsule, like a one-row Settings card (Rest Timer): 52pt tall, fully
+ * rounded, the photo round and concentric with the left end, then what it's doing and a spinner,
+ * its calories or an alert on the right. */
+.pq-row {
+  margin: 0 16px;
+  width: calc(100% - 32px);
+  gap: 12px;
+  padding-left: 10px;
+  border-radius: 26px;
+  background: var(--ios-cell);
+}
+.pq-thumb {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #2c2c2e;
+}
+.pq-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pq-row.is-waiting .pq-title {
+  color: #98989f;
+}
+.pq-spinner {
+  flex-shrink: 0;
+  width: 20px !important;
+  height: 20px !important;
+  color: #8d8d93;
+}
+.pq-failed {
+  color: var(--ios-red);
+}
+
+/* ---------- Tab badge (iOS): a red capsule on the icon's top right ---------- */
+.tab-badged {
+  position: relative;
+  display: inline-flex;
+}
+.tab-badge {
+  position: absolute;
+  top: -6px;
+  left: calc(100% - 7px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ios-red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
 }

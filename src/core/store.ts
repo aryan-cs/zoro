@@ -270,7 +270,7 @@ export interface InboxFood {
 export function isInboxFood(item: unknown): item is InboxFood {
   const f = item as InboxFood;
   const m = f?.food?.serving?.macros;
-  const meals: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const meals: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack', 'unsorted'];
   return (
     f?.kind === 'food' &&
     /^\d{4}-\d{2}-\d{2}$/.test(f.date) &&

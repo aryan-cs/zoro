@@ -12,8 +12,8 @@ import { Btn, db, Field, FITNESS, FitText, fmt, GlassSheet, Header, IconGroup, M
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
 import { MEALS } from './Food';
-import { PhotoLogSheet } from './PhotoLog';
 import { aiKey } from '../ui/aiKey';
+import { queuePhotos } from '../ui/photoQueue';
 const num = (s: string) => {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
@@ -329,9 +329,9 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
   // Two bar buttons (scan, +) keep the title centered; + opens the other ways to add.
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [custom, setCustom] = useState<{ barcode?: string } | null>(null);
-  // Log from Photo: the picker (camera or library, iOS asks), then the sheet that reads it.
+  // Log from Photo: the picker (camera or library, iOS asks); the photos are then read in the
+  // background, under Photos on Food, so this goes back there.
   const photoInput = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [needKey, setNeedKey] = useState(false);
   // Arrived from a scan that found nothing: go straight to entering it from the label.
   useEffect(() => {
@@ -469,20 +469,13 @@ export function AddFoodScreen({ meal: initialMeal, date, barcode }: { meal?: Mea
         ref={photoInput}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
+          const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          if (f) setPhoto(f);
-        }}
-      />
-      <PhotoLogSheet
-        file={photo}
-        date={date}
-        meal={meal}
-        onClose={() => setPhoto(null)}
-        onDone={() => {
-          setPhoto(null);
+          if (!files.length) return;
+          queuePhotos(files, date, meal).catch(() => toast('Couldn’t open that photo'));
           nav.pop();
         }}
       />

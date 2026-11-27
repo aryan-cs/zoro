@@ -12,7 +12,9 @@ import { WaterScreen } from './screens/Water';
 import { WorkoutScreen } from './screens/Workout';
 import { ExerciseScreen } from './screens/Exercise';
 import { useAutoTargets } from './ui/autoTargets';
-import { InfoProvider, ToastProvider } from './ui/kit';
+import { InfoProvider, ToastProvider, useToast } from './ui/kit';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { doneMessage, onPhotoDone, photoDB, startPhotoQueue } from './ui/photoQueue';
 import type { SFName } from './ui/sf';
 import { Sym } from './ui/Sym';
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -108,11 +110,24 @@ function DayIcon({ day }: { day: number }) {
   );
 }
 
+/**
+ * Photos are read in the background (ui/photoQueue) and their foods go into Other; a toast says
+ * so wherever you are. Food's tab shows how many photos couldn't be read.
+ */
+function PhotoDone() {
+  const toast = useToast();
+  useEffect(() => startPhotoQueue(), []);
+  useEffect(() => onPhotoDone((job) => toast(doneMessage(job))), [toast]);
+  return null;
+}
+
 function Tabs() {
   const { tab } = useNavState();
   const { setTab } = useNav();
   // Today shows the date, like Calendar's icon: WED over 25.
   const day = useDayOfMonth();
+  // Food's badge: photos that couldn't be read and need you, as iOS badges a tab.
+  const failed = useLiveQuery(() => photoDB.jobs.where('status').equals('failed').count(), []) ?? 0;
   return (
     <Tabbar icons className="zoro-tabbar fixed bottom-0 left-0 z-20 !pb-[var(--tabbar-bottom)]" bgClassName="!hidden">
       <ToolbarPane {...({ highlight: false } as object)}>
@@ -122,7 +137,18 @@ function Tabs() {
             active={tab === t.id}
             onClick={() => setTab(t.id)}
             aria-label={t.label}
-            icon={t.id === 'today' ? <DayIcon day={day} /> : <Sym name={t.icon} size={17} />}
+            icon={
+              t.id === 'today' ? (
+                <DayIcon day={day} />
+              ) : t.id === 'food' && failed ? (
+                <span className="tab-badged">
+                  <Sym name={t.icon} size={17} />
+                  <span className="tab-badge tabular">{failed}</span>
+                </span>
+              ) : (
+                <Sym name={t.icon} size={17} />
+              )
+            }
           />
         ))}
       </ToolbarPane>
@@ -625,6 +651,7 @@ export function App() {
         <ToastProvider>
           <InfoProvider>
           <Shell />
+          <PhotoDone />
           {/* Local previews skip the offline cache so every reload shows the latest build. */}
           {!LOCAL && <UpdatePrompt />}
           </InfoProvider>

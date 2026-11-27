@@ -10,8 +10,9 @@ import { entriesFor, logFood, today } from '../core/store';
 import type { FoodEntry, FoodItem, Meal } from '../core/types';
 import { db, fmt, Header, IconBtn, MacroSummary, Menu, useSettings, useToast } from '../ui/kit';
 import { aiKey } from '../ui/aiKey';
+import { queuePhotos } from '../ui/photoQueue';
 import { AmountSheet, QuickAddSheet } from './AddFood';
-import { PhotoLogSheet } from './PhotoLog';
+import { PhotoJobSheet, PhotoQueue } from './PhotoLog';
 import { useNav } from '../ui/nav';
 import { useScanner } from '../ui/Scanner';
 import { SPRING_TOKENS, springEasing } from '../ui/motion';
@@ -333,8 +334,11 @@ export function FoodScreen() {
   const [quick, setQuick] = useState(false);
   const [quickMeal, setQuickMeal] = useState<Meal>('unsorted');
   const photoInput = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<File | null>(null);
+  // Photos are read in the background (ui/photoQueue): the one opened from its row, if any.
+  const [job, setJob] = useState<number | null>(null);
+  const closeJob = useCallback(() => setJob(null), []);
   const [needKey, setNeedKey] = useState(false);
+  const pickPhoto = () => (aiKey() ? photoInput.current?.click() : setNeedKey(true));
 
   // Tapping a logged food opens it in the amount sheet (as adding one does) to change how much
   // or which meal, or to delete it. A food with no saved copy (Quick Add) is rebuilt from the entry.
@@ -395,6 +399,8 @@ export function FoodScreen() {
           <MacroSummary totals={totals} settings={settings} hero />
         </div>
       </div>
+
+      <PhotoQueue onOpen={setJob} />
 
       <div className="slide-clip">
       <div ref={listRef}>
@@ -459,7 +465,7 @@ export function FoodScreen() {
           { label: 'Search Foods', icon: <Sym name="magnifyingglass" size={16} />, onClick: () => nav.push({ name: 'addFood', date }) },
           // Both open right in the tap, as Safari only shows the camera or photo picker for one.
           { label: 'Scan Barcode', icon: <Sym name="barcode.viewfinder" size={16} />, onClick: scan },
-          { label: 'Log from Photo', icon: <Sym name="camera" size={16} />, onClick: () => (aiKey() ? photoInput.current?.click() : setNeedKey(true)) },
+          { label: 'Log from Photo', icon: <Sym name="camera" size={16} />, onClick: pickPhoto },
           { label: 'Quick Add Calories', icon: <Sym name="bolt.fill" size={16} />, onClick: () => setQuick(true) },
         ]}
       />
@@ -479,16 +485,18 @@ export function FoodScreen() {
         ref={photoInput}
         type="file"
         accept="image/*"
+        multiple
         aria-hidden
         tabIndex={-1}
         style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', left: 0, top: 0 }}
         onChange={(e) => {
-          const f = e.target.files?.[0];
+          const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          if (f) setPhoto(f);
+          // Saved and read in the background: each shows up under Photos straight away.
+          if (files.length) queuePhotos(files, date).catch(() => toast('Couldn’t open that photo'));
         }}
       />
-      <PhotoLogSheet file={photo} date={date} onClose={() => setPhoto(null)} onDone={() => setPhoto(null)} />
+      <PhotoJobSheet id={job} onClose={closeJob} />
       {createPortal(
         <Dialog
           opened={needKey}
