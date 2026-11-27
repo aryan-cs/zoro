@@ -41,35 +41,41 @@ function device(): string {
 const keyBytes = (b64u: string) => Uint8Array.from(atob(b64u.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b64u.length + 3) % 4)), (c) => c.charCodeAt(0));
 const sameKey = (a: ArrayBuffer | null | undefined, b: Uint8Array) => !!a && a.byteLength === b.length && new Uint8Array(a).every((x, i) => x === b[i]);
 
-async function subscription(make: boolean): Promise<PushSubscription | null> {
-  const reg = await navigator.serviceWorker.ready;
-  const key = keyBytes(VAPID_PUBLIC_KEY);
-  let sub = await reg.pushManager.getSubscription();
-  // One made for another server key can't be used: start over.
-  if (sub && !sameKey(sub.options.applicationServerKey, key)) {
-    await sub.unsubscribe().catch(() => {});
-    sub = null;
-  }
-  if (!sub && make) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-  return sub;
+// The service worker's registration, ready before any tap, so subscribing can happen right in the
+// tap (iOS only allows it from one).
+let registration: ServiceWorkerRegistration | null = null;
+if (restPushSupported()) void navigator.serviceWorker.ready.then((r) => (registration = r));
+
+/** This phone's push subscription for zoro-server's key, if there is one. */
+async function subscription(): Promise<PushSubscription | null> {
+  const reg = registration ?? (await navigator.serviceWorker.ready);
+  const sub = await reg.pushManager.getSubscription();
+  return sub && sameKey(sub.options.applicationServerKey, keyBytes(VAPID_PUBLIC_KEY)) ? sub : null;
 }
 
 /** Why turning them on last failed (shown with the message, to tell one cause from another). */
 export let restPushError = '';
 
-/** Turn rest notifications on (from a tap: iOS asks for permission only then). */
+/**
+ * Turn rest notifications on. Call it straight from a tap: subscribing is the first thing it
+ * does, which is what asks for permission on iOS (only allowed from a tap).
+ */
 export async function enableRestPush(): Promise<'on' | 'denied' | 'unsupported' | 'failed'> {
   if (!restPushSupported()) return 'unsupported';
-  const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
-  if (permission !== 'granted') return 'denied';
+  const options = { userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) };
   try {
-    if (!(await subscription(true))) {
-      restPushError = 'no subscription';
-      return 'failed';
+    const reg = registration ?? (await navigator.serviceWorker.ready);
+    try {
+      await reg.pushManager.subscribe(options);
+    } catch (e) {
+      // One made for another server key: replace it.
+      if (!(e instanceof DOMException && e.name === 'InvalidStateError')) throw e;
+      await (await reg.pushManager.getSubscription())?.unsubscribe();
+      await reg.pushManager.subscribe(options);
     }
   } catch (e) {
     restPushError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-    return 'failed';
+    return Notification.permission === 'denied' ? 'denied' : 'failed';
   }
   write(ON_KEY, '1');
   return 'on';
@@ -88,7 +94,7 @@ const post = (body: object) =>
 export function scheduleRestPush(endsAt: number, next?: string) {
   if (!restPushOn() || endsAt < Date.now() + 1500) return;
   void (async () => {
-    const sub = await subscription(false).catch(() => null);
+    const sub = await subscription().catch(() => null);
     if (sub) await post({ action: 'schedule', device: device(), endsAt, subscription: sub.toJSON(), next });
   })();
 }
