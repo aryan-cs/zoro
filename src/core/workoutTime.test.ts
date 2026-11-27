@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXERCISES, TEMPLATES, templateFor } from './program';
+import { EXERCISES, stationOf, TEMPLATES, templateFor } from './program';
 import { planWorkout } from './progression';
 import { DEFAULT_SETTINGS } from './settings';
 import type { TemplateId } from './types';
@@ -28,18 +28,29 @@ describe('how long a workout takes', () => {
   });
 
   it('does supersets in rounds: a set of each, then the rest', () => {
-    const steps = rounds(plan('upperB').exercises, (e) => e.sets.length).slice(0, 4);
-    expect(steps.map((s) => [s.ex.exerciseId, s.i, s.restAfter])).toEqual([
-      ['bench', 0, 0],
-      ['cableRow', 0, 150],
-      ['bench', 1, 0],
-      ['cableRow', 1, 150],
+    const steps = rounds(plan('upperB').exercises, (e) => e.sets.length);
+    const k = steps.findIndex((st) => st.ex.exerciseId === 'preacherCurl');
+    expect(steps.slice(k, k + 4).map((s) => [s.ex.exerciseId, s.i, s.restAfter])).toEqual([
+      ['preacherCurl', 0, 0],
+      ['pushdown', 0, 75],
+      ['preacherCurl', 1, 0],
+      ['pushdown', 1, 75],
     ]);
-    expect(plan('upperB').exercises.find((e) => e.exerciseId === 'cableRow')?.notes[0]).toBe('Alternate with Bench Press: a set of each, then rest.');
+    expect(steps.filter((st) => st.ex.exerciseId === 'bench').every((st) => st.restAfter === 180 || st === steps.filter((x) => x.ex.exerciseId === 'bench').at(-1))).toBe(true);
+    expect(plan('upperB').exercises.find((e) => e.exerciseId === 'pushdown')?.notes[0]).toBe('Alternate with Cable Preacher Curl: a set of each, then rest.');
   });
 });
 
 describe('the week', () => {
+  it('only pairs exercises done at the same station, and never the big lifts', () => {
+    for (const t of Object.values(TEMPLATES)) {
+      const byLabel = new Map<string, Set<string>>();
+      for (const e of t.exercises) if (e.superset) byLabel.set(e.superset, new Set([...(byLabel.get(e.superset) ?? []), stationOf(e.exerciseId)]));
+      for (const [label, stations] of byLabel) expect(stations.size, `${t.id} ${label}`).toBe(1);
+      for (const e of t.exercises) if (['bench', 'pausedBench', 'squat', 'rdl', 'cableRow', 'barbellRow'].includes(e.exerciseId)) expect(e.superset, `${t.id} ${e.exerciseId}`).toBeUndefined();
+    }
+  });
+
   it('never pairs a muscle with itself', () => {
     // Wrist curls and reverse wrist curls are opposite sides of the forearm (flexors, extensors).
     const side = (id: string) => (id === 'wristCurl' ? 'forearm flexors' : id === 'reverseWristCurl' ? 'forearm extensors' : EXERCISES[id].muscles[0]);

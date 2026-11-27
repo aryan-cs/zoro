@@ -103,6 +103,19 @@ const p = (
   extra: Partial<PrescribedExercise> = {},
 ): PrescribedExercise => ({ exerciseId, sets, repMin, repMax, restSec, scheme: 'double', ...extra });
 
+/** Where in the gym an exercise is done. Two exercises are only paired when they share one, so a
+ * pair never means holding two stations in a busy gym. */
+const STATION: Record<string, string> = {
+  bench: 'rack', pausedBench: 'rack', closeGripBench: 'rack', inclineBarbell: 'rack', squat: 'rack',
+  pullup: 'pull-up bar', hangingLegRaise: 'pull-up bar', deadHang: 'pull-up bar',
+  dips: 'dip handles', cableRow: 'row station',
+  ballLegCurl: 'floor', rollout: 'floor', plank: 'floor', sidePlank: 'floor', deadBug: 'floor',
+};
+export function stationOf(exerciseId: string): string {
+  const d = EXERCISES[exerciseId];
+  return STATION[exerciseId] ?? (d?.kind === 'cable' ? 'cable' : d?.kind === 'dumbbell' ? 'dumbbells' : d?.kind === 'barbell' ? 'barbell' : (d?.kind ?? 'floor'));
+}
+
 /**
  * The week: four days of about an hour, warm-ups included (workoutTime.ts times them; the tests
  * keep them there). Mon heavy bench + back + arms, Tue legs + abs + forearms, Thu volume bench +
@@ -110,21 +123,19 @@ const p = (
  * Sun and Wed rest (steps, an easy walk and posture work).
  *
  * Measured first: the earlier plan's days were 23–31 sets one exercise at a time, about four
- * minutes a set, so 1.5–2 hours. Now nearly everything is paired (exercises sharing a superset
- * label are done in rounds: a set of each, then the rest):
- * - Supersets cut session time by about a third with the same reps, strength and growth
- *   (Zhang 2025, Sports Med meta-analysis; Iversen 2021 "No Time to Lift?"). Pairs are opposing
- *   muscles or ones that don't compete, never the same muscle twice.
- * - Each bench set is paired with a pull (rows or pull-ups): pulling between bench sets keeps or
- *   raises bench reps (Robbins 2010, Paz 2017), with about 3–4 minutes from one bench set to the
- *   next (Behenck 2022: shorter cuts bench volume).
- * - Weekly sets while cutting, per muscle: chest 10–12 (bench three days), biceps and triceps
- *   about 9 each, forearms about 9, back about 11, side delts 6, quads and hamstrings about 5–6,
- *   abs 6. Growth keeps rising with sets but each extra set adds less (Pelland 2026, Schoenfeld
- *   2017), strength needs few sets (Pelland 2026), and in a deficit fewer sets at high effort
- *   keep muscle as well as more (Roth 2023, Bickel 2011, Spiering 2021).
- * - Rest: about 2.5 minutes after a pair with a big lift in it, 60–75 seconds after an
- *   isolation pair (Schoenfeld 2016, Grgic 2018, Singer 2024).
+ * minutes a set, so 1.5–2 hours. Now:
+ * - Fewer sets. Weekly sets per muscle while cutting: chest 10–12 (bench three days), back about
+ *   10, biceps and triceps about 9 each, forearms about 9, side delts 6, quads and hamstrings
+ *   about 5, abs about 6. Growth keeps rising with sets but each extra set adds less (Pelland
+ *   2026, Schoenfeld 2017), strength needs few (Pelland 2026), and in a deficit fewer sets at
+ *   high effort keep muscle as well as more (Roth 2023, Bickel 2011, Spiering 2021).
+ * - Small lifts in pairs, but only two at the same station (the same cable stack, the same
+ *   dumbbells, the same bar), done in rounds: a set of each, then the rest. Pairing saves about a
+ *   third of the time with the same results (Zhang 2025, Iversen 2021); it isn't needed for the
+ *   gains, so the big lifts (bench, squat, RDL, rows) stay one exercise at a time, holding one
+ *   station. Pairs are never the same muscle twice.
+ * - Rest: 3 minutes on bench and squats, 2 on the other big lifts, 60–75 seconds after an
+ *   isolation set or pair (Schoenfeld 2016, Grgic 2018, Singer 2024).
  * Five days wouldn't help: at the same weekly sets, how often you train doesn't change growth
  * (Schoenfeld 2019), and bench already comes three times a week.
  *
@@ -134,14 +145,14 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   upperA: {
     id: 'upperA',
     name: 'Heavy Bench, Back, and Arms',
-    short: 'Heavy bench with pull-ups, arms, abs',
+    short: 'Heavy bench, pull-ups, arms, abs',
     exercises: [
-      p('bench', 4, 1, 8, 150, { scheme: 'bench-heavy', superset: 'bench' }),
-      p('pullup', 4, 4, 8, 150, { superset: 'bench' }), // about 4 now: build reps first, then add weight
-      p('ohTricepsExt', 3, 8, 12, 75, { superset: 'arms' }),
-      p('inclineCurl', 3, 8, 12, 75, { superset: 'arms' }),
-      p('reverseCurl', 3, 10, 15, 60, { superset: 'core' }),
-      p('cableCrunch', 3, 10, 15, 60, { superset: 'core' }),
+      p('bench', 4, 1, 8, 180, { scheme: 'bench-heavy' }),
+      p('pullup', 4, 4, 8, 120, { superset: 'bar' }), // about 4 now: build reps first, then add weight
+      p('hangingLegRaise', 3, 8, 15, 120, { superset: 'bar' }),
+      p('ohTricepsExt', 3, 8, 12, 75, { superset: 'cable' }),
+      p('bayesianCurl', 3, 10, 15, 75, { superset: 'cable' }),
+      p('reverseCurl', 3, 10, 15, 60),
     ],
   },
   lowerA: {
@@ -149,38 +160,38 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Legs, Abs, and Forearms',
     short: 'Squat, RDL, abs, forearms',
     exercises: [
-      p('squat', 3, 5, 8, 150, { superset: 'squat' }),
-      p('hangingLegRaise', 3, 8, 15, 150, { superset: 'squat' }),
-      p('rdl', 3, 6, 10, 120, { superset: 'rdl' }),
-      p('lateralRaise', 3, 12, 20, 120, { superset: 'rdl' }),
-      p('wristCurl', 3, 12, 20, 60, { superset: 'forearms' }),
-      p('reverseWristCurl', 3, 12, 20, 60, { superset: 'forearms' }),
+      p('squat', 3, 5, 8, 180),
+      p('rdl', 3, 6, 10, 120),
+      p('lateralRaise', 3, 12, 20, 60),
+      p('cableCrunch', 3, 10, 15, 60),
+      p('wristCurl', 3, 12, 20, 60, { superset: 'barbell' }),
+      p('reverseWristCurl', 3, 12, 20, 60, { superset: 'barbell' }),
     ],
   },
   upperB: {
     id: 'upperB',
     name: 'Bench, Back, and Shoulders',
-    short: 'Volume bench with rows, arms, delts',
+    short: 'Volume bench, rows, arms, delts',
     exercises: [
-      p('bench', 4, 3, 8, 150, { scheme: 'bench-volume', superset: 'bench' }),
-      p('cableRow', 4, 8, 12, 150, { superset: 'bench' }),
-      p('preacherCurl', 3, 8, 12, 75, { superset: 'arms' }),
-      p('pushdown', 3, 10, 15, 75, { superset: 'arms' }),
-      p('lateralRaise', 3, 12, 20, 60, { superset: 'delts' }),
-      p('rearDeltFly', 3, 12, 20, 60, { superset: 'delts' }),
+      p('bench', 4, 3, 8, 180, { scheme: 'bench-volume' }),
+      p('cableRow', 3, 8, 12, 120),
+      p('preacherCurl', 3, 8, 12, 75, { superset: 'cable' }),
+      p('pushdown', 3, 10, 15, 75, { superset: 'cable' }),
+      p('lateralRaise', 3, 12, 20, 60, { superset: 'dumbbells' }),
+      p('rearDeltFly', 3, 12, 20, 60, { superset: 'dumbbells' }),
     ],
   },
   lowerB: {
     id: 'lowerB',
     name: 'Bench, Legs, and Arms',
-    short: 'Paused or close-grip bench with rows, legs, arms',
+    short: 'Paused or close-grip bench, rows, legs, arms',
     exercises: [
-      p('pausedBench', 3, 3, 6, 150, { scheme: 'bench-variation', superset: 'bench' }),
-      p('barbellRow', 3, 8, 12, 150, { superset: 'bench' }),
-      p('bulgarian', 3, 8, 12, 90, { superset: 'legs' }),
-      p('ballLegCurl', 2, 8, 15, 90, { superset: 'legs' }),
-      p('hammerCurl', 3, 8, 12, 60, { superset: 'arms' }),
-      p('leaningOhExt', 3, 10, 15, 60, { superset: 'arms' }),
+      p('pausedBench', 3, 3, 6, 180, { scheme: 'bench-variation' }),
+      p('barbellRow', 3, 8, 12, 120),
+      p('bulgarian', 3, 8, 12, 90, { superset: 'dumbbells' }),
+      p('hammerCurl', 3, 8, 12, 90, { superset: 'dumbbells' }),
+      p('ballLegCurl', 2, 8, 15, 60),
+      p('leaningOhExt', 3, 10, 15, 60),
     ],
   },
   arms: {
@@ -188,12 +199,12 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
     name: 'Arms, Shoulders, and Abs',
     short: 'Optional, about half an hour',
     exercises: [
-      p('cableLateral', 3, 12, 20, 60, { superset: 'delts' }),
-      p('rearDeltFly', 3, 12, 20, 60, { superset: 'delts' }),
-      p('ezCurl', 3, 8, 12, 60, { superset: 'arms' }),
-      p('pushdown', 3, 10, 15, 60, { superset: 'arms' }),
-      p('wristCurl', 2, 12, 20, 45, { superset: 'forearms' }),
-      p('reverseWristCurl', 2, 12, 20, 45, { superset: 'forearms' }),
+      p('cableLateral', 3, 12, 20, 60, { superset: 'cable' }),
+      p('pushdown', 3, 10, 15, 60, { superset: 'cable' }),
+      p('ezCurl', 3, 8, 12, 60),
+      p('wristCurl', 2, 12, 20, 45, { superset: 'barbell' }),
+      p('reverseWristCurl', 2, 12, 20, 45, { superset: 'barbell' }),
+      p('rearDeltFly', 3, 12, 20, 60),
     ],
   },
   pmCardio: {
