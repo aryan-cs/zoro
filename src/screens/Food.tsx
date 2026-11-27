@@ -65,9 +65,6 @@ const sortKey = (e: FoodEntry) => e.order ?? e.loggedAt;
 
 /** Rows and cards moving aside for a dragged food: quick, on a spring (no bounce). */
 const SLIDE_SPRING = springEasing(SPRING_TOKENS.quick);
-const SLIDE = `${SLIDE_SPRING.ms}ms ${SLIDE_SPRING.easing}`;
-/** Vertical translation an element currently has from a transform (FLIP or otherwise). */
-const shiftY = (el: Element | null) => (el ? new DOMMatrixReadOnly(getComputedStyle(el).transform).m42 || 0 : 0);
 
 /**
  * Touch and hold a food row, then drag it, as in iOS's reorderable lists (Settings, the share
@@ -83,52 +80,66 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
   const dropRef = useRef(onDrop);
   dropRef.current = onDrop;
   const before = useRef<Map<string, DOMRect> | null>(null);
+  // The slides running now, cut short (back to the real layout) before the next one is measured.
+  const running = useRef<Animation[]>([]);
+  // Where the cards, rows and gap end up after the latest move, relative to the list: the drop
+  // spot is worked out from these, so cards still sliding don't move it back and forth.
+  const targets = useRef<{ cards: { meal: Meal; top: number; bottom: number; mids: number[] }[]; gap: number | null } | null>(null);
 
-  /** Remember where everything is, so the next render can slide it from there (FLIP). */
+  /** Remember where everything is drawn now, so the next render can slide it from there (FLIP). */
   const snapshot = useCallback(() => {
     const m = new Map<string, DOMRect>();
     root.current?.querySelectorAll<HTMLElement>('[data-flip]').forEach((el) => m.set(el.dataset.flip!, el.getBoundingClientRect()));
     before.current = m;
   }, [root]);
 
-  // After each change of drop spot: rows slide to their new places, cards grow and shrink.
+  // After each change of drop spot: rows slide to their new places, cards grow and shrink. Only
+  // heights animate on the cards: they're stacked, so each one below rides along with them.
+  // (Moving the cards as well counted that twice: they jumped a row's height, then slid back.)
   useLayoutEffect(() => {
     const old = before.current;
     before.current = null;
     const box = root.current;
-    if (!old || !box) return;
+    if (!box) return;
+    if (old || !drop) {
+      running.current.forEach((a) => a.cancel());
+      running.current = [];
+    }
     const els = [...box.querySelectorAll<HTMLElement>('[data-flip]')];
     const now = new Map(els.map((el) => [el.dataset.flip!, el.getBoundingClientRect()]));
+    if (drop) {
+      const base = box.getBoundingClientRect().top;
+      targets.current = {
+        cards: [...box.querySelectorAll<HTMLElement>('[data-meal]')].map((section) => {
+          const r = section.querySelector<HTMLElement>('.meal-card')!.getBoundingClientRect();
+          const mids = [...section.querySelectorAll<HTMLElement>('[data-entry-id]')].map((row) => {
+            const b = row.getBoundingClientRect();
+            return b.top - base + b.height / 2;
+          });
+          return { meal: section.dataset.meal as Meal, top: r.top - base, bottom: r.bottom - base, mids };
+        }),
+        gap: (() => {
+          const g = box.querySelector<HTMLElement>('[data-placeholder]');
+          return g ? g.getBoundingClientRect().top - base : null;
+        })(),
+      };
+    } else targets.current = null;
+    if (!old) return;
+    const timing = { duration: SLIDE_SPRING.ms, easing: SLIDE_SPRING.easing };
     for (const el of els) {
       const key = el.dataset.flip!;
       const o = old.get(key);
       const n = now.get(key)!;
       if (!o) continue;
       if (key.startsWith('c')) {
-        const dy = o.top - n.top;
-        el.style.transition = 'none';
-        el.style.transform = dy ? `translateY(${dy}px)` : '';
-        el.style.height = `${o.height}px`;
-        void el.offsetHeight;
-        el.style.transition = `transform ${SLIDE}, height ${SLIDE}`;
-        el.style.transform = '';
-        el.style.height = `${n.height}px`;
-        window.setTimeout(() => {
-          el.style.height = '';
-          el.style.transition = '';
-        }, SLIDE_SPRING.ms);
+        if (Math.abs(o.height - n.height) > 0.5) running.current.push(el.animate([{ height: `${o.height}px` }, { height: `${n.height}px` }], timing));
       } else {
-        // Rows move within their card; the card's own move is animated on the card.
+        // Rows move within their card.
         const card = el.closest<HTMLElement>('[data-flip^="c"]')?.dataset.flip;
         const oc = card ? old.get(card) : undefined;
         const nc = card ? now.get(card) : undefined;
         const dy = o.top - (oc?.top ?? 0) - (n.top - (nc?.top ?? 0));
-        if (!dy) continue;
-        el.style.transition = 'none';
-        el.style.transform = `translateY(${dy}px)`;
-        void el.offsetHeight;
-        el.style.transition = `transform ${SLIDE}`;
-        el.style.transform = '';
+        if (Math.abs(dy) > 0.5) running.current.push(el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], timing));
       }
     }
   });
@@ -150,29 +161,24 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
       snapshot();
       setDrop(next);
     };
-    /** The meal and place under the finger, from where rows sit (ignoring their slide animations). */
+    /**
+     * The meal and place under the finger, from where the cards and rows end up (not where their
+     * slides have them right now): the nearest card, then how many of its rows sit above.
+     */
     const spotAt = (y: number, id: number, height: number): Drop | null => {
-      let best: { meal: Meal; section: HTMLElement } | null = null;
+      const t = targets.current;
+      if (!t?.cards.length) return null;
+      const yy = y - el.getBoundingClientRect().top;
+      let best = t.cards[0];
       let bestD = Infinity;
-      for (const section of el.querySelectorAll<HTMLElement>('[data-meal]')) {
-        const card = section.querySelector<HTMLElement>('[data-flip^="c"]');
-        if (!card) continue;
-        const r = card.getBoundingClientRect();
-        const top = r.top - shiftY(card);
-        const d = y < top ? top - y : y > top + r.height ? y - top - r.height : 0;
+      for (const c of t.cards) {
+        const d = yy < c.top ? c.top - yy : yy > c.bottom ? yy - c.bottom : 0;
         if (d < bestD) {
           bestD = d;
-          best = { meal: section.dataset.meal as Meal, section };
+          best = c;
         }
       }
-      if (!best) return null;
-      const card = best.section.querySelector<HTMLElement>('[data-flip^="c"]');
-      const rows = [...best.section.querySelectorAll<HTMLElement>('[data-entry-id]')].filter((r) => Number(r.dataset.entryId) !== id);
-      const index = rows.filter((r) => {
-        const b = r.getBoundingClientRect();
-        return b.top - shiftY(r) - shiftY(card) + b.height / 2 < y;
-      }).length;
-      return { id, meal: best.meal, index, height };
+      return { id, meal: best.meal, index: best.mids.filter((m) => m < yy).length, height };
     };
     const cleanup = () => {
       window.clearTimeout(timer);
@@ -215,6 +221,8 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
         return;
       }
       e.preventDefault();
+      // Not a swipe between tabs as well.
+      e.stopPropagation();
       if (ghost) ghost.style.top = `${t.clientY - start.offsetY}px`;
       const spot = spotAt(t.clientY, start.id, current?.height ?? 52);
       if (spot) move(spot);
@@ -230,9 +238,10 @@ function useMealDrag(root: RefObject<HTMLDivElement | null>, entries: FoodEntry[
         suppressClick = true;
         window.setTimeout(() => (suppressClick = false), 400);
         // Settle into the gap, then put the food there for real.
-        const gap = el.querySelector<HTMLElement>('[data-placeholder]')?.getBoundingClientRect();
+        // Where the gap ends up, not where its card's slide has it this moment.
+        const gap = targets.current?.gap;
         g.classList.add('is-dropping');
-        if (gap) g.style.top = `${gap.top}px`;
+        if (gap != null) g.style.top = `${el.getBoundingClientRect().top + gap}px`;
         window.setTimeout(() => {
           g.remove();
           dropRef.current(d);

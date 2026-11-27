@@ -3,10 +3,10 @@
  * follows, cut from the original recording with music, the Cooper Institute's 20-meter CD
  * (public/sounds/pacer-start.mp3). If that can't load, a "bo-de-boop" made here with
  * Web Audio plays instead. It plays when a rest ends while Zoro is open, through headphones when
- * they're in, and with the ringer off too: for that, iOS needs the page's audio session set to
- * playback, which pauses other apps' music (Safari doesn't tell them to carry on after). Once Zoro
- * is in another app or the phone is locked it can't play anything; the rest notification
- * (restPush.ts) covers that, with the system sound.
+ * they're in, over your music without stopping it (ambient audio, as he chose). The ringer switch
+ * mutes it: playing through that needs playback audio, which pauses other apps' music, and Safari
+ * never tells them to carry on after. Once Zoro is in another app or the phone is locked it can't
+ * play anything; the rest notification (restPush.ts) covers that, with the system sound.
  */
 const KEY = 'zoro.restSound';
 
@@ -118,21 +118,14 @@ export function playRestSound() {
   if (!c) return;
   const session = audioSession();
   const play = ++plays;
-  // Playback, so the ringer switch doesn't silence it; back to the default once it's done (or if
-  // iOS won't start it without a tap, which leaves resume() waiting).
-  if (session) session.type = 'playback';
-  const done = () => {
-    if (session && play === plays) session.type = 'auto';
-  };
-  const giveUp = window.setTimeout(done, 5000);
+  // Ambient: mixed in over whatever's playing (music carries on), rather than taking it over.
+  if (session) session.type = 'ambient';
   void c
     .resume()
     // The first time (Settings, before any workout), the recording may still be loading: give it
     // a moment rather than playing the stand-in.
     .then(() => Promise.race([loading, new Promise((r) => window.setTimeout(r, 1500))]))
     .then(() => {
-      window.clearTimeout(giveUp);
-      if (session) session.type = 'playback';
       unlocked = true;
       let length = LENGTH;
       if (clip) {
@@ -144,8 +137,8 @@ export function playRestSound() {
       } else beeps(c, c.currentTime + 0.03);
       window.setTimeout(() => {
         // Paused again unless another one started meanwhile.
-        if (play === plays) void c.suspend().catch(() => undefined).finally(done);
+        if (play === plays) void c.suspend().catch(() => undefined);
       }, (length + 0.25) * 1000);
     })
-    .catch(done);
+    .catch(() => undefined);
 }

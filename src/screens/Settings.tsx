@@ -530,7 +530,7 @@ export function SettingsScreen() {
         title="Notifications"
         footer={
           restPushSupported()
-            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started the next set. Rest Sound beeps when a rest ends with Zoro open, even with the ringer off.'
+            ? 'When a rest ends while you’re in another app, Zoro tells you: “Your rest is over!” It reminds you 30 seconds, 1 minute and 2 minutes later if you haven’t started the next set. Rest Sound plays over your music when a rest ends with Zoro open (not with the ringer off).'
             : 'Open Zoro from your Home Screen to get a notification when a rest ends.'
         }
       >
