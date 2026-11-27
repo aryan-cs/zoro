@@ -129,9 +129,11 @@ export function stationOf(exerciseId: string): string {
  *
  * Measured first: the earlier plan's days were 23–31 sets one exercise at a time, about four
  * minutes a set, so 1.5–2 hours. Now:
- * - Fewer sets. Weekly sets per muscle while cutting: chest 10–12 (bench three days), back about
- *   9, biceps and triceps about 9 each, forearms about 9, side delts 6, quads and hamstrings
- *   about 5, abs about 5. ACSM's 2026 stand puts 10 or more a week where most of the growth is,
+ * - Fewer sets. Weekly sets per muscle while cutting: chest about 16 (bench three days, plus dips
+ *   Monday and high-to-low flies Thursday for the lower chest, which for that part of the muscle
+ *   is EMG evidence, not growth trials), back about 9, biceps and triceps about 9 each, forearms
+ *   about 6 (hammer curls work the brachioradialis too), side delts 5, rear delts 2, quads and
+ *   hamstrings about 5, abs about 5. ACSM's 2026 stand puts 10 or more a week where most of the growth is,
  *   with less from each set past 18–20; legs sit just under that while they aren't a goal. Growth keeps rising with sets but each extra set adds less (Pelland
  *   2026, Schoenfeld 2017), strength needs few (Pelland 2026), and in a deficit fewer sets at
  *   high effort keep muscle as well as more (Roth 2023, Bickel 2011, Spiering 2021).
@@ -148,8 +150,9 @@ export function stationOf(exerciseId: string): string {
  * - How hard: each exercise's guide says (core/guide.ts): isolation sets a rep or two short with
  *   the last to failure, big lifts a rep or two short (Robinson 2024, Refalo 2023 and 2024).
  * - Hamstrings: a seated leg curl (hips bent) grows them more than lying ones (Maeo 2021).
- * Five days wouldn't help: at the same weekly sets, how often you train doesn't change growth
- * (Schoenfeld 2019), and bench already comes three times a week.
+ * Five days wouldn't help while cutting: at the same weekly sets, how often you train doesn't
+ * change growth (Schoenfeld 2019), and bench already comes three times a week. Up to six are
+ * fine with you; a fifth day is where more sets would go on a lean bulk, when more help.
  *
  * An exercise that shows up on two days keeps the same rep range, so its weights carry over.
  */
@@ -157,14 +160,16 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   upperA: {
     id: 'upperA',
     name: 'Heavy Bench, Back, and Arms',
-    short: 'Heavy bench, pull-ups, arms, abs',
+    short: 'Heavy bench, pull-ups, dips, arms, abs',
     exercises: [
       p('bench', 4, 1, 8, 180, { scheme: 'bench-heavy' }),
       p('pullup', 3, 4, 8, 120), // about 4 now: build reps first, then add weight
-      p('hangingLegRaise', 2, 8, 15, 60), // after the pull-ups, not between them: both tax your grip
+      // Lower chest and triceps. Between the pull-ups and the leg raises, so your grip rests.
+      // Reps first (about 6 now), then weight.
+      p('dips', 3, 6, 12, 90),
+      p('hangingLegRaise', 2, 8, 15, 60),
       p('ohTricepsExt', 3, 8, 12, 75, { superset: 'cable' }),
       p('bayesianCurl', 3, 10, 15, 75, { superset: 'cable' }),
-      p('reverseCurl', 3, 10, 15, 90),
     ],
   },
   lowerA: {
@@ -183,14 +188,15 @@ export const TEMPLATES: Record<TemplateId, WorkoutTemplate> = {
   upperB: {
     id: 'upperB',
     name: 'Bench, Back, and Shoulders',
-    short: 'Volume bench, rows, arms, delts',
+    short: 'Volume bench, rows, arms, flies, delts',
     exercises: [
       p('bench', 4, 3, 8, 180, { scheme: 'bench-volume' }),
       p('cableRow', 3, 8, 12, 120),
       p('preacherCurl', 3, 8, 12, 75, { superset: 'cable' }),
       p('pushdown', 3, 10, 15, 75, { superset: 'cable' }),
-      p('lateralRaise', 3, 12, 20, 60, { superset: 'dumbbells' }),
-      p('rearDeltFly', 3, 12, 20, 60, { superset: 'dumbbells' }),
+      p('cableFly', 2, 10, 15, 75), // lower chest, still at the cables
+      p('lateralRaise', 2, 12, 20, 60, { superset: 'dumbbells' }),
+      p('rearDeltFly', 2, 12, 20, 60, { superset: 'dumbbells' }),
     ],
   },
   lowerB: {

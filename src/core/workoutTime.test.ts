@@ -64,13 +64,14 @@ describe('the week', () => {
   it('gives each goal muscle its weekly sets (Mon, Tue, Thu, Fri; direct sets)', () => {
     const weekly: Record<string, number> = {};
     for (const id of MAIN) for (const e of plan(id).exercises) for (const m of EXERCISES[e.exerciseId].muscles.slice(0, 1)) weekly[m] = (weekly[m] ?? 0) + e.sets.length;
-    expect(weekly.chest).toBeGreaterThanOrEqual(9);
-    expect(weekly.chest).toBeLessThanOrEqual(13);
+    // Bench three days, dips and high-to-low flies for the lower chest.
+    expect(weekly.chest).toBeGreaterThanOrEqual(14);
+    expect(weekly.chest).toBeLessThanOrEqual(18);
     expect(weekly.biceps).toBeGreaterThanOrEqual(9);
     expect(weekly.triceps).toBeGreaterThanOrEqual(9);
     expect(weekly.forearms).toBeGreaterThanOrEqual(6);
     expect(weekly.back).toBeGreaterThanOrEqual(8);
-    expect(weekly['side delts']).toBe(6);
+    expect(weekly['side delts']).toBe(5);
     expect(weekly.quads).toBeGreaterThanOrEqual(5);
     expect(weekly.hamstrings).toBeGreaterThanOrEqual(5);
     expect(weekly.abs).toBeGreaterThanOrEqual(3);
