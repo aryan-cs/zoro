@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  chartDays,
   carbTarget,
   e1rm,
   estimateEnergy,
@@ -77,5 +78,22 @@ describe('weight trend and energy', () => {
 
   it('fills remaining calories with carbs', () => {
     expect(carbTarget(2600, 185, 70)).toBe(308);
+  });
+});
+
+describe('the days a History chart covers', () => {
+  it('starts at your first entry when that is inside the range', () => {
+    expect(chartDays(30, '2026-11-27', '2026-11-26')).toEqual(['2026-11-26', '2026-11-27']);
+    expect(chartDays(90, '2026-11-27', '2026-11-22')).toHaveLength(6);
+  });
+  it('shows the whole range once you have more than that, and with nothing logged', () => {
+    const days = chartDays(90, '2026-11-27', '2026-08-01');
+    expect(days).toHaveLength(90);
+    expect(days[0]).toBe('2026-08-30');
+    expect(days.at(-1)).toBe('2026-11-27');
+    expect(chartDays(7, '2026-11-27')).toHaveLength(7);
+  });
+  it('is just today when today is the first entry', () => {
+    expect(chartDays(30, '2026-11-27', '2026-11-27')).toEqual(['2026-11-27']);
   });
 });

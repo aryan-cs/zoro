@@ -221,3 +221,16 @@ export function averageSleep(entries: Pick<SleepEntry, 'date' | 'minutes'>[], en
   if (!inRange.length) return null;
   return inRange.reduce((s, e) => s + e.minutes, 0) / inRange.length;
 }
+
+/**
+ * The days a chart covers, one per day up to today: the whole range (30D, 90D...) once you have
+ * that much, or from your first entry if that's more recent, so a new log isn't squeezed into the
+ * corner of a mostly empty month. With nothing logged yet, the whole range.
+ */
+export function chartDays(range: number, end: ISODate, first?: ISODate): ISODate[] {
+  const from = addDays(end, -(range - 1));
+  const start = first && first > from ? (first > end ? end : first) : from;
+  const out: ISODate[] = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) out.push(d);
+  return out;
+}

@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Dialog, DialogButton, Page } from 'konsta/react';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addDays, averageSleep, carbTarget, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
+import { addDays, averageSleep, carbTarget, chartDays, e1rm, estimateEnergy, formatMinutes, roundTo, sevenDayAverage, sumEntries, weeklyRate, weightTrend } from '../core/calc';
 import { saveSettings } from '../core/db';
 import { EXERCISES, TEMPLATES } from '../core/program';
 import { benchState } from '../core/progression';
@@ -33,9 +33,10 @@ const RANGE_KEY = 'zoro.history.range';
 /** The first date inside the chosen range. */
 const rangeStart = (days: Range) => addDays(today(), -(days - 1));
 
-/** Date labels for the last `n` days, for a chart with nothing in it yet. */
-function emptyDays(n: number) {
-  return Array.from({ length: n }, (_, i) => short(addDays(today(), i - n + 1)));
+/** Each day's value (the last one logged that day), or null for a day with none. */
+function byDay<T extends { date: string }>(days: string[], list: T[], value: (t: T) => number): (number | null)[] {
+  const map = new Map(list.map((t) => [t.date, value(t)]));
+  return days.map((d) => map.get(d) ?? null);
 }
 
 /** Up to three stats in a row; one with an edit handler (a target or goal) is tappable. */
@@ -125,16 +126,17 @@ function Lifts() {
   const goal = isBench ? (settings.benchGoal ?? 225) : settings.liftGoals?.[lift];
   const range = useContext(RangeContext);
   const points = useMemo(() => (best[lift] ?? []).filter((b) => b.date >= rangeStart(range)), [best, lift, range]);
-  const labels = useMemo(() => (points.length ? points.map((b) => short(b.date)) : emptyDays(range)), [points, range]);
+  const days = useMemo(() => chartDays(range, today(), best[lift]?.[0]?.date), [best, lift, range]);
+  const labels = useMemo(() => days.map(short), [days]);
   const series = useMemo<Series[]>(
     () =>
       points.length
         ? [
-            { label: 'Estimated max', data: points.map((b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
-            ...(goal ? [{ label: 'Goal', data: points.map(() => goal), color: 'rgba(255,255,255,0.3)' }] : []),
+            { label: 'Estimated max', data: byDay(days, points, (b) => roundTo(b.e1rm, 1)), color: FITNESS.exercise },
+            ...(goal ? [{ label: 'Goal', data: days.map(() => goal), color: 'rgba(255,255,255,0.3)' }] : []),
           ]
         : [],
-    [points, goal],
+    [points, days, goal],
   );
   const logged = LIFTS.filter((id) => best[id]?.length);
   const top = points.length ? Math.max(...points.map((b) => b.e1rm)) : null;
@@ -366,18 +368,19 @@ function Measurements() {
   const latest = list.at(-1);
   const range = useContext(RangeContext);
   const shown = useMemo(() => list.filter((m) => m.date >= rangeStart(range)), [list, range]);
-  const labels = useMemo(() => (shown.length ? shown.map((m) => short(m.date)) : emptyDays(range)), [shown, range]);
+  const days = useMemo(() => chartDays(range, today(), list[0]?.date), [list, range]);
+  const labels = useMemo(() => days.map(short), [days]);
   // Your goal for this measurement (Settings › Goal), as a dashed line.
   const goal = useSettings().goalValues?.[size.type];
   const series = useMemo<Series[]>(
     () =>
       shown.length
         ? [
-            { label: size.label, data: shown.map((m) => m.value), color: FITNESS.body },
-            ...(goal !== undefined ? [{ label: 'Goal', data: shown.map(() => goal), color: 'rgba(235,235,245,0.45)' }] : []),
+            { label: size.label, data: byDay(days, shown, (m) => m.value), color: FITNESS.body },
+            ...(goal !== undefined ? [{ label: 'Goal', data: days.map(() => goal), color: 'rgba(235,235,245,0.45)' }] : []),
           ]
         : [],
-    [shown, size.label, goal],
+    [shown, days, size.label, goal],
   );
   const U = size.unit.toUpperCase();
   const signed = (n: number | null) => (n === null ? null : `${n > 0 ? '+' : ''}${fmt(n, 2)}`);
@@ -460,13 +463,14 @@ function Body() {
   const avg7 = sevenDayAverage(weights, today());
   const range = useContext(RangeContext);
   const recent = trend.filter((t) => t.date >= rangeStart(range));
-  const labels = useMemo(() => (recent.length ? recent.map((t) => short(t.date)) : emptyDays(range)), [recent, range]);
+  const days = useMemo(() => chartDays(range, today(), trend[0]?.date), [trend, range]);
+  const labels = useMemo(() => days.map(short), [days]);
   const series = useMemo<Series[]>(
     () => [
-      { label: 'Weigh-in', data: recent.map((t) => t.weight), color: 'rgba(255,159,10,0.45)', dots: true },
-      { label: 'Trend', data: recent.map((t) => roundTo(t.trend, 0.1)), color: FITNESS.body },
+      { label: 'Weigh-in', data: byDay(days, recent, (t) => t.weight), color: 'rgba(255,159,10,0.45)', dots: true },
+      { label: 'Trend', data: byDay(days, recent, (t) => roundTo(t.trend, 0.1)), color: FITNESS.body },
     ],
-    [recent],
+    [recent, days],
   );
 
   return (
@@ -555,13 +559,14 @@ function Food() {
   const water = useLiveQuery(() => dailyWater(range, db), [range]) ?? [];
   const weights = useLiveQuery(() => metricsOf('weight', 365, db), []) ?? [];
   const intake = useLiveQuery(() => dailyIntake(35, db), []) ?? [];
+  // The first day you ever logged food (or water): the chart starts there if that's inside the range.
+  const first = useLiveQuery(async () => (await (id === 'water' ? db.water : db.entries).orderBy('date').first())?.date, [id]);
   const energy = estimateEnergy(intake, weightTrend(weights), settings.targetRate);
 
   // Each day in the range: the nutrient's total, or null if nothing was logged that day.
   const days = useMemo(
     () =>
-      Array.from({ length: range }, (_, i) => {
-        const date = addDays(today(), i - (range - 1));
+      chartDays(range, today(), first).map((date) => {
         if (id === 'water') {
           const oz = water.find((w) => w.date === date)?.oz;
           return { date, value: oz ? oz : null };
@@ -571,7 +576,7 @@ function Food() {
         const t = sumEntries(list);
         return { date, value: id === 'fiber' ? list.reduce((s, e) => s + (e.macros.fiber ?? 0), 0) : t[id] };
       }),
-    [entries, water, id, range],
+    [entries, water, id, range, first],
   );
   const target =
     id === 'kcal'
@@ -720,8 +725,9 @@ function Sleep() {
   const lastNight = entries.find((e) => e.date === today());
   const avg = averageSleep(entries, today());
   const recent = entries.filter((e) => e.date >= rangeStart(range));
-  const labels = useMemo(() => (recent.length ? recent.map((e) => short(e.date)) : emptyDays(range)), [recent, range]);
-  const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: recent.map((e) => roundTo(e.minutes / 60, 0.1)), color: FITNESS.sleep }], [recent]);
+  const days = useMemo(() => chartDays(range, today(), entries[0]?.date), [entries, range]);
+  const labels = useMemo(() => days.map(short), [days]);
+  const series = useMemo<Series[]>(() => [{ label: 'Sleep', data: byDay(days, recent, (e) => roundTo(e.minutes / 60, 0.1)), color: FITNESS.sleep }], [recent, days]);
 
   const night = (picked ? entries.find((e) => e.date === picked) : undefined) ?? entries.at(-1);
   const stats = night ? nightStats(night) : null;
